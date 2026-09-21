@@ -40,10 +40,22 @@ def include(info):
     return info
 
 
-with tarfile.open(source, "w:gz") as bundle:
-    for item in (".dockerignore", ".gitignore", "README.md", "bin", "lib", "profiles",
-                 "image", "scripts", "share", "tests", "docs"):
-        bundle.add(root / item, arcname="hpc-workspace/" + item, filter=include)
+source_commit = None
+if (root / ".git").exists():
+    clean = subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=root)
+    if clean.returncode:
+        raise SystemExit("Commit tracked changes before packaging a release")
+    source_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    # Archive committed files only; ignored local files never enter a release.
+    subprocess.run(["git", "archive", "--format=tar.gz", "--prefix=hpc-workspace/",
+                    "--output", str(source), source_commit], cwd=root, check=True)
+else:
+    # Keep the build helpers usable from an unpacked source release.
+    with tarfile.open(source, "w:gz") as bundle:
+        for item in (".dockerignore", ".gitignore", "README.md", "bin", "lib", "profiles",
+                     "image", "scripts", "share", "tests", "docs"):
+            bundle.add(root / item, arcname="hpc-workspace/" + item, filter=include)
 
 manifests = directory / ("hpc-workspace-manifests-" + release + ".tar.gz")
 with manifests.open("wb") as output:
@@ -68,6 +80,7 @@ record = {
     "packaged_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "platform": "linux/amd64",
     "docker_image_id": inspected["Id"],
+    "source_git_commit": source_commit,
     "apptainer_converter": "1.5.3",
     "sif_compression": "gzip",
     "artifacts": artifacts,
