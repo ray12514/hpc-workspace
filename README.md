@@ -26,12 +26,16 @@ Nix is not a prerequisite. The Dockerfile pins base-image digests, uses a dated 
 
 ## Transfer and first launch
 
-Transfer these files from `dist/` using your approved transfer method:
+Get the files from the [0.1.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.1.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
+
+Transfer these files using your approved transfer method:
 
 - `hpc-workspace-core-0.1.0-preview1-linux-amd64.sif` and its `.sha256` file.
 - `hpc-workspace-source-0.1.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
 
 The Docker archive is an alternative for another Docker builder; it is not also required on a cluster. Keep images on a suitable persistent filesystem, outside purgeable scratch if they are your only copies.
+
+This is a **preview release**. The image contents passed the local checks described in [validation.md](docs/validation.md); normal SIF execution on the target clusters remains to be checked locally. The public repository contains generic configuration and public-source research. Site-local profiles, credentials, job data, and local reports stay on the clusters.
 
 On the cluster, verify each transferred file with `sha256sum -c FILE.sha256`, extract the source bundle, and make `bin/ws` available. The host launcher needs Python 3.6+; it has no Python package dependencies. Load the site's Apptainer module using the site's normal instructions.
 
