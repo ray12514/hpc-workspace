@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_release="${1:-0.1.0-preview1}"
+workspace_dist="$workspace_root/dist"
+workspace_name="hpc-workspace-core-${workspace_release}-linux-amd64"
+mkdir -p "$workspace_dist"
+if [[ -e "$workspace_dist/$workspace_name.sif" || -e "$workspace_dist/$workspace_name.docker.tar" ]]; then
+    printf 'Release artifacts already exist; use a new release name.\n' >&2
+    exit 1
+fi
+"$workspace_root/scripts/docker-public" build --platform linux/amd64 \
+    --tag hpc-workspace-apptainer:1.5.3 \
+    --file "$workspace_root/image/Apptainer.Dockerfile" "$workspace_root"
+"$workspace_root/scripts/docker-public" image save \
+    --output "$workspace_dist/$workspace_name.docker.tar" "hpc-workspace:$workspace_release"
+"$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
+    --network none \
+    --mount "type=bind,src=$workspace_dist,dst=/output" \
+    hpc-workspace-apptainer:1.5.3 build --arch amd64 \
+    --mksquashfs-args="-comp gzip -processors 2" \
+    "/output/$workspace_name.sif" "docker-archive:/output/$workspace_name.docker.tar"
+python3 - "$workspace_dist" "$workspace_name" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+
+directory, name = Path(sys.argv[1]), sys.argv[2]
+for suffix in ('.docker.tar', '.sif'):
+    path = directory / (name + suffix)
+    digest = hashlib.sha256()
+    with path.open('rb') as source:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    path.with_name(path.name + '.sha256').write_text(digest.hexdigest() + '  ' + path.name + '\n')
+    print(path)
+PY

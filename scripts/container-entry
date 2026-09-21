@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_umask=$(umask)
+umask 077
+export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+workspace_state="${WS_STATE_ROOT:-/workspace-state}"
+if [[ ! -d "$workspace_state" || ! -w "$workspace_state" ]]; then
+    workspace_state="${HOME}/.local/state/hpc-workspace/${WS_SITE:-local}"
+fi
+mkdir -p "$workspace_state"
+export XDG_STATE_HOME="$workspace_state/apps"
+export XDG_CACHE_HOME="$workspace_state/cache/${WS_RELEASE:-development}"
+export XDG_DATA_HOME="$workspace_state/data"
+export NVIM_APPNAME=nvim
+export XDG_CONFIG_HOME=/opt/workspace/config
+export EDITOR=nvim VISUAL=nvim
+export DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1
+mkdir -p "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
+if [[ "${WS_INSTALL_SKILLS:-1}" == 1 ]]; then
+    python3 /opt/workspace/bin/container-skills
+fi
+umask "$workspace_umask"
+if (( $# == 0 )); then
+    exec bash --noprofile --rcfile /opt/workspace/config/bashrc -i
+fi
+exec "$@"

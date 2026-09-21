@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+for tool in nvim tmux git rg fd fzf bat jq python3 node npm gcc g++ gfortran cmake ninja make gdb clangd shellcheck shfmt htop codex claude; do
+    command -v "$tool" >/dev/null || { printf 'Missing tool: %s\n' "$tool" >&2; exit 1; }
+done
+printf 'Identity: %s:%s\n' "$(id -u)" "$(id -g)"
+test "$(id -u)" -ne 0
+test -w "$HOME"
+test -w "$XDG_STATE_HOME"
+codex --version
+claude --version
+nvim --headless '+lua assert(vim.fn.exists(":WorkspaceSave") == 2)' +qa
+python3 -m venv "$XDG_CACHE_HOME/smoke-venv"
+"$XDG_CACHE_HOME/smoke-venv/bin/python" -c 'print("Python environment: OK")'
+test -r "$HOME/.agents/skills/research/SKILL.md"
+test -r "$HOME/.claude/skills/research/SKILL.md"
+temporary=$(mktemp -d "$XDG_CACHE_HOME/compiler-smoke.XXXXXX")
+trap 'rm -rf "$temporary"' EXIT
+printf '#include <stdio.h>\nint main(void) { puts("Compiler: OK"); return 0; }\n' > "$temporary/hello.c"
+gcc -Wall -Werror "$temporary/hello.c" -o "$temporary/hello"
+"$temporary/hello"
+printf 'Container smoke checks passed.\n'

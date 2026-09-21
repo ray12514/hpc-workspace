@@ -1,0 +1,8 @@
+**
+!image/
+!image/**
+!share/
+!share/**
+!scripts/
+!scripts/container-*
+!scripts/install-assets.py

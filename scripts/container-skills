@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Install shipped skills into user-owned state, preserving unrelated skills."""
+import os
+from pathlib import Path
+import shutil
+import tempfile
+
+source = Path('/opt/workspace/share/skills')
+release = os.environ.get('WS_RELEASE', 'development')
+store = Path.home() / '.local/share/hpc-workspace/skills'
+snapshot = store / release
+if not snapshot.exists():
+    store.mkdir(parents=True, exist_ok=True, mode=0o700)
+    stage = Path(tempfile.mkdtemp(prefix='.install-', dir=str(store)))
+    try:
+        for item in source.iterdir():
+            if item.is_dir():
+                shutil.copytree(item, stage / item.name)
+        try:
+            stage.rename(snapshot)
+        except OSError:
+            if not snapshot.is_dir():
+                raise
+    finally:
+        if stage.exists():
+            shutil.rmtree(stage)
+conflicts = []
+for skill in sorted(snapshot.iterdir()):
+    for folder in (Path.home() / '.agents/skills', Path.home() / '.claude/skills'):
+        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        link = folder / skill.name
+        if link.is_symlink():
+            try:
+                link.resolve().relative_to(store.resolve())
+                managed = True
+            except ValueError:
+                managed = False
+            if link.resolve() == skill.resolve():
+                continue
+            if managed:
+                # A temporary link and rename keep readers from seeing a missing skill.
+                temporary = folder / ('.' + skill.name + '.' + str(os.getpid()))
+                temporary.symlink_to(skill)
+                temporary.replace(link)
+                continue
+        if link.exists() or link.is_symlink():
+            conflicts.append(str(link))
+        else:
+            try:
+                link.symlink_to(skill)
+            except FileExistsError:
+                pass
+marker = Path(os.environ['XDG_STATE_HOME']) / ('skills-' + release + '.txt')
+if not marker.exists():
+    marker.write_text('Preserved existing skill paths:\n' + '\n'.join(conflicts) + '\n')
+    if conflicts:
+        print('workspace: preserved existing skills; details in ' + str(marker), file=__import__('sys').stderr)

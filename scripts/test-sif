@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Local nested-Apptainer fixture only; these Docker options are not cluster options.
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_release="${1:-0.1.0-preview1}"
+workspace_sif="$workspace_root/dist/hpc-workspace-core-${workspace_release}-linux-amd64.sif"
+test -f "$workspace_sif"
+workspace_mode="${WS_SIF_TEST_MODE:-unsquash}"
+workspace_docker_options=(--security-opt seccomp=unconfined --security-opt systempaths=unconfined)
+workspace_runtime_options=(exec --cleanenv --no-eval --no-mount "home,cwd,hostfs")
+case "$workspace_mode" in
+    unsquash) workspace_runtime_options+=(--unsquash) ;;
+    mount) workspace_docker_options+=(--device /dev/fuse) ;;
+    *) printf 'WS_SIF_TEST_MODE must be unsquash or mount.\n' >&2; exit 2 ;;
+esac
+workspace_fixture=$(mktemp -d "$workspace_root/build/sif-smoke.XXXXXX")
+trap 'rm -rf "$workspace_fixture"' EXIT
+mkdir -p "$workspace_fixture/home" "$workspace_fixture/state" "$workspace_fixture/project"
+# Only empty disposable fixtures are shared with the converter's uid 1000.
+chmod 0777 "$workspace_fixture/home" "$workspace_fixture/state" "$workspace_fixture/project"
+for workspace_version in 1.3.6 1.5.3; do
+    if [[ "$workspace_version" == 1.3.6 ]]; then
+        workspace_sha=2723b2928cfc30edf687723c49556ec4e013f0bf7cdb43a5a76bca7bd3c70792
+    else
+        workspace_sha=82b0bdddf459087d202383360b8318d526ad6826c748a2f669913cc6aef9ee40
+    fi
+    "$workspace_root/scripts/docker-public" build --platform linux/amd64 \
+        --build-arg "APPTAINER_VERSION=$workspace_version" \
+        --build-arg "APPTAINER_SHA256=$workspace_sha" \
+        --tag "hpc-workspace-apptainer:$workspace_version" \
+        --file "$workspace_root/image/Apptainer.Dockerfile" "$workspace_root"
+    printf 'Testing SIF with Apptainer %s (%s mode)\n' "$workspace_version" "$workspace_mode"
+    "$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
+        --network none --user node --env HOME=/home/node \
+        "${workspace_docker_options[@]}" \
+        --mount "type=bind,src=$workspace_sif,dst=/input/workspace.sif,readonly" \
+        --mount "type=bind,src=$workspace_fixture/home,dst=/home/node" \
+        --mount "type=bind,src=$workspace_fixture/state,dst=/workspace-state" \
+        --mount "type=bind,src=$workspace_fixture/project,dst=/project" \
+        --workdir /project "hpc-workspace-apptainer:$workspace_version" \
+        "${workspace_runtime_options[@]}" \
+        --bind /home/node:/home/node --bind /workspace-state:/workspace-state \
+        --bind /project:/project --pwd /project /input/workspace.sif \
+        /opt/workspace/bin/container-entry container-smoke
+done

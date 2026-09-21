@@ -1,0 +1,22 @@
+# Loaded explicitly; host shell startup files cannot change the baseline.
+export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export EDITOR=nvim
+export VISUAL=nvim
+export PAGER=less
+export LESS=-FRX
+export HISTCONTROL=ignoreboth
+export HISTSIZE=20000
+export HISTFILESIZE=40000
+export HISTFILE="${XDG_STATE_HOME}/bash-history"
+shopt -s histappend checkwinsize
+PROMPT_COMMAND='history -a'
+PS1='[ws:${WS_SITE:-local}:${WS_CONTEXT:-local}] \u@\h:\w\$ '
+alias ll='ls -alF'
+alias la='ls -A'
+alias ..='cd ..'
+if [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]]; then
+    source /usr/share/doc/fzf/examples/key-bindings.bash
+fi
+if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
+    source "${HOME}/.config/hpc-workspace/bashrc"
+fi

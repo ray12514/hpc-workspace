@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Isolate public pulls from interactive desktop credential helpers.
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_docker_config="$workspace_root/build/docker-public"
+mkdir -p "$workspace_docker_config"
+python3 - "$workspace_docker_config/config.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+plugin_dirs = [
+    Path.home() / ".docker/cli-plugins",
+    Path("/Applications/Docker.app/Contents/Resources/cli-plugins"),
+]
+Path(sys.argv[1]).write_text(json.dumps({
+    "cliPluginsExtraDirs": [str(path) for path in plugin_dirs if path.is_dir()]
+}) + "\n")
+PY
+workspace_endpoint="${WS_DOCKER_HOST:-$(docker context inspect --format '{{.Endpoints.docker.Host}}')}"
+exec docker --config "$workspace_docker_config" --host "$workspace_endpoint" "$@"

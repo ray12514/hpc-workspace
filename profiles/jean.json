@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "site": "jean",
+  "scheduler": "slurm",
+  "architecture": "x86_64",
+  "binds": [],
+  "mpi_status": "not configured; site-local integration and validation pending"
+}
