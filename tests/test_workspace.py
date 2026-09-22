@@ -90,6 +90,28 @@ class WorkspaceTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads(result.stdout)["argv"][0], executable)
 
+    def test_host_jobs_are_explicit_and_rejected_in_allocations(self):
+        result = self.entry("--host-jobs")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("/workspace-host", result.stderr)
+        self.assertFalse(self.state.exists())
+        for key in ("PBS_JOBID", "SLURM_JOB_ID"):
+            result = self.entry("--host-jobs", extra_env={key: "123.test"})
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("outside a compute allocation", result.stderr)
+
+    def test_container_plan_adds_only_the_explicit_host_connection(self):
+        args = workspace.parser().parse_args([
+            "enter", *self.common, "--image", str(self.image), "--project", str(self.project),
+            "--host-jobs", "--dry-run"])
+        bridge = self.root / "private-bridge"
+        bridge.mkdir()
+        with patch.dict(os.environ, dict(self.env, WS_HOST_JOBS_SOCKET="/untrusted/socket"), clear=True):
+            command, child = workspace.container_plan(args, job_directory=bridge)
+        self.assertIn(str(bridge) + ":/workspace-host:rw", command)
+        self.assertEqual(child["APPTAINERENV_WS_HOST_JOBS_SOCKET"], "/workspace-host/scheduler.sock")
+        self.assertIn("APPTAINERENV_WS_HOSTNAME", child)
+
     def test_select_update_and_rollback_keep_both_images(self):
         second = self.root / "second release.sif"
         second.write_bytes(b"test release two")

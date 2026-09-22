@@ -1,7 +1,6 @@
 """Host-side workspace operations. Commands are argv lists, never shell input."""
 import argparse
 import fcntl
-import getpass
 import hashlib
 import json
 import os
@@ -15,6 +14,9 @@ import subprocess
 import sys
 import tempfile
 
+from scheduler import Scheduler, SchedulerError, selected_environment
+from job_bridge import HostJobs, call as call_host_jobs
+
 ROOT = Path(__file__).resolve().parents[1]
 SITES = ("ruth", "jean", "blueback")
 FORWARD = (
@@ -25,6 +27,7 @@ FORWARD = (
     "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS",
     "CUDA_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES",
     "GPU_DEVICE_ORDINAL", "SLURM_JOB_ID", "PBS_JOBID", "WS_INSTALL_SKILLS",
+    "WS_COLOR", "NO_COLOR", "WS_GIT_PROMPT",
 )
 
 
@@ -44,8 +47,8 @@ def profile(site):
     override = ROOT / "profiles" / (site + ".local.json")
     if override.exists():
         extra = load_json(override)
-        if set(extra) - {"binds"}:
-            raise WorkspaceError("Local profiles currently support only 'binds'.")
+        if set(extra) - {"binds", "scheduler_env"}:
+            raise WorkspaceError("Local profiles support only 'binds' and 'scheduler_env'.")
         data.update(extra)
     if data.get("schema_version") != 1 or data.get("site") != site:
         raise WorkspaceError("Invalid profile for " + site)
@@ -109,7 +112,7 @@ def bind_spec(source, destination=None, mode="rw"):
     return "{}:{}:{}".format(source, destination, mode)
 
 
-def container_plan(args, create_state=False):
+def container_plan(args, create_state=False, job_directory=None):
     data = profile(args.site)
     project = Path(args.project).expanduser().resolve()
     if not project.is_dir():
@@ -120,6 +123,8 @@ def container_plan(args, create_state=False):
         raise WorkspaceError("Compute mode requires an existing {} allocation.".format(data["scheduler"]))
     if args.gpu != "none" and not job:
         raise WorkspaceError("GPU access requires an existing allocation.")
+    if args.host_jobs and (os.environ.get("SLURM_JOB_ID") or os.environ.get("PBS_JOBID")):
+        raise WorkspaceError("Start --host-jobs on a login host, outside a compute allocation.")
     state = state_path(args)
     if create_state:
         state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -139,12 +144,14 @@ def container_plan(args, create_state=False):
         if not isinstance(item, dict) or "source" not in item or set(item) - {"source", "destination", "mode"}:
             raise WorkspaceError("Invalid profile bind")
         destination = posixpath.normpath(item.get("destination", item["source"]))
-        if destination in ("/", "/usr", "/bin", "/sbin", "/lib", "/lib64", "/opt", "/opt/workspace", "/workspace-state") or destination.startswith(("/opt/workspace/", "/workspace-state/")):
+        if destination in ("/", "/usr", "/bin", "/sbin", "/lib", "/lib64", "/opt", "/opt/workspace", "/workspace-state", "/workspace-host") or destination.startswith(("/opt/workspace/", "/workspace-state/", "/workspace-host/")):
             raise WorkspaceError("Profile bind would replace a protected image path: " + destination)
         mounts.append(bind_spec(item["source"], destination, item.get("mode", "ro")))
     agent_socket = os.environ.get("SSH_AUTH_SOCK")
     if agent_socket and Path(agent_socket).exists():
         mounts.append(bind_spec(agent_socket, agent_socket))
+    if job_directory is not None:
+        mounts.append(bind_spec(job_directory, "/workspace-host"))
     for mount in dict.fromkeys(mounts):
         command += ["--bind", mount]
     if args.gpu != "none":
@@ -163,7 +170,11 @@ def container_plan(args, create_state=False):
         "APPTAINERENV_WS_SITE": args.site,
         "APPTAINERENV_WS_CONTEXT": "compute" if job else "login",
         "APPTAINERENV_WS_PROJECT": str(project),
+        "APPTAINERENV_WS_HOSTNAME": socket.gethostname(),
+        "APPTAINERENV_WS_GPU_MODE": args.gpu,
     })
+    if job_directory is not None:
+        environment["APPTAINERENV_WS_HOST_JOBS_SOCKET"] = "/workspace-host/scheduler.sock"
     return command, environment
 
 
@@ -186,21 +197,38 @@ def enter(args):
     command, environment = container_plan(args, create_state=not args.dry_run)
     if args.dry_run:
         print_plan(command, environment)
+        if args.host_jobs:
+            print("A temporary, same-user host scheduler socket will be bound at /workspace-host when started.", file=sys.stderr)
         return 0
+    if args.host_jobs:
+        roots = [args.project] + ([args.work] if args.work else [])
+        scheduler = Scheduler(profile(args.site), os.environ, roots=roots)
+        with HostJobs(scheduler) as bridge:
+            command, environment = container_plan(args, create_state=True, job_directory=bridge.directory)
+            return execute(command, environment)
     return execute(command, environment)
 
 
-def jobs(args):
-    data = profile(args.site)
-    user = getpass.getuser()
-    if data["scheduler"] == "pbs":
-        command = ["qstat", "-u", user]
+def in_container():
+    return os.environ.get("WS_CONTAINER") == "1" or bool(os.environ.get("APPTAINER_CONTAINER"))
+
+
+def scheduler_operation(args):
+    request = {"operation": args.action, "site": args.site, "dry_run": args.dry_run}
+    if args.action == "submit":
+        request.update(script=str(Path(args.script).expanduser().resolve()),
+                       cwd=str(Path(args.cwd).expanduser().resolve()),
+                       environment=selected_environment(args.env))
+    if in_container():
+        connection = os.environ.get("WS_HOST_JOBS_SOCKET")
+        if not connection:
+            raise WorkspaceError("No host scheduler connection. Use the host window, or enter with --host-jobs on a login host.")
+        result = call_host_jobs(connection, request)
     else:
-        command = ["squeue", "--user", user, "--format=%.18i %.12P %.28j %.10T %.12M %.6D %R"]
-    if args.dry_run:
-        print_plan(command)
-        return 0
-    return execute(command)
+        result = Scheduler(profile(args.site), os.environ).request(request)
+    sys.stdout.write(result["stdout"])
+    sys.stderr.write(result["stderr"])
+    return result["returncode"]
 
 
 def probe(command):
@@ -305,11 +333,14 @@ def session(args):
     tmux = ["tmux", "-L", name, "-f", str(ROOT / "image/config/tmux/tmux.conf")]
     environment = dict(os.environ)
     environment["WS_ROOT"] = str(ROOT)
+    environment["WS_SITE"] = args.site
     environment["WS_SESSION_STATE"] = str(state_path(args) / "tmux" / socket.gethostname() / name)
     entry = [str(ROOT / "bin/ws"), "enter", "--site", args.site, "--project", str(project),
              "--image", image["path"], "--state-dir", str(state_path(args))]
     if args.work:
         entry += ["--work", args.work]
+    if args.host_jobs:
+        entry += ["--host-jobs"]
     editor = "exec " + " ".join(shlex.quote(x) for x in entry + ["--", "nvim"])
     launch = tmux + ["new-session", "-d", "-s", name, "-n", "editor", "-c", str(project), editor]
     if args.dry_run:
@@ -342,20 +373,26 @@ def session(args):
 def parser():
     result = argparse.ArgumentParser(description="A consistent development workspace on HPC clusters.")
     sub = result.add_subparsers(dest="action")
-    for name, handler in (("enter", enter), ("jobs", jobs), ("doctor", doctor),
+    for name, handler in (("enter", enter), ("jobs", scheduler_operation), ("submit", scheduler_operation), ("doctor", doctor),
                           ("use", select_release), ("rollback", select_release), ("session", session)):
         command = sub.add_parser(name)
         command.set_defaults(handler=handler)
-        command.add_argument("--site", choices=SITES, required=True)
-        if name != "jobs":
+        default_site = os.environ.get("WS_SITE") if in_container() and name in ("jobs", "submit") else None
+        command.add_argument("--site", choices=SITES, default=default_site, required=not bool(default_site))
+        if name not in ("jobs", "submit"):
             command.add_argument("--state-dir", help="Override this site's persistent workspace-state directory")
         if name in ("enter", "doctor", "session"):
             command.add_argument("--project", default=os.getcwd())
             command.add_argument("--image", help="Explicit SIF; otherwise use the selected image")
-        if name in ("enter", "jobs", "session"):
+        if name in ("enter", "jobs", "submit", "session"):
             command.add_argument("--dry-run", action="store_true", help="Print argv without running commands or creating state")
         if name in ("enter", "session"):
             command.add_argument("--work", help="Additional work directory mounted at its native path")
+            command.add_argument("--host-jobs", action="store_true", help="Enable submit/jobs from this login-host container session")
+        if name == "submit":
+            command.add_argument("--cwd", default=os.getcwd(), help="Host submission working directory (default: current directory)")
+            command.add_argument("--env", action="append", default=[], metavar="NAME", help="Explicitly pass a job environment variable; put resource settings in the script")
+            command.add_argument("script", help="Existing PBS or Slurm batch script")
         if name == "enter":
             command.add_argument("--compute", action="store_true", help="Require an existing scheduler allocation")
             command.add_argument("--gpu", choices=("none", "cuda", "rocm"), default="none", help="Device passthrough; does not install a GPU toolkit")
@@ -377,7 +414,9 @@ def main(argv=None):
         arguments.print_help()
         return 0
     try:
+        if in_container() and args.action not in ("jobs", "submit"):
+            raise WorkspaceError("Run 'ws " + args.action + "' on the host. Inside the workspace use submit or jobs.")
         return args.handler(args)
-    except (WorkspaceError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
+    except (WorkspaceError, SchedulerError, OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
         print("ws: " + str(exc), file=sys.stderr)
         return 2

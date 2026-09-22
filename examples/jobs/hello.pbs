@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -N workspace-hello
+#PBS -l select=1:ncpus=1
+#PBS -l walltime=00:02:00
+# Add the site's required account, queue, and resource directives above.
+set -eu
+cd -- "$PBS_O_WORKDIR"
+printf 'Native PBS job %s on %s\n' "$PBS_JOBID" "$(hostname)"
+printf 'Submission directory: %s\n' "$PWD"
+# Initialize the site's module system here before loading a compiler or MPI.

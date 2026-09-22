@@ -9,8 +9,52 @@ export HISTSIZE=20000
 export HISTFILESIZE=40000
 export HISTFILE="${XDG_STATE_HOME}/bash-history"
 shopt -s histappend checkwinsize
-PROMPT_COMMAND='history -a'
-PS1='[ws:${WS_SITE:-local}:${WS_CONTEXT:-local}] \u@\h:\w\$ '
+# Values are expanded once through literal parameter references in PS1. Never
+# interpolate a path/branch into PS1 itself: names may contain shell syntax.
+_ws_reset='' _ws_accent='' _ws_muted='' _ws_error=''
+if [[ -t 1 && ${TERM:-dumb} != dumb && ${WS_COLOR:-auto} != never && ${NO_COLOR+x} != x ]]; then
+    _ws_reset='\[\e[0m\]' _ws_accent='\[\e[1;36m\]' _ws_muted='\[\e[37m\]' _ws_error='\[\e[31m\]'
+    if [[ ${WS_COLOR:-auto} == truecolor || (${WS_COLOR:-auto} == auto && ${COLORTERM:-} =~ ^(truecolor|24bit)$) ]]; then
+        _ws_accent='\[\e[38;2;86;182;194m\]' _ws_muted='\[\e[38;2;171;178;191m\]' _ws_error='\[\e[38;2;224;108;117m\]'
+    elif [[ ${WS_COLOR:-auto} == 256 || $(tput colors 2>/dev/null) == 256 ]]; then
+        _ws_accent='\[\e[38;5;80m\]' _ws_muted='\[\e[38;5;145m\]' _ws_error='\[\e[38;5;168m\]'
+    fi
+    alias ls='ls --color=auto'
+    alias grep='grep --color=auto'
+    export BAT_THEME=OneHalfDark
+    if [[ ${WS_COLOR:-auto} == 256 || $(tput colors 2>/dev/null) == 256 ]]; then
+        export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=fg:145,bg:236,hl:75,fg+:145,bg+:237,hl+:75,prompt:80,pointer:80,marker:114,spinner:80,header:102"
+    fi
+fi
+_ws_git_checked=-5 _ws_git_directory='' _ws_branch=''
+_ws_prompt() {
+    local status=$? job branch
+    history -a
+    _ws_label="ws:${WS_SITE:-local} ${WS_CONTEXT:-local}@${WS_HOSTNAME:-${HOSTNAME:-host}}"
+    job=${SLURM_JOB_ID:-${PBS_JOBID:-}}
+    [[ -n $job ]] && _ws_label+=" job:$job"
+    [[ ${WS_GPU_MODE:-none} != none ]] && _ws_label+=" gpu:$WS_GPU_MODE"
+    _ws_label=${_ws_label//[[:cntrl:]]/?}
+    _ws_path=$PWD
+    if [[ $PWD == "$HOME" || $PWD == "$HOME/"* ]]; then
+        _ws_path="~${PWD#"$HOME"}"
+    fi
+    _ws_path=${_ws_path//[[:cntrl:]]/?}
+    if [[ ${WS_GIT_PROMPT:-1} == 0 ]]; then
+        _ws_branch=''
+    elif [[ $_ws_git_directory != "$PWD" ]] || (( SECONDS - _ws_git_checked >= 5 )); then
+        _ws_git_directory=$PWD _ws_git_checked=$SECONDS
+        branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=$(git rev-parse --short HEAD 2>/dev/null) || branch=''
+        branch=${branch//[[:cntrl:]]/?}
+        _ws_branch=${branch:+" [$branch]"}
+    fi
+    _ws_result=''
+    (( status != 0 )) && _ws_result="exit:$status "
+    return 0
+}
+PROMPT_COMMAND=_ws_prompt
+# shellcheck disable=SC2016
+PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_branch}'"${_ws_reset}\n${_ws_error}"'${_ws_result}'"${_ws_reset}"'\$ '
 alias ll='ls -alF'
 alias la='ls -A'
 alias ..='cd ..'

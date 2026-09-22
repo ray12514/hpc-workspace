@@ -6,3 +6,11 @@
 !scripts/
 !scripts/container-*
 !scripts/install-assets.py
+!bin/
+!bin/ws
+!lib/
+!lib/*.py
+!profiles/
+!profiles/ruth.json
+!profiles/jean.json
+!profiles/blueback.json

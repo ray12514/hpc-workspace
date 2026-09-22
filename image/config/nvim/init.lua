@@ -6,7 +6,16 @@ vim.opt.shiftwidth = 4
 vim.opt.tabstop = 4
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
-vim.opt.termguicolors = true
+local color = vim.env.WS_COLOR or 'auto'
+local no_color = color == 'never' or vim.env.NO_COLOR ~= nil or vim.env.TERM == 'dumb'
+vim.opt.termguicolors = not no_color and (color == 'truecolor' or
+  (color == 'auto' and (vim.env.COLORTERM == 'truecolor' or vim.env.COLORTERM == '24bit')))
+if not no_color then
+  local colors = tonumber(vim.fn.systemlist({ 'tput', 'colors' })[1]) or 0
+  if vim.o.termguicolors or color == '256' or colors >= 256 then
+    vim.cmd.colorscheme('workspace')
+  end
+end
 vim.opt.splitright = true
 vim.opt.splitbelow = true
 vim.opt.undofile = true

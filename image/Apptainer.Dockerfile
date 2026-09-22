@@ -3,7 +3,7 @@ ARG APPTAINER_VERSION=1.5.3
 ARG APPTAINER_SHA256=82b0bdddf459087d202383360b8318d526ad6826c748a2f669913cc6aef9ee40
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -o APT::Update::Error-Mode=any \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl python3 \
     && curl --fail --location --retry 3 \
        "https://github.com/apptainer/apptainer/releases/download/v${APPTAINER_VERSION}/apptainer_${APPTAINER_VERSION}_amd64.deb" \
        --output /tmp/apptainer.deb \

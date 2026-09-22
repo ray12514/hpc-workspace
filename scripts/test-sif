@@ -2,14 +2,13 @@
 # Local nested-Apptainer fixture only; these Docker options are not cluster options.
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.1.0-preview1}"
+workspace_release="${1:-0.2.0-preview1}"
 workspace_sif="$workspace_root/dist/hpc-workspace-core-${workspace_release}-linux-amd64.sif"
 test -f "$workspace_sif"
 workspace_mode="${WS_SIF_TEST_MODE:-unsquash}"
 workspace_docker_options=(--security-opt seccomp=unconfined --security-opt systempaths=unconfined)
-workspace_runtime_options=(exec --cleanenv --no-eval --no-mount "home,cwd,hostfs")
 case "$workspace_mode" in
-    unsquash) workspace_runtime_options+=(--unsquash) ;;
+    unsquash) ;;
     mount) workspace_docker_options+=(--device /dev/fuse) ;;
     *) printf 'WS_SIF_TEST_MODE must be unsquash or mount.\n' >&2; exit 2 ;;
 esac
@@ -37,9 +36,8 @@ for workspace_version in 1.3.6 1.5.3; do
         --mount "type=bind,src=$workspace_fixture/home,dst=/home/node" \
         --mount "type=bind,src=$workspace_fixture/state,dst=/workspace-state" \
         --mount "type=bind,src=$workspace_fixture/project,dst=/project" \
+        --mount "type=bind,src=$workspace_root,dst=/src,readonly" \
+        --env PYTHONDONTWRITEBYTECODE=1 --entrypoint python3 \
         --workdir /project "hpc-workspace-apptainer:$workspace_version" \
-        "${workspace_runtime_options[@]}" \
-        --bind /home/node:/home/node --bind /workspace-state:/workspace-state \
-        --bind /project:/project --pwd /project /input/workspace.sif \
-        /opt/workspace/bin/container-entry container-smoke
+        /src/tests/sif-behavior.py "$workspace_mode"
 done

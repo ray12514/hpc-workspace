@@ -1,0 +1,26 @@
+{
+  "terminal.integrated.fontFamily": "Consolas, 'DejaVu Sans Mono', monospace",
+  "terminal.integrated.fontSize": 13,
+  "terminal.integrated.cursorStyle": "block",
+  "workbench.colorCustomizations": {
+    "terminal.background": "#282C34",
+    "terminal.foreground": "#ABB2BF",
+    "terminalCursor.foreground": "#61AFEF",
+    "terminal.ansiBlack": "#282C34",
+    "terminal.ansiRed": "#E06C75",
+    "terminal.ansiGreen": "#98C379",
+    "terminal.ansiYellow": "#E5C07B",
+    "terminal.ansiBlue": "#61AFEF",
+    "terminal.ansiMagenta": "#C678DD",
+    "terminal.ansiCyan": "#56B6C2",
+    "terminal.ansiWhite": "#ABB2BF",
+    "terminal.ansiBrightBlack": "#7F848E",
+    "terminal.ansiBrightRed": "#E06C75",
+    "terminal.ansiBrightGreen": "#98C379",
+    "terminal.ansiBrightYellow": "#E5C07B",
+    "terminal.ansiBrightBlue": "#61AFEF",
+    "terminal.ansiBrightMagenta": "#C678DD",
+    "terminal.ansiBrightCyan": "#56B6C2",
+    "terminal.ansiBrightWhite": "#FFFFFF"
+  }
+}

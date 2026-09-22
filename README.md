@@ -2,7 +2,7 @@
 
 A versioned Linux development environment for Ruth (PBS), Jean (Slurm), and Blueback (Slurm). Build it locally with Docker, transfer a SIF, and enter it with the same `ws` interface on each system. No cluster connection is needed to build the baseline.
 
-This first release is **core / linux-amd64**: Ubuntu 24.04, Neovim 0.12.5, tmux, Git, ripgrep, fd, fzf, bat, jq, Python, Node 24, C/C++/Fortran compilers, CMake, Ninja, GDB, clangd, ShellCheck, shfmt, htop, Codex 0.155.1, and Claude Code 2.1.278. It includes the updated Matt Pocock skills and `find-skills`.
+The current release is **core / linux-amd64**: Ubuntu 24.04, Neovim 0.12.5, tmux, Git, ripgrep, fd, fzf, bat, jq, Python, Node 24, C/C++/Fortran compilers, CMake, Ninja, GDB, clangd, ShellCheck, shfmt, htop, Codex 0.155.1, and Claude Code 2.1.278. It includes the updated Matt Pocock skills and `find-skills`.
 
 The image carries its own glibc. The initial runtime target is **Apptainer 1.3.6 through 1.5**. CPU architecture, host kernel capabilities, and any host libraries added later still matter; local validation results are recorded in [validation.md](docs/validation.md).
 
@@ -26,12 +26,12 @@ Nix is not a prerequisite. The Dockerfile pins base-image digests, uses a dated 
 
 ## Transfer and first launch
 
-Get the files from the [0.1.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.1.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
+Get the files from the [0.2.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.2.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
 
 Transfer these files using your approved transfer method:
 
-- `hpc-workspace-core-0.1.0-preview1-linux-amd64.sif` and its `.sha256` file.
-- `hpc-workspace-source-0.1.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
+- `hpc-workspace-core-0.2.0-preview1-linux-amd64.sif` and its `.sha256` file.
+- `hpc-workspace-source-0.2.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
 
 The Docker archive is an alternative for another Docker builder; it is not also required on a cluster. Keep images on a suitable persistent filesystem, outside purgeable scratch if they are your only copies.
 
@@ -44,7 +44,7 @@ For example, after placing the source at `$HOME/hpc-workspace` and the SIF under
 ```bash
 export PATH="$HOME/hpc-workspace/bin:$PATH"
 ws enter --site ruth \
-  --image "$HOME/containers/hpc-workspace-core-0.1.0-preview1-linux-amd64.sif" \
+  --image "$HOME/containers/hpc-workspace-core-0.2.0-preview1-linux-amd64.sif" \
   --project "$HOME/my-project"
 ```
 
@@ -88,6 +88,10 @@ Local profiles stay local and are excluded from source bundles. There is no defa
 
 ## Sessions and jobs
 
+The [daily workflow guide](docs/daily-workflow.md) covers the coordinated terminal appearance, PuTTY/VS Code client settings, native job scripts, and the optional connection for submitting from inside the container.
+
+[See the Bash, tmux, and Neovim views](docs/previews/README.md), captured from the image with local demo data.
+
 On an approved stable **login host**, outside a compute allocation:
 
 ```bash
@@ -102,7 +106,7 @@ Use the host window to request an interactive allocation with the site's normal 
 
 Saved layouts do **not** migrate live processes, allocations, MPI communicators, or GPU memory. Tmux process replay is disabled, so restoration opens shells rather than automatically resubmitting remembered jobs. After a host change, `ws session` recreates the standard project recipe and Neovim can restore its saved files/layout from shared state. Older custom tmux snapshots remain under `STATE/tmux/OLD_HOST/SESSION`; use tmux-resurrect's explicit file-selection workflow if you need that exact layout. [Upstream restore instructions](https://github.com/tmux-plugins/tmux-resurrect/blob/master/docs/restoring_previously_saved_environment.md)
 
-`ws jobs --site ruth` runs the host's `qstat`; Jean and Blueback use `squeue`. Run it in the host window. It displays your jobs using the native scheduler rather than shipping a guessed scheduler client into the image. `htop` and similar container tools reflect the process/device visibility allowed by the host.
+`ws submit --site ruth ./job.pbs` submits a native PBS script; Jean and Blueback use `ws submit --site SITE ./job.slurm`. `ws jobs --site SITE` uses the host's `qstat` or `squeue`. These commands work in the host window without an image. Add `--host-jobs` when starting `ws enter` or `ws session` on a login host to use `ws submit ./job.pbs` and `ws jobs` inside the container. The local connection uses the host's native clients and selected host environment. Put resource settings in the job script; the wrapper does not add the development image to the job. `htop` and similar container tools reflect the process/device visibility allowed by the host.
 
 ## Local site checks and later extensions
 

@@ -7,7 +7,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
 
 FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 ARG TARGETARCH
-ARG WORKSPACE_RELEASE=0.1.0-preview1
+ARG WORKSPACE_RELEASE=0.2.0-preview1
 ARG UBUNTU_SNAPSHOT=20260921T000000Z
 LABEL org.opencontainers.image.title="HPC development workspace" \
       org.opencontainers.image.version="${WORKSPACE_RELEASE}" \
@@ -51,6 +51,9 @@ COPY share/skills/ share/skills/
 COPY share/skills.lock.json share/LICENSE-* share/
 COPY image/config/ config/
 COPY scripts/container-* bin/
+COPY bin/ws bin/ws
+COPY lib/*.py lib/
+COPY profiles/ruth.json profiles/jean.json profiles/blueback.json profiles/
 RUN chmod 0755 bin/container-* \
     && useradd --uid 10001 --create-home --shell /bin/bash workspace \
     && mkdir /workspace-state \

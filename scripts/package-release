@@ -10,7 +10,7 @@ import sys
 import tarfile
 
 root = Path(__file__).resolve().parents[1]
-release = sys.argv[1] if len(sys.argv) > 1 else "0.1.0-preview1"
+release = sys.argv[1] if len(sys.argv) > 1 else "0.2.0-preview1"
 if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", release):
     raise SystemExit("Invalid release tag")
 directory = root / "dist"
@@ -54,7 +54,7 @@ else:
     # Keep the build helpers usable from an unpacked source release.
     with tarfile.open(source, "w:gz") as bundle:
         for item in (".dockerignore", ".gitignore", "README.md", "bin", "lib", "profiles",
-                     "image", "scripts", "share", "tests", "docs"):
+                     "image", "scripts", "share", "tests", "docs", "examples"):
             bundle.add(root / item, arcname="hpc-workspace/" + item, filter=include)
 
 manifests = directory / ("hpc-workspace-manifests-" + release + ".tar.gz")

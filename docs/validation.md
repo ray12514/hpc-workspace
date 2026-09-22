@@ -1,10 +1,27 @@
-# Baseline validation
+# Workspace validation
+
+## Daily workflow: 0.2.0-preview1
+
+Date: **2026-09-22**. Built locally for Linux amd64. Core tool versions and package pins are unchanged from the baseline table below. No cluster connection, private cluster files, AI authentication, or live job submission was used.
+
+- **Launcher/scheduler:** all 24 tests pass in the Linux image as an ordinary user with a read-only root, no network, and no capabilities. The macOS host passes the 20 applicable tests; four Linux peer-credential tests are skipped there. Native-client fixtures cover PBS and Slurm, literal paths and arguments, working directory, selected host environment, explicit job variables, native job IDs/errors, dry-run behavior, and container fallback rejection.
+- **Local submission connection:** Linux tests exercise actual Unix sockets and peer credentials, private directory/socket permissions, the container CLI, wrong-site/operation rejection, symlink escape rejection, malformed requests, four-request capacity, immediate busy errors, and cleanup. These tests use synthetic scheduler executables, not PBS/Slurm servers.
+- **Terminal appearance:** real Bash PTYs pass 256-color, true-color, `NO_COLOR`, `WS_COLOR=never`, and `TERM=dumb` cases, including site/node/job labels and nonzero exit status. Path and branch names containing shell syntax render literally without executing it. Headless Neovim verifies the theme's 256-color highlights, true-color setting, and opt-out.
+- **Existing behavior:** offline tool/C/Python smoke checks, replacement of the container with persistent files/history/editor state, preservation of independent skills, and real tmux save/restore all pass. Tmux restores shells; process replay remains disabled.
+- **Build consistency:** the 12 delivered launcher, profile, theme, and entry files have the same SHA256 hashes as their source files. Maintained shell scripts pass ShellCheck. Host Python modules parse with Python 3.6 syntax rules; an actual Python 3.6 interpreter was not tested.
+- **SIF:** the new gzip SquashFS SIF passes real tool smoke checks under **Apptainer 1.3.6 and 1.5.3**, using `--unsquash` as UID 1000. Under each version, inner-container `ws submit` and `ws jobs` reach synthetic PBS and Slurm clients on the outer host through the bound Unix socket. Tests verify script paths containing spaces and shell syntax, working directory, host environment selection, explicit input values, native failure status/stderr, and socket cleanup. The native scheduler clients are absent from the image PATH. There is no network access in these fixtures.
+
+The fixtures establish the portable implementation, not a site's scheduler authentication, account/queue settings, client plugin dependencies, or production filesystem policy. The optional connection requires a permitted bind-mounted Unix socket and Linux peer credentials on the login host. Site-only client settings can be added to a local profile. Keep all actual cluster validation results local.
+
+The first image was reported by the user to start on a target system. No detailed site report was requested or transmitted, and that report does not validate this update. The Docker Desktop direct nested SIF-mount limitation described below remains applicable; extraction tests do not establish native SIF mounting on each target. GPU stacks, MPI, interconnects, and distributed runtime validation remain outside this phase.
+
+## Baseline: 0.1.0-preview1
 
 Release: **0.1.0-preview1**, core, Linux amd64. Date: **2026-09-21**.
 
 The workspace was built and exercised locally using Docker Desktop's native x86_64 Linux engine (`6.12.76-linuxkit`). No cluster was contacted, and no non-public cluster inventory, files, or credentials were used. Ruth/Jean/Blueback execution, GPU toolkits, MPI, interconnects, and live scheduler queries remain site-local validation work.
 
-## Delivered image
+### Delivered image
 
 | Component | Observed version |
 | --- | --- |
@@ -20,7 +37,7 @@ The workspace was built and exercised locally using Docker Desktop's native x86_
 
 Base-image digests, npm lock entries, and checked upstream assets are in `image/`. The installed Debian-package list, npm dependency tree, Node version, and asset lock are also stored inside the image under `/opt/workspace/manifests` and exported with the release.
 
-## Passing checks
+### Passing checks
 
 - **Host launcher:** 10 automated tests covering literal command arguments and paths containing spaces; dry-run without state writes or secret values; scheduler-specific allocation requirements; GPU-mask forwarding; isolation from inherited Apptainer injection variables; PBS/Slurm command selection; checksum-verified selection/update/rollback; detection of replaced images; compute-node session rejection; and protected bind destinations.
 - **Offline Docker execution:** real core tools run with UID/GID 501:20, a read-only image, no network, all capabilities dropped, and no-new-privileges. Neovim configuration loads, both AI clients report their pinned versions, Python creates and uses a virtual environment, and GCC compiles and executes a C program from writable state. No AI authentication or API request is performed.
@@ -30,7 +47,7 @@ Base-image digests, npm lock entries, and checked upstream assets are in `image/
 - **SIF execution after extraction:** the same SIF runs the real tool, Python-venv, skill, and C compilation smoke checks under both **Apptainer 1.3.6 and 1.5.3**, as UID/GID 1000:1000. The local fixture uses `--unsquash`, disposable writable binds, no network, and Docker namespace/extraction permissions.
 - **Static checks:** ShellCheck for maintained shell scripts and Python compilation checks. Vendored skill/plugin files retain upstream contents.
 
-## Exact limit of the runtime result
+### Exact limit of the runtime result
 
 Direct execution from a nested SIF/FUSE mount failed under both runtimes on this Docker Desktop VM: Linux returned `EINVAL` from `execve("/bin/true", ...)`. The image had mounted and reached its final program launch. Relaxing Docker system-path restrictions alone did not change that result.
 
