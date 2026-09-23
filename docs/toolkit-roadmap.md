@@ -1,6 +1,8 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-23. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. Additional agents, compiler tools, editor plugins and custom HPC helpers remain toolkit work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
+Updated 2026-09-23. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. Codex and Claude Code are the priority for the next expansion; editor plugins and custom HPC helpers remain toolkit work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
+
+Use the site's existing compilers through its normal module environment. Additional compiler installations are outside the default toolkit; include one only for a concrete workflow that requires a specific version unavailable from the site. Editor language servers and agent runtimes remain separate packaging decisions and must preserve access to the selected site compiler.
 
 ## Intended daily experience
 
@@ -84,7 +86,7 @@ These names are design examples, not commands the current release provides. Impl
 
 1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides. Site commands working from the same development shell are an established requirement.
 2. Build the small Nix tool pilot, automated integration, and deployment/update path described in the [implementation plan](thin-container-plan.md). Validate real invocation, terminal input, paths, modules, editor subprocesses and ordinary scheduler behavior from that same shell, then perform site-local acceptance before extending the toolkit.
-3. Build the compact Neovim configuration and validate the editor/agent/review workflow in the intended execution contexts.
+3. Package Codex and Claude Code with their required runtimes, extend the compact Neovim configuration, and validate the editor/agent/review workflow with site compiler subprocesses in the intended execution contexts.
 4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
 5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
 6. Add further custom helpers and scientific runtime layers as concrete workflows require them.

@@ -19,7 +19,7 @@ Use ordinary site commands such as `module`, `sbatch`, and `qsub` from that shel
 
 The first thin tool set is Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. It includes the common prompt, history/path shortcuts, completion, editor defaults and personal overrides. The package set is locked in [flake.lock](image/nix/flake.lock); runtime dependencies ship in the image. No Nix installation or toolbox compilation is needed on the hosts.
 
-This preview establishes the integration and delivery foundation. Adding the full agent/compiler inventory and further custom tools is the next toolkit iteration. Existing host programs remain available. The earlier [0.4 core image](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) and its [instructions](docs/transfer.md) remain available.
+This preview establishes the integration and delivery foundation. Codex and Claude Code are the priority for the next toolkit expansion, followed by further custom tools. Use the site's existing compilers through its normal module environment; bundle a compiler only when a concrete workflow needs a specific version that the site does not provide. Existing host programs remain available. The earlier [0.4 core image](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) and its [instructions](docs/transfer.md) remain available.
 
 ## One release across systems
 
