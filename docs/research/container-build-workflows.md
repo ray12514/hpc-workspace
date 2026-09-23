@@ -1,18 +1,18 @@
 # Building and testing containers from the workspace
 
-Research date: 23 September 2026. **Status: alternatives and proposed first experiment, not a selected migration.** The current direction remains a thin development container. The user has now invited comparison with other approaches and wants to build and test other people's containers. Podman availability and configuration on Ruth, Jean, and Blueback are unverified. No cluster was accessed and no private information is required by this note.
+Research date: 23 September 2026. **Status: technical reference; the earlier host-terminal-first recommendation is superseded by the [single-environment requirements](../workflow-options.md).** Container builds and tests are capabilities to integrate into the development shell. Podman availability and configuration on Ruth, Jean, and Blueback are unverified. No cluster was accessed and no private information is required by this note.
 
-## Recommendation
+## Technical scope
 
-Keep the workspace container, configuration, and host container runtimes as distinct pieces. **Use Apptainer for the existing SIF workspace and HPC runtime tests; use a supported host Podman installation for OCI builds and OCI behavior tests.** Having Podman does not itself justify replacing Apptainer. This is an architectural recommendation based on their interfaces: Podman builds Dockerfiles/Containerfiles, while Apptainer converts and executes OCI images with HPC-oriented runtime behavior. [Podman build](https://docs.podman.io/en/stable/markdown/podman-build.1.html), [Apptainer OCI support](https://apptainer.org/docs/user/1.3/docker_and_oci.html)
+The runtime findings below inform implementation of the integrated environment. Podman supports Dockerfile/Containerfile builds; Apptainer converts and executes supported OCI images with its own runtime behavior. Choosing how to invoke a runtime from the development shell requires testing the actual mechanism. [Podman build](https://docs.podman.io/en/stable/markdown/podman-build.1.html), [Apptainer OCI support](https://apptainer.org/docs/user/1.3/docker_and_oci.html)
 
-For the first iteration, retain a native host terminal beside the container terminal. Both see the project at the same absolute path. Edit with workspace tools, then build/test using the site's runtime from that native terminal. This preserves the container design while giving container operations an uncomplicated starting point. A later client inside the workspace may control a same-user host Podman service after the gates below pass. Do not make nested engines a prerequisite for daily work.
+The requirement is access from the same development shell, with runtime integration and local setup automated. The host-service and nesting mechanisms below are implementation options, not a request for the user to maintain or switch between separate environments. A runtime's execution location is distinct from the shell in which the user invokes it.
 
 Choosing Nix or Spack for workspace tools is a separate packaging decision. Neither supplies the host's missing kernel features, scheduler integration, storage configuration, or permission to run containers. Avoid embedding another runtime simply because that package manager makes it available.
 
 ## Runtime roles
 
-| Workflow | First choice to evaluate | Reason and limit |
+| Workflow | Mechanism considered | Reason and limit |
 | --- | --- | --- |
 | Enter the existing development SIF | Host Apptainer | Keeps the current delivery and mount model |
 | Build a collaborator's Dockerfile | Host Podman | Native Dockerfile/Containerfile workflow; test required features |
@@ -75,4 +75,4 @@ These checks run locally on each target. Results and private configuration stay 
 | Compute allocation | Runtime children remain under expected allocation limits and end with the job |
 | Optional API access | Same-user socket, client/server compatibility, paths, groups, and allocation placement all pass |
 
-First prove the native host build/test path beside the development shell. Then evaluate the socket convenience layer. The result can guide whether a Podman-based workspace is worthwhile without discarding the working SIF or committing to a second engine before it solves a demonstrated problem.
+Use these findings to implement and validate runtime access from the integrated development shell. Build/test capability must preserve the centrally maintained environment and automated deployment requirements. The earlier recommendation to start by requiring a separate host terminal has been withdrawn.

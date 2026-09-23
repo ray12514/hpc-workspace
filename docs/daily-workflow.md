@@ -1,5 +1,7 @@
 # Daily appearance and job submission
 
+This page describes the released 0.4 behavior, including its existing host window and limited submission bridge. The [target development environment](workflow-options.md) must support ordinary system work from the same development shell, with centrally managed tools/dotfiles and automated setup. The current host-window instructions are not the target architecture.
+
 [View the running Bash, tmux, and Neovim configuration](previews/README.md).
 
 Release **0.4.0-preview1** makes [dotfiles an explicit part of the workspace](dotfiles.md). Shared defaults ship with the image; missing personal settings are created under `~/.config/hpc-workspace/` and existing preferences are preserved. It also enables fzf's Ctrl-R history selection, Ctrl-T path selection, Alt-C directory selection, and enhanced Tab completion.

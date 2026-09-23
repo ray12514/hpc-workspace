@@ -2,11 +2,22 @@
 
 Date: 2026-09-23. Status: **implementation plan; the released 0.4 SIF and launcher are unchanged**.
 
-Follow-up: the user has invited alternatives and added container build/test work. The [workflow comparison](workflow-options.md) proposes a smaller first experiment using the development SIF beside native runtime operations, with optional VS Code Remote SSH. This document retains the full integrated-container design; neither a switch to Podman nor a native-only migration has been selected.
+This is the implementation direction. The [daily-environment requirements](workflow-options.md) supersede the later host-window-first proposal. A single integrated development shell and automated maintenance across systems are acceptance requirements.
 
 ## Goal and recommendation
 
-Enter a container and get the same Bash appearance, navigation, editor, agents, and additional tools on each system, while retaining useful access to that system's files, modules, schedulers, and scientific software. Ordinary commands and existing job scripts should remain familiar. This is the container model used in the user's earlier Open OnDemand work, not a migration to a host-installed toolbox.
+Enter the development environment and get the same Bash appearance, navigation, editor, agents, and additional tools on each system, while using that system's files, modules, schedulers, and supported software. The experience should resemble setting up tools and dotfiles on one machine; the release and automation make that setup maintainable across all targets.
+
+The requirements are:
+
+- Maintain package definitions, shared dotfiles, the launcher, and integration logic in one repository and release process.
+- Build the development tools once per supported release target and ship their dependencies in the image-owned Nix store. Do not build or manually install the toolbox on each cluster.
+- Automate installation, release selection, local setup, and updates. Transferring an artifact may remain necessary; independently editing each machine's configuration must not be the routine workflow.
+- Generate and cache system-specific settings locally, using available Inspector facts and host observations. Keep private inputs and validation results on the system. Centrally maintained integration logic handles differences; unsupported cases need an actionable local diagnostic rather than guessed settings.
+- Make ordinary site commands and development tools usable from the same shell. Separate host/container windows may remain optional, but switching between them is not the design's solution to missing integration.
+- Preserve projects, personal overrides, history, credentials, and session state independently of tool-image updates.
+
+Here, **thin container** means a delivery layer for prepared development tools and configuration, with the host system integrated underneath. It does not mean providing only a small set of tools or limiting access to ordinary system workflows. Podman and VS Code are optional capabilities within this design.
 
 **Recommend Nix for the development-tool packages inside the image, with an explicit site integration recipe.** Keep Spack available for scientific stacks and site externals when a workflow needs it; installing both package managers is not a prerequisite. Prove the small Nix tool set and its interaction with site commands before choosing it for the full toolkit.
 
@@ -123,6 +134,8 @@ Add a versioned integration recipe containing the filesystem strategy, grouped m
 
 Import an available Inspector profile once, cache the needed facts, and refresh explicitly. Do not run Inspector at every entry or require it for a basic workspace. Reuse `WS_CONFIG_DIR` when clusters share a home directory. A compute allocation can select compute-specific settings using the existing scheduler context; it must not infer facts about other nodes from the login host's local paths.
 
+Generate the local recipe through the installer/launcher from available facts and centrally maintained rules. Configuration is an internal implementation detail, not a set of files the user must maintain independently on every system. Automate refresh and migration when the selected release or relevant local facts change; preserve private overrides and avoid expensive discovery on every startup. Report missing required facts locally rather than guessing them.
+
 New configuration requires a versioned migration that preserves existing overrides, image selection, and personal dotfiles. Dry-run output remains local and shows the planned mounts and environment names rather than secret values. Site validation records stay local and identify the image and recipe revisions they apply to.
 
 ## Implementation modules
@@ -147,8 +160,8 @@ The existing protected-path validation must stay in place for ordinary custom bi
 | --- | --- | --- |
 | 0. Baseline and reported failures | Preserve 0.4, capture the permitted generic tmux/bat symptom or keep diagnosis local | Reproduce the actual error before claiming a fix; this does not block independent design or pilot work |
 | 1. Nix tool pilot | Small pinned closure in a candidate SIF, image-owned entrypoint/configuration, no startup downloads | Tools work with synthetic inputs, preserve personal state, and run through Apptainer 1.3.6 and 1.5.3 in the local fixtures |
-| 2. Site recipe pilot | Coherent host-userspace recipe plus retained image-userspace reference; synthetic module and scheduler fixtures | Expected host command resolution, group/identity lookup, paths, library loading, editor subprocesses, module load/unload and scheduler argument/environment behavior |
-| 3. Local cluster acceptance | User/site applies its local recipe on Ruth, Jean and Blueback | Real query and one approved tiny job, native job environment, interactive allocation, shared storage, and actual SIF mount behavior; results stay there |
+| 2. Automated integration pilot | Generate and cache a coherent host-userspace recipe; retain the image-userspace reference; synthetic module and scheduler fixtures | The same development shell resolves site commands and tools, preserves group/identity lookup, paths, libraries and module behavior, and runs editor subprocesses and scheduler fixtures without requiring a host window |
+| 3. Automated deployment and local acceptance | Apply the same release with repeatable install/update automation on Ruth, Jean and Blueback; keep local facts there | No local toolbox compilation or repeated manual dotfile edits; real query and one approved tiny job, native job environment, interactive allocation, shared storage, actual SIF mounting, update and rollback |
 | 4. Daily toolkit | Extend the proven recipe to agents, remaining navigation tools and personal HPC helpers | Real editor/agent subprocess workflow, PuTTY/VS Code shortcuts, offline startup, tmux reconnect and rollback |
 | 5. Scientific runtime | Explicit per-project MPI and CUDA/ROCm integration | Result-checked serial, GPU, single-node MPI, then multi-node and GPU-aware tests in allocations |
 
@@ -158,10 +171,12 @@ The existing Docker Desktop tests use extracted SIF execution because direct nes
 
 ## Updates, ownership, and rollout
 
-Build and test on the local Linux builder; publish generic source/configuration and transfer the SIF with its checksum through the existing approved route. Keep the public repository free of real site recipes, reports, credentials, and job data. The first pilot uses a new artifact name; it does not replace 0.4 or modify a running session's image.
+Build and test on the local Linux builder; publish one versioned release containing the SIF, launcher, shared defaults, integration rules, and checksums. Transfer that release through the existing approved route. The installer/update operation verifies the release, prepares or migrates local integration automatically, and selects the version for new sessions. It must be repeatable without duplicate shell hooks or overwritten personal settings. An update must not require rebuilding the toolbox or independently editing each cluster's dotfiles. Downloaded releases and transferred offline releases use the same installation path.
+
+Keep the public repository free of real site recipes, reports, credentials, and job data. The first pilot uses a new artifact name; it does not replace 0.4 or modify a running session's image. Deployment automation remains implementation work; this document does not claim it already exists.
 
 The workspace maintainer updates Nix/private tool libraries and the image scaffold. Site administrators update the mounted host software. A host patch affects tools actually using that maintained library; it does not rewrite private libraries in the SIF. Keep the previous image, pin new sessions to the selected image, and revalidate affected site capabilities when the image or host runtime changes.
 
 Use one common development-tool set initially. GPU vendors do not require separate editions of fzf, bat, or the editor. Scientific runtimes may later have CUDA/ROCm variants without changing the daily shell experience. Add external SquashFS tool/science payloads only after this basic image-plus-site-recipe workflow works; they add another version/compatibility relationship to manage.
 
-The first implementation milestone is a **small Nix-equipped SIF and a tested host-integration recipe**, with the existing container retained for comparison. The package set, the filesystem view, and the execution behavior all need to pass together.
+The first implementation milestone is a **Nix-equipped thin SIF with automated integration and deployment**, initially proven with a small tool set. The package set, dotfiles, filesystem view, ordinary site commands, and release update must work together from the same development shell. Expand the toolkit once that foundation passes.

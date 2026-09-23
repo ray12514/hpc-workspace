@@ -8,7 +8,7 @@ Use the same Bash shell, shortcuts, editor, and project commands on Ruth, Jean, 
 
 The defaults should be discoverable. Add a short shortcut guide and a tool catalog showing what is installed, its version, and one useful example. File pickers and searches start in the project. Large scans, tests, and benchmarks are deliberate operations; compute-heavy work runs in an allocation.
 
-Keep the container as the consistent shell and tools environment, with shared dotfiles for appearance and shortcuts. Evaluate Nix inside the image to manage the selected binaries and their dependencies. Preserve useful access to site filesystems, schedulers, modules, and scientific tools through explicitly tested integration. File visibility and host command execution are separate requirements; packaging tools with Nix does not by itself establish host integration. No switch to a native-only installation has been selected.
+Keep the container as the consistent shell and tools environment, with shared dotfiles for appearance and shortcuts and Nix-packaged tools inside the image. Build the tool set centrally and automate deployment, updates, and local integration. Preserve ordinary use of site filesystems, schedulers, modules, and supported software from that same shell. Host integration is implementation work; requiring a second shell or manually maintained setup on each cluster does not meet the target.
 
 ## Common toolkit
 
@@ -42,7 +42,7 @@ The workspace already sets `VISUAL=nvim` and `EDITOR=nvim`. Codex documents **Ct
 
 ## Current versions with reproducible releases
 
-For independently packaged productivity tools, select the newest stable upstream release available when preparing a release. Resolve concrete versions, verify artifacts, test the combination, and freeze it in the release manifest. The same selected release should expose the same tools next month. Updates produce a new tested native tool bundle, package-manager generation, or image, with a changelog and rollback path. Each delivery format owns updates to its private libraries; host library updates only help programs that actually load those compatible shared libraries.
+For independently packaged productivity tools, select the newest stable upstream release available when preparing a release. Resolve concrete versions, verify artifacts, test the combination, and freeze it in the release manifest. The same selected release should expose the same tools next month. Updates produce a new tested image and matching launcher/defaults, with automated application and rollback. The image owns updates to its private libraries; host library updates affect programs that actually load those compatible shared libraries.
 
 Track the base OS on a supported stable release with a dated package snapshot. Record any older compatibility pin and its reason. Keep compiler, GPU, MPI, and language-server compatibility explicit instead of independently upgrading every component of a coupled stack. A newest-version preference does not remove the need to verify the entire combination.
 
@@ -64,7 +64,7 @@ Define a small integration convention before adding custom tools:
 
 Portable helpers can be included in the image. Host-dependent helpers need a tested host execution path or compatible container integration, with pinned packages and coherent tool-specific dependencies. During local development, explicitly select a checked-out tool; use pinned packages in releases. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
 
-`libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on host tools, connectivity, and authentication. Merely adding its executable to the SIF does not establish that integration. Begin with native-host execution; add a narrow adapter only if useful. The current workspace host connection supports **submit/jobs only** and cannot already run `libsweep`. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
+`libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on site tools, connectivity, and authentication. Treat these as integration requirements for use from the development shell. The current workspace host connection supports **submit/jobs only** and cannot already run `libsweep`. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
 
 Two established HPC projects are worth evaluating before writing equivalent helpers: **hwloc** for inspecting CPU/NUMA/device topology, including its terminal-oriented `lstopo-no-graphics`, and **ReFrame** for repeatable system tests and benchmarks. Hwloc's output describes the resources visible in the execution environment; ReFrame needs deliberate site and test configuration and can submit jobs. Both belong to a later, explicitly invoked diagnostic/testing workflow. [hwloc documentation](https://www.open-mpi.org/projects/hwloc/), [ReFrame documentation](https://reframe-hpc.readthedocs.io/en/stable/)
 
@@ -82,8 +82,8 @@ These names are design examples, not commands the current release provides. Impl
 
 ## Delivery sequence
 
-1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides; clarify which site operations must work from within it.
-2. Build the small Nix tool pilot and explicit host-integration recipe described in the [implementation plan](thin-container-plan.md). Validate real invocation, terminal input, paths, modules, editor subprocesses and native scheduler behavior, then perform site-local acceptance before extending the toolkit.
+1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides. Site commands working from the same development shell are an established requirement.
+2. Build the small Nix tool pilot, automated integration, and deployment/update path described in the [implementation plan](thin-container-plan.md). Validate real invocation, terminal input, paths, modules, editor subprocesses and ordinary scheduler behavior from that same shell, then perform site-local acceptance before extending the toolkit.
 3. Build the compact Neovim configuration and validate the editor/agent/review workflow in the intended execution contexts.
 4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
 5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.

@@ -6,9 +6,9 @@ The current release is **core / linux-amd64**: Ubuntu 24.04, Neovim 0.12.5, tmux
 
 The image carries its own glibc. The initial runtime target is **Apptainer 1.3.6 through 1.5**. CPU architecture, host kernel capabilities, and any host libraries added later still matter; local validation results are recorded in [validation.md](docs/validation.md).
 
-The intended direction remains a **thin container with consistent tools and dotfiles, integrated with the cluster**. The [implementation plan](docs/thin-container-plan.md) recommends Nix-packaged development tools inside the SIF and an explicitly tested host filesystem/runtime recipe, following the Open OnDemand pattern. It maps mounts, modules, scheduler behavior, local configuration, and rollout; no new runtime is implemented yet. The [toolkit roadmap](docs/toolkit-roadmap.md) builds on that pilot. For the reported tmux startup and bat library errors, use the [local troubleshooting guide](docs/troubleshooting-startup.md); their cluster-side causes remain unconfirmed.
+The target is **one centrally maintained development environment, delivered in a thin container and integrated with the system you log into**. Build the tools and shared dotfiles once, distribute the same release, and automate installation, updates, and local integration. From that development shell, use the site's files, modules, scheduler commands, and other supported programs normally. The [implementation plan](docs/thin-container-plan.md) uses an image-owned Nix store and automated host integration, following the Open OnDemand pattern. The [toolkit roadmap](docs/toolkit-roadmap.md) builds on that work. This target is not yet fully implemented; the reported tmux startup and bat library errors also remain unconfirmed on the clusters. See the [local troubleshooting guide](docs/troubleshooting-startup.md).
 
-The additional requirement to build and test other containers is covered in [workflow alternatives and the first iteration](docs/workflow-options.md). It compares VS Code Remote SSH, the integrated SIF shell, host Podman/Apptainer operations, and optional client access from inside the workspace. This is a decision proposal, not an implemented runtime switch.
+The [daily-environment requirements](docs/workflow-options.md) supersede the earlier recommendation to divide ordinary work between host and container windows. Podman is another runtime to integrate where useful; VS Code is an optional editor. Neither changes the requirement for a single development environment with centrally managed tools and settings.
 
 ## What is built now
 
@@ -26,7 +26,7 @@ flowchart LR
 
 The core deliberately has no MPI implementation or GPU compiler toolkit. `--gpu cuda` and `--gpu rocm` request Apptainer device/library passthrough inside an existing allocation. They do not install CUDA/ROCm or establish driver compatibility. Future toolkit images should retain this launcher, configuration, and persistent-state interface.
 
-Nix is not a prerequisite. The Dockerfile pins base-image digests, uses a dated Ubuntu package snapshot, locks npm dependencies, and checks downloaded editor/plugin archives. This gives us a manageable first release; Nix can be introduced on the builder if maintaining the package set later justifies it. Archive checksums identify the actual delivered bytes; separate rebuilds are not promised to be bit-for-bit identical.
+The current release does not use Nix. Its Dockerfile pins base-image digests, uses a dated Ubuntu package snapshot, locks npm dependencies, and checks downloaded editor/plugin archives. The planned tool packaging uses Nix during the image build and ships the prepared store in the container; it does not require installing Nix on every cluster host. Archive checksums identify the actual delivered bytes; separate rebuilds are not promised to be bit-for-bit identical.
 
 ## Transfer and first launch
 
