@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. The [thin-container implementation plan](thin-container-plan.md) recommends Nix tools inside the image and a tested site integration recipe as the next milestone. Those changes, additional tools, and editor plugins remain proposed. The [native tools research](research/native-tool-layer.md) is an alternative analysis, not a selected migration. The [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
+Updated 2026-09-23. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. Additional agents, compiler tools, editor plugins and custom HPC helpers remain toolkit work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
 
 ## Intended daily experience
 

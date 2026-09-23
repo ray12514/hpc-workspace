@@ -1,5 +1,17 @@
-# Loaded explicitly; host shell startup files cannot change the baseline.
-export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# The thin layout preserves the calling system's paths and module environment.
+if [[ ${WS_LAYOUT:-core} != thin-v1 ]]; then
+    export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+fi
+if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
+    _ws_lmod=${LMOD_CMD:-/nonexistent}
+    for _ws_module_init in "${MODULESHOME:-/nonexistent}/init/bash" "${_ws_lmod%/libexec/*}/init/bash" /etc/profile.d/lmod.sh /etc/profile.d/modules.sh; do
+        if [[ -r $_ws_module_init ]]; then
+            source "$_ws_module_init"
+            declare -F module >/dev/null && break
+        fi
+    done
+    unset _ws_module_init _ws_lmod
+fi
 export EDITOR=nvim
 export VISUAL=nvim
 export PAGER=less
@@ -7,7 +19,7 @@ export LESS=-FRX
 export HISTCONTROL=ignoreboth
 export HISTSIZE=20000
 export HISTFILESIZE=40000
-export HISTFILE="${XDG_STATE_HOME}/bash-history"
+export HISTFILE="${WS_STATE_HOME:-${XDG_STATE_HOME}}/bash-history"
 shopt -s histappend checkwinsize
 # Values are expanded once through literal parameter references in PS1. Never
 # interpolate a path/branch into PS1 itself: names may contain shell syntax.
@@ -52,21 +64,28 @@ _ws_prompt() {
     (( status != 0 )) && _ws_result="exit:$status "
     return 0
 }
-PROMPT_COMMAND=_ws_prompt
+if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
+    PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}")
+fi
 # shellcheck disable=SC2016
 PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_branch}'"${_ws_reset}\n${_ws_error}"'${_ws_result}'"${_ws_reset}"'\$ '
 alias ll='ls -alF'
 alias la='ls -A'
 alias ..='cd ..'
-if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+if [[ -f ${WS_ROOT:-/opt/workspace}/share/bash-completion/bash_completion ]]; then
+    source "${WS_ROOT:-/opt/workspace}/share/bash-completion/bash_completion"
+elif [[ -f /usr/share/bash-completion/bash_completion ]]; then
     source /usr/share/bash-completion/bash_completion
 fi
-if [[ -f /opt/workspace/share/fzf/key-bindings.bash ]]; then
-    source /opt/workspace/share/fzf/key-bindings.bash
+if [[ -f ${WS_ROOT:-/opt/workspace}/share/fzf/key-bindings.bash ]]; then
+    source "${WS_ROOT:-/opt/workspace}/share/fzf/key-bindings.bash"
 fi
 # Reapply personal key choices after the bundled fzf bindings.
 if [[ -r ${INPUTRC:-} ]]; then
     bind -f "$INPUTRC"
+fi
+if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && command -v zoxide >/dev/null; then
+    eval "$(zoxide init bash)"
 fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"

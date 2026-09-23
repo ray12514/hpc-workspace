@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_release="${1:-0.5.0-preview1}"
+workspace_revision=$(git -C "$workspace_root" rev-parse HEAD 2>/dev/null || printf 'source-release')
+if [[ -d "$workspace_root/.git" && -n $(git -C "$workspace_root" status --porcelain) ]]; then
+    workspace_revision+="-dirty"
+fi
+exec "$workspace_root/scripts/docker-public" build --platform linux/amd64 \
+    --build-arg "WORKSPACE_RELEASE=$workspace_release" --build-arg "WORKSPACE_REVISION=$workspace_revision" \
+    --tag "hpc-workspace-thin:$workspace_release" --file "$workspace_root/image/Thin.Dockerfile" "$workspace_root"

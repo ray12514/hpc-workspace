@@ -1,5 +1,7 @@
 # Transfer and start the workspace
 
+These are the retained **0.4 core-image** instructions. For the integrated thin release and automated installer, use the [thin startup guide](thin-start.md).
+
 This workflow uses a public GitHub repository and downloadable release files. It does not require a container registry or Docker on the cluster. Build and test on the workstation, then transfer the same SIF and launcher bundle to Ruth, Jean, and Blueback.
 
 ## 1. Download the release

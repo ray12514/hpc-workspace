@@ -1,6 +1,6 @@
 # Thin container with site integration
 
-Date: 2026-09-23. Status: **implementation plan; the released 0.4 SIF and launcher are unchanged**.
+Date: 2026-09-23. Status: **first implementation in 0.5.0-preview1; the 0.4 artifact remains available**. See the [startup guide](thin-start.md) for implemented behavior and [validation](validation.md) for its tested scope.
 
 This is the implementation direction. The [daily-environment requirements](workflow-options.md) supersede the later host-window-first proposal. A single integrated development shell and automated maintenance across systems are acceptance requirements.
 
@@ -173,7 +173,7 @@ The existing Docker Desktop tests use extracted SIF execution because direct nes
 
 Build and test on the local Linux builder; publish one versioned release containing the SIF, launcher, shared defaults, integration rules, and checksums. Transfer that release through the existing approved route. The installer/update operation verifies the release, prepares or migrates local integration automatically, and selects the version for new sessions. It must be repeatable without duplicate shell hooks or overwritten personal settings. An update must not require rebuilding the toolbox or independently editing each cluster's dotfiles. Downloaded releases and transferred offline releases use the same installation path.
 
-Keep the public repository free of real site recipes, reports, credentials, and job data. The first pilot uses a new artifact name; it does not replace 0.4 or modify a running session's image. Deployment automation remains implementation work; this document does not claim it already exists.
+Keep the public repository free of real site recipes, reports, credentials, and job data. The first pilot uses a new artifact name; it does not replace 0.4 or modify a running session's image. The 0.5 preview implements this offline installation/update path; the startup guide records its current scope.
 
 The workspace maintainer updates Nix/private tool libraries and the image scaffold. Site administrators update the mounted host software. A host patch affects tools actually using that maintained library; it does not rewrite private libraries in the SIF. Keep the previous image, pin new sessions to the selected image, and revalidate affected site capabilities when the image or host runtime changes.
 

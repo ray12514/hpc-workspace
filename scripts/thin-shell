@@ -1,0 +1,2 @@
+#!/workspace-tools/bin/bash
+exec /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -i "$@"

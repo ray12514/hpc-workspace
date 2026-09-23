@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_release="${1:-0.5.0-preview1}"
+workspace_output="${2:-$workspace_root/dist/hpc-workspace-thin-${workspace_release}-linux-amd64.sif}"
+mkdir -p "$(dirname -- "$workspace_output")"
+workspace_output=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$workspace_output")
+if [[ -e "$workspace_output" ]]; then
+    printf 'Output already exists; choose a new artifact path.\n' >&2; exit 2
+fi
+workspace_archive="${workspace_output%.sif}.docker.tar"
+workspace_image_id=$("$workspace_root/scripts/docker-public" image inspect "hpc-workspace-thin:$workspace_release" --format '{{.Id}}')
+"$workspace_root/scripts/docker-public" image save --output "$workspace_archive" "hpc-workspace-thin:$workspace_release"
+"$workspace_root/scripts/docker-public" run --rm --network none \
+    --mount "type=bind,src=$(dirname -- "$workspace_output"),dst=/output" \
+    hpc-workspace-apptainer:1.5.3 build --arch amd64 --mksquashfs-args='-comp gzip -processors 2' \
+    "/output/$(basename -- "$workspace_output")" "docker-archive:/output/$(basename -- "$workspace_archive")"
+python3 - "$workspace_output" "$workspace_release" "$workspace_image_id" <<'PY'
+import hashlib,json,sys
+from pathlib import Path
+path=Path(sys.argv[1]); h=hashlib.sha256()
+with path.open('rb') as src:
+    for block in iter(lambda:src.read(1024*1024),b''): h.update(block)
+Path(str(path)+'.sha256').write_text(h.hexdigest()+'  '+path.name+'\n')
+Path(str(path)+'.json').write_text(json.dumps({'schema_version':1,'layout':'thin-v1','platform':'linux/amd64','release':sys.argv[2],'sha256':h.hexdigest(),'docker_image_id':sys.argv[3]},indent=2)+'\n')
+print(path)
+PY

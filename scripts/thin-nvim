@@ -1,0 +1,11 @@
+#!/workspace-tools/libexec/python3 -I
+import os
+import sys
+from pathlib import Path
+root = Path('/workspace-tools')
+environment = dict(os.environ)
+environment['XDG_STATE_HOME'] = str(Path(environment['WS_STATE_HOME']) / 'apps')
+# App-specific configuration; no global XDG override for site applications.
+args = [str(root / 'libexec/nvim'), '--cmd', 'set runtimepath^=/workspace-tools/config/nvim',
+        '-u', str(root / 'config/nvim/init.lua')] + sys.argv[1:]
+os.execve(args[0], args, environment)

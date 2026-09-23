@@ -1,6 +1,8 @@
 # Workspace dotfiles
 
-The dotfile foundation is implemented for **0.4.0-preview1**. Shared defaults are versioned in `image/config/` beside the image recipe. Each image contains them under `/opt/workspace/config`; the matching source bundle supplies the same tmux configuration to the native host. No dotfile manager or startup download is required.
+Shared defaults are versioned in `image/config/` beside the image recipe. The **0.5 thin preview** carries them under `/workspace-tools/config` and uses the same personal `bashrc`, `inputrc`, `nvim.lua`, `tmux.conf`, and bat configuration locations described below. It applies settings to those tools without globally changing the host's XDG directories. The thin Neovim launcher loads the shared configuration and personal `nvim.lua` directly; `xdg/nvim/init.lua` remains the older core-image loader. Git uses its normal host configuration in this first thin preview.
+
+The remaining image-path and global-XDG details on this page describe the retained **0.4 core release**, which uses `/opt/workspace/config`. See the [thin startup guide](thin-start.md) for the current workflow. No dotfile manager or startup download is required.
 
 ## Personal configuration
 

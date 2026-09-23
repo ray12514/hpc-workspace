@@ -14,10 +14,14 @@ import socket
 import subprocess
 import sys
 import tempfile
+import tarfile
+import time
 
 from scheduler import Scheduler, SchedulerError, selected_environment
 from job_bridge import HostJobs, call as call_host_jobs
 import configuration
+import integration
+import releases
 from inspector import MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +80,8 @@ def import_profile(source, args):
         command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
                    "--bind", bind_spec(snapshot, "/tmp/ws-profile.yaml", "ro"), "--pwd", "/tmp",
                    image["path"], "/usr/bin/python3", "-I", "/opt/workspace/lib/inspector.py", "/tmp/ws-profile.yaml"]
+        if image.get("layout") == integration.LAYOUT:
+            command[-5:] = [image["path"], "/workspace-tools/thin-entry", "--import-profile", "/tmp/ws-profile.yaml"]
         environment = {key: value for key, value in os.environ.items()
                        if not key.startswith(("APPTAINER", "SINGULARITY"))}
         try:
@@ -194,18 +200,20 @@ def image_record(path):
     if not path.is_file() or path.suffix != ".sif":
         raise WorkspaceError("Image must be an existing .sif file: " + str(path))
     stat = path.stat()
-    return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+    return dict({"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}, **integration.descriptor(path))
 
 
 def selected_image(args):
     if getattr(args, "image", None):
         return image_record(args.image)
+    if os.environ.get("WS_INSTALL_ROOT"):
+        return image_record(Path(os.environ["WS_INSTALL_ROOT"]) / "current/image.sif")
     path = state_path(args) / "selection.json"
     if not path.exists():
         raise WorkspaceError("Select an image with 'ws use', or pass --image FILE.sif.")
     record = load_json(path)["current"]
     actual = image_record(record["path"])
-    if any(actual[key] != record[key] for key in ("size", "mtime_ns")):
+    if any(actual[key] != record[key] for key in ("size", "mtime_ns")) or actual.get("layout") != record.get("layout"):
         raise WorkspaceError("Selected image changed. Revalidate it with 'ws use'.")
     return record
 
@@ -230,7 +238,7 @@ def bind_spec(source, destination=None, mode="rw"):
     return "{}:{}:{}".format(source, destination, mode)
 
 
-def container_plan(args, create_state=False, job_directory=None):
+def container_plan(args, create_state=False, job_directory=None, environment_file=None):
     data = current_profile(args)
     project = Path(args.project).expanduser().resolve()
     if not project.is_dir():
@@ -248,6 +256,8 @@ def container_plan(args, create_state=False, job_directory=None):
     state = state_path(args)
     if create_state:
         state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if image.get("layout") == integration.LAYOUT:
+        return integration.plan(image, project, state, data, args, bind_spec, environment_file, create_state)
     runtime = shutil.which("apptainer") or "apptainer"
     home_mount = bind_spec(Path.home(), str(Path.home()))
     # An explicit bind alone does not set HOME: Apptainer otherwise uses the
@@ -324,6 +334,10 @@ def enter(args):
         if args.host_jobs:
             print("A temporary, same-user host scheduler socket will be bound at /workspace-host when started.", file=sys.stderr)
         return 0
+    if selected_image(args).get("layout") == integration.LAYOUT:
+        with integration.snapshot(args, state_path(args)) as snapshot:
+            command, environment = container_plan(args, create_state=True, environment_file=snapshot)
+            return execute(command, environment)
     if args.host_jobs:
         roots = [args.project] + ([args.work] if args.work else [])
         scheduler = Scheduler(require_scheduler(current_profile(args)), os.environ, roots=roots)
@@ -407,6 +421,11 @@ def doctor(args):
 
 
 def select_release(args):
+    if os.environ.get("WS_INSTALL_ROOT"):
+        if args.action == "rollback":
+            print(json.dumps(releases.rollback(), indent=2))
+            return 0
+        raise WorkspaceError("Use ws update RELEASE.json to select an installed release; --image selects a one-off image.")
     state = state_path(args)
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = state / "selection.json"
@@ -447,6 +466,58 @@ def select_release(args):
     return 0
 
 
+def thin_session(args, image):
+    """Keep the runtime alive for detached packaged tmux and its filesystem."""
+    project = Path(args.project).expanduser().resolve()
+    name = integration.session_name(args.site, project, image["release"])
+    state = state_path(args)
+    folder = state / "session-hosts" / hashlib.sha256(socket.gethostname().encode()).hexdigest()[:16]
+    ready, record, log = (folder / (name + suffix) for suffix in (".ready", ".json", ".log"))
+    keeper = [sys.executable, str(ROOT / "bin/ws"), "enter", "--site", args.site,
+              "--project", str(project), "--image", image["path"], "--state-dir", str(state)]
+    if args.work:
+        keeper += ["--work", args.work]
+    keeper += ["--", "/workspace-tools/thin-session", "--serve", str(ready)]
+    if args.dry_run:
+        # Validate the same filesystem plan without creating a keeper or state.
+        entry = argparse.Namespace(**vars(args))
+        entry.command, entry.gpu, entry.compute = [], "none", False
+        container_plan(entry)
+        print_plan(keeper)
+        return 0
+    folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = os.open(str(folder / (name + ".lock")), os.O_WRONLY | os.O_CREAT, 0o600)
+    with os.fdopen(descriptor, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        prior = load_json(record) if record.exists() else {}
+        running = prior.get("identity") and integration.process_identity(prior.get("pid")) == prior["identity"]
+        if running and prior.get("image") != image["path"]:
+            raise WorkspaceError("A session for this release already uses another image: " + prior["image"])
+        if not running:
+            if ready.exists():
+                ready.unlink()
+            descriptor = os.open(str(log), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(descriptor, "a") as output:
+                process = subprocess.Popen(keeper, stdin=subprocess.DEVNULL, stdout=output,
+                                           stderr=output, start_new_session=True)
+            prior = {"pid": process.pid, "identity": integration.process_identity(process.pid),
+                     "image": image["path"], "session": name}
+            releases.atomic_text(record, json.dumps(prior) + "\n")
+        deadline = time.monotonic() + 90
+        while not ready.exists():
+            if not prior["identity"] or integration.process_identity(prior["pid"]) != prior["identity"]:
+                raise WorkspaceError("Workspace session did not start; local details: " + str(log))
+            if time.monotonic() >= deadline:
+                raise WorkspaceError("Workspace session is still starting; retry ws session. Local details: " + str(log))
+            time.sleep(0.1)
+    print("Workspace session {} ({})".format(name, image["release"]), flush=True)
+    if args.detach:
+        return 0
+    entry = argparse.Namespace(**vars(args))
+    entry.gpu, entry.compute, entry.command = "none", False, ["/workspace-tools/thin-session", "--attach"]
+    return enter(entry)
+
+
 def session(args):
     data = current_profile(args)
     if args.host_jobs:
@@ -457,6 +528,8 @@ def session(args):
     if not project.is_dir():
         raise WorkspaceError("Project directory does not exist: " + str(project))
     image = selected_image(args)
+    if image.get("layout") == integration.LAYOUT:
+        return thin_session(args, image)
     name = "ws-{}-{}".format(args.site, hashlib.sha256(str(project).encode()).hexdigest()[:10])
     tmux = ["tmux", "-L", name, "-f", str(ROOT / "image/config/tmux/tmux.conf")]
     environment = dict(os.environ)
@@ -499,6 +572,11 @@ def session(args):
     return subprocess.call(tmux + ["attach-session", "-t", name], env=environment)
 
 
+def update_release(args):
+    print(json.dumps(releases.install(args.manifest, args.prefix, not args.no_shell_hook), indent=2))
+    return 0
+
+
 def parser():
     result = argparse.ArgumentParser(description="A consistent development workspace on HPC clusters.")
     sub = result.add_subparsers(dest="action")
@@ -538,6 +616,11 @@ def parser():
             command.add_argument("--sha256", required=True)
         if name == "session":
             command.add_argument("--detach", action="store_true")
+    update = sub.add_parser("update", help="Install a transferred release and select it atomically")
+    update.set_defaults(handler=update_release, site=None)
+    update.add_argument("manifest")
+    update.add_argument("--prefix")
+    update.add_argument("--no-shell-hook", action="store_true")
     return result
 
 
@@ -548,10 +631,12 @@ def main(argv=None):
         arguments.print_help()
         return 0
     try:
-        if in_container() and args.action not in ("jobs", "submit"):
+        if args.action == "update" or (args.action == "rollback" and os.environ.get("WS_INSTALL_ROOT")):
+            return args.handler(args)
+        if in_container() and args.action not in ("jobs", "submit", "doctor"):
             raise WorkspaceError("Run 'ws " + args.action + "' on the host. Inside the workspace use submit or jobs.")
         prepare(args)
         return args.handler(args)
-    except (WorkspaceError, SchedulerError, OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
+    except (WorkspaceError, SchedulerError, OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError, tarfile.TarError) as exc:
         print("ws: " + str(exc), file=sys.stderr)
         return 2

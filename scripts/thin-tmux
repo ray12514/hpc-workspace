@@ -1,0 +1,15 @@
+#!/workspace-tools/libexec/python3 -I
+import hashlib
+import os
+from pathlib import Path
+import sys
+state = Path(os.environ['WS_STATE_HOME']) / 'tmux' / os.uname().nodename / 'default'
+state.mkdir(parents=True, exist_ok=True, mode=0o700)
+os.environ.setdefault('WS_SESSION_STATE', str(state))
+args = sys.argv[1:]
+options = []
+if '-L' not in args and '-S' not in args:
+    options += ['-L', 'ws-' + hashlib.sha256(os.environ['WS_RELEASE'].encode()).hexdigest()[:8]]
+if '-f' not in args:
+    options += ['-f', '/workspace-tools/config/tmux/tmux.conf']
+os.execve('/workspace-tools/libexec/tmux', ['tmux'] + options + args, os.environ)

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_sif=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$1")
+workspace_fixture="${2:-hpc-workspace-apptainer:1.5.3}"
+workspace_user="${3:-1000:1000}"
+exec "$workspace_root/scripts/docker-public" run --rm --network none --user "$workspace_user" \
+    --security-opt seccomp=unconfined --security-opt systempaths=unconfined \
+    --tmpfs /tmp:exec,mode=1777 --env PYTHONDONTWRITEBYTECODE=1 \
+    --mount "type=bind,src=$workspace_root,dst=/src,readonly" \
+    --mount "type=bind,src=$(dirname -- "$workspace_sif"),dst=/input,readonly" \
+    --entrypoint python3 "$workspace_fixture" /src/tests/thin-behavior.py "/input/$(basename -- "$workspace_sif")"

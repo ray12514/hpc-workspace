@@ -1,0 +1,69 @@
+#!/workspace-tools/libexec/python3 -I
+"""Restore the calling environment as data, then add the shared development layer."""
+import json
+import os
+from pathlib import Path
+import sys
+
+ROOT = Path('/workspace-tools')
+sys.path.insert(0, str(ROOT / 'lib'))
+
+if sys.argv[1:2] == ['--import-profile']:
+    sys.path.insert(0, (ROOT / 'manifests/yaml-path.txt').read_text().strip())
+    from inspector import read_profile
+    print(json.dumps(read_profile(sys.argv[2])))
+    sys.exit(0)
+
+from dotfiles import initialize
+
+release = (ROOT / 'manifests/release.txt').read_text().strip()
+payload_path = Path('/workspace-bootstrap/environment.json')
+payload = json.loads(payload_path.read_text()) if payload_path.exists() else {}
+if payload:
+    if payload.get('schema_version') != 1 or not isinstance(payload.get('environment'), dict):
+        raise SystemExit('workspace: invalid local startup snapshot')
+    source = Path(payload['snapshot_source'])
+    if source.samefile(payload_path):
+        source.unlink()  # Credentials need not remain on disk for the session.
+    os.environ.clear()
+    os.environ.update(payload['environment'])
+# Apptainer control variables describe the outer workspace. Do not accidentally
+# pass its generated binds/options to a container the user launches later.
+for key in list(os.environ):
+    if key.startswith(('APPTAINER', 'SINGULARITY')):
+        os.environ.pop(key)
+home = Path.home()
+state = Path(payload.get('state', str(home / '.local/state/hpc-workspace/local')))
+old_umask = os.umask(0o077)
+try:
+    state.mkdir(parents=True, exist_ok=True)
+    personal = home / '.config/hpc-workspace'
+    initialize(ROOT / 'config/user', personal)
+    # Keep old personal files usable on both core and thin releases. Readline's
+    # old generated include is replaced in a per-release runtime copy only.
+    inputrc = state / ('inputrc-' + release)
+    custom = (personal / 'inputrc').read_text()
+    custom = '\n'.join(line for line in custom.splitlines()
+                       if line.strip() != '$include /opt/workspace/config/inputrc')
+    contents = (ROOT / 'config/inputrc').read_text() + '\n' + custom + '\n'
+    if not inputrc.exists() or inputrc.read_text() != contents:
+        temporary = inputrc.with_name(inputrc.name + '.' + str(os.getpid()))
+        temporary.write_text(contents)
+        temporary.replace(inputrc)
+finally:
+    os.umask(old_umask)
+host_path = os.environ.get('PATH', '/usr/local/bin:/usr/bin:/bin')
+os.environ.update({
+    'PATH': str(ROOT / 'bin') + ':' + host_path,
+    'WS_ROOT': str(ROOT), 'WS_RELEASE': release, 'WS_LAYOUT': 'thin-v1',
+    'WS_CONTAINER': '1', 'WS_STATE_HOME': str(state),
+    'WS_PROJECT': payload.get('project', os.getcwd()), 'WS_GPU_MODE': payload.get('gpu', 'none'),
+    'BAT_CONFIG_PATH': str(personal / 'xdg/bat/config'),
+    'WS_SITE': payload.get('site', os.environ.get('WS_SITE', 'local')),
+    'WS_HOSTNAME': payload.get('hostname', os.uname().nodename),
+    'WS_CONTEXT': 'compute' if os.environ.get('SLURM_JOB_ID') or os.environ.get('PBS_JOBID') else 'login',
+    'EDITOR': 'nvim', 'VISUAL': 'nvim', 'INPUTRC': str(inputrc),
+    'TERMINFO_DIRS': str(ROOT / 'share/terminfo') + ':' + os.environ.get('TERMINFO_DIRS', '/etc/terminfo:/lib/terminfo:/usr/share/terminfo'),
+})
+command = sys.argv[1:] or [str(ROOT / 'thin-shell')]
+os.execvpe(command[0], command, os.environ)

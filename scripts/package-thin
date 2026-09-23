@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Publishable offline bundle: SIF, matching sources, installer, and release manifest."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root / 'lib'))
+from releases import digest
+release = sys.argv[1] if len(sys.argv) > 1 else '0.5.0-preview1'
+if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', release):
+    raise SystemExit('Invalid release name')
+if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root):
+    raise SystemExit('Commit the tested source before packaging a release')
+revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, universal_newlines=True).strip()
+directory = root / 'dist'
+image = directory / ('hpc-workspace-thin-' + release + '-linux-amd64.sif')
+metadata = json.loads(Path(str(image) + '.json').read_text())
+if metadata.get('release') != release or digest(image) != metadata.get('sha256'):
+    raise SystemExit('Image descriptor does not match the SIF')
+docker = str(root / 'scripts/docker-public')
+inspection = json.loads(subprocess.check_output([docker, 'image', 'inspect', 'hpc-workspace-thin:' + release], universal_newlines=True))[0]
+labels = inspection['Config']['Labels']
+if (labels.get('org.opencontainers.image.revision') != revision or labels.get('org.hpc-workspace.layout') != 'thin-v1'
+        or labels.get('org.opencontainers.image.version') != release or metadata.get('docker_image_id') != inspection['Id']):
+    raise SystemExit('Build the thin image from this committed source first')
+source = directory / ('hpc-workspace-source-' + release + '.tar.gz')
+installer = directory / ('install-workspace-' + release + '.py')
+manifest = directory / ('release-' + release + '.json')
+if any(path.exists() for path in (source, installer, manifest)):
+    raise SystemExit('Release bundle already exists; use a new version')
+subprocess.run(['git', 'archive', '--format=tar.gz', '--prefix=hpc-workspace/', '--output', str(source), revision], cwd=root, check=True)
+shutil.copyfile(root / 'lib/releases.py', installer)
+installer.chmod(0o755)
+record = {'schema_version': 1, 'release': release, 'layout': 'thin-v1', 'platform': 'linux/amd64',
+          'source_git_commit': revision, 'docker_image_id': inspection['Id'],
+          'nixpkgs': json.loads((root / 'image/nix/flake.lock').read_text())['nodes']['nixpkgs']['locked'],
+          'cluster_execution_tested': False, 'artifacts': {}}
+for role, path in (('image', image), ('source', source), ('installer', installer)):
+    value = digest(path)
+    record['artifacts'][role] = {'file': path.name, 'bytes': path.stat().st_size, 'sha256': value}
+    Path(str(path) + '.sha256').write_text(value + '  ' + path.name + '\n')
+manifest.write_text(json.dumps(record, indent=2) + '\n')
+Path(str(manifest) + '.sha256').write_text(digest(manifest) + '  ' + manifest.name + '\n')
+print(manifest)

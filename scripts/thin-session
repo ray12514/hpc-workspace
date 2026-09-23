@@ -1,0 +1,45 @@
+#!/workspace-tools/libexec/python3 -I
+"""Keep packaged tmux's container alive, or attach to its existing session."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, '/workspace-tools/lib')
+from integration import process_identity, session_name
+
+project = os.getcwd()
+release = os.environ['WS_RELEASE']
+name = session_name(os.environ.get('WS_SITE', 'local'), project, release)
+state = Path(os.environ['WS_STATE_HOME']) / 'tmux' / os.uname().nodename / name
+state.mkdir(parents=True, exist_ok=True, mode=0o700)
+os.environ['WS_SESSION_STATE'] = str(state)
+base = ['/workspace-tools/bin/tmux', '-L', name, '-f', '/workspace-tools/config/tmux/tmux.conf']
+exists = subprocess.call(base + ['has-session', '-t', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+if sys.argv[1:2] == ['--serve']:
+    if not exists:
+        subprocess.check_call(base + ['new-session', '-d', '-s', name, '-n', 'workspace', '-c', project,
+                                      '/workspace-tools/thin-shell'])
+        subprocess.check_call(base + ['set-option', '-g', 'default-shell', '/workspace-tools/bin/bash'])
+        subprocess.check_call(base + ['set-option', '-g', 'default-command', '/workspace-tools/thin-shell'])
+        subprocess.check_call(base + ['set-option', '-t', name, '@workspace-image', release])
+        subprocess.check_call(base + ['new-window', '-t', name, '-n', 'editor', '-c', project, 'nvim'])
+        subprocess.check_call(base + ['select-window', '-t', name + ':workspace'])
+    pid = int(subprocess.check_output(base + ['display-message', '-p', '#{pid}']))
+    identity = process_identity(pid)
+    ready = Path(sys.argv[2])
+    temporary = ready.with_name(ready.name + '.' + str(os.getpid()))
+    temporary.write_text(json.dumps({'session': name, 'release': release}) + '\n')
+    temporary.replace(ready)
+    try:
+        while identity is not None and process_identity(pid) == identity:
+            time.sleep(1)
+    finally:
+        if ready.exists():
+            ready.unlink()
+elif exists:
+    os.execvpe(base[0], base + ['attach-session', '-t', name], os.environ)
+else:
+    raise SystemExit('Workspace session is not running. Start it with ws session.')

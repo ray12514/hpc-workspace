@@ -1,5 +1,24 @@
 # Workspace validation
 
+## Integrated thin environment: 0.5.0-preview1
+
+The first thin implementation uses Nixpkgs commit `8825bebf6324e0579d012936eff73379af284b6d`, with its content hash in `image/nix/flake.lock`. It contains Bash 5.3p15, Neovim 0.12.5, tmux 3.7c, bat 0.26.1, fzf 0.74.4, fd 10.5.0, ripgrep 15.2.0, jq 1.8.2, eza 0.23.5, zoxide 0.10.0 and less 704. Its prepared runtime closure is copied into the image; no package manager runs at shell startup.
+
+Local validation uses synthetic data only:
+
+- All 49 host unit tests pass on Linux; macOS passes the 45 applicable tests and skips four Linux-only peer-credential checks. Tests cover old launcher behavior, mount planning, private temporary snapshots, archive traversal rejection, checksum failure preservation, repeated installation, updates, rollback and personal shell-hook preservation.
+- The image's tools and editor run with networking disabled and the image read-only.
+- Real Apptainer tests exercise the same SIF on a Debian 12 userspace with Apptainer 1.3.6 and on Ubuntu 24.04 with Apptainer 1.5.3. The Debian 1.5.3 fixture also established the initial command/editor/session behavior. These use extracted-SIF execution (`--unsquash`) because direct nested SIF mounting is unavailable in the local Docker Desktop environment.
+- From the integrated shell, synthetic native PBS/Slurm clients receive literal arguments, keep native exit codes, and see the shared project and caller UID. Exported module functions and module variables survive entry. Neovim invokes a native helper with the same project/module environment and loads personal overrides.
+- A deliberately invalid `libssl.so.3` on the module library path does not replace bat's private dependencies. Native editor subprocesses still receive that original library path. This is a targeted collision test, not a guarantee for arbitrary preload libraries or every package.
+- Packaged tmux starts without a host tmux dependency. Both windows accept keyboard input, Ctrl-R retrieves and reruns a historical command, Ctrl-C interrupts a command, and a second launcher invocation reconnects to the same session. The test checks that packaged executables still resolve after detachment.
+- The optional existing Inspector YAML import works through the thin image.
+
+The session regression found during implementation was specific and reproducible: letting the container command return after starting detached tmux caused `--unsquash` cleanup to remove the tool files. A host keeper now holds the runtime open for the life of the packaged tmux server. The regression test checks executable resolution and actual Ctrl-R input after detachment; a live shell process alone is insufficient evidence.
+
+No Ruth, Jean or Blueback node was accessed. Normal SIF mounting, real scheduler authentication, site module variants, MPI/fabric behavior, GPU workloads, and nested Podman/Apptainer operations remain local acceptance work. The earlier reported tmux freeze and bat SSL error have not been reproduced from cluster evidence; this release does not claim to identify their causes.
+
+
 ## Explicit dotfiles: 0.4.0-preview1
 
 Date: **2026-09-22**. Built locally for Linux amd64. Core tool versions and package pins are unchanged. No cluster access, private configuration, AI authentication, or live scheduler submission was used.

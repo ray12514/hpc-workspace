@@ -5,6 +5,7 @@
 !share/**
 !scripts/
 !scripts/container-*
+!scripts/thin-*
 !scripts/install-assets.py
 !bin/
 !bin/ws
