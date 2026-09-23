@@ -1,5 +1,16 @@
 # Workspace validation
 
+## Bash startup and local startup preferences: 0.5.1-preview1
+
+The tool versions and Nix lock are unchanged. This release adds ordinary Bash/login-profile setup, `--shell-startup FILE` for site-loaded files, and private persistence of that choice across updates. The installer, host launcher and in-container updater ship together.
+
+- All **55 Linux unit tests pass**. Nine focused installer tests also pass on macOS. Checks cover actual Bash login and terminal startup, active-profile precedence, personal content and symlink/mode preservation, repeated setup, invalid blocks, custom files, remembered opt-out/custom choices, and existing install/update/rollback behavior.
+- The exact transfer bundle installs and reinstalls in a disposable Linux home. Fresh Bash login and terminal shells find `ws` without manually sourcing `activate.sh`. Entry and an update from inside the workspace retain personal settings and working startup.
+- A separate synthetic site home loads custom files through its own startup scripts. The repeated `--shell-startup` option selects those files, an in-container update reuses the saved choice, and fresh shells still find `ws`. The site's ordinary startup files remain byte-for-byte unchanged.
+- The final SIF passes the integrated command/module/editor/tmux/Inspector regression suites on Debian with Apptainer **1.3.6** and Ubuntu with **1.5.3**, using the same extracted-SIF fixtures described below.
+
+The SIF is **141,090,816 bytes** (about **134.6 MiB**), built from commit `1e58b6ab522a3b35d28ddd154d28e9dbe5f77096`. SHA256: `4a57a1cd7cbcfd35988f165fd9ff5d127b222d5203ee6292446d673aea4b1c07`. No target cluster or actual site startup profile was accessed. Normal cluster SIF mounts, real site authentication, MPI/GPU workloads and nested container engines remain local acceptance work.
+
 ## Integrated thin environment: 0.5.0-preview1
 
 The first thin implementation uses Nixpkgs commit `8825bebf6324e0579d012936eff73379af284b6d`, with its content hash in `image/nix/flake.lock`. It contains Bash 5.3p15, Neovim 0.12.5, tmux 3.7c, bat 0.26.1, fzf 0.74.4, fd 10.5.0, ripgrep 15.2.0, jq 1.8.2, eza 0.23.5, zoxide 0.10.0 and less 704. Its prepared runtime closure is copied into the image; no package manager runs at shell startup.
