@@ -2,6 +2,8 @@
 
 Date: 2026-09-23. Status: **implementation plan; the released 0.4 SIF and launcher are unchanged**.
 
+Follow-up: the user has invited alternatives and added container build/test work. The [workflow comparison](workflow-options.md) proposes a smaller first experiment using the development SIF beside native runtime operations, with optional VS Code Remote SSH. This document retains the full integrated-container design; neither a switch to Podman nor a native-only migration has been selected.
+
 ## Goal and recommendation
 
 Enter a container and get the same Bash appearance, navigation, editor, agents, and additional tools on each system, while retaining useful access to that system's files, modules, schedulers, and scientific software. Ordinary commands and existing job scripts should remain familiar. This is the container model used in the user's earlier Open OnDemand work, not a migration to a host-installed toolbox.

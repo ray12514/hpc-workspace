@@ -8,6 +8,8 @@ The image carries its own glibc. The initial runtime target is **Apptainer 1.3.6
 
 The intended direction remains a **thin container with consistent tools and dotfiles, integrated with the cluster**. The [implementation plan](docs/thin-container-plan.md) recommends Nix-packaged development tools inside the SIF and an explicitly tested host filesystem/runtime recipe, following the Open OnDemand pattern. It maps mounts, modules, scheduler behavior, local configuration, and rollout; no new runtime is implemented yet. The [toolkit roadmap](docs/toolkit-roadmap.md) builds on that pilot. For the reported tmux startup and bat library errors, use the [local troubleshooting guide](docs/troubleshooting-startup.md); their cluster-side causes remain unconfirmed.
 
+The additional requirement to build and test other containers is covered in [workflow alternatives and the first iteration](docs/workflow-options.md). It compares VS Code Remote SSH, the integrated SIF shell, host Podman/Apptainer operations, and optional client access from inside the workspace. This is a decision proposal, not an implemented runtime switch.
+
 ## What is built now
 
 ```mermaid
