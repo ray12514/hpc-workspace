@@ -18,6 +18,8 @@ with tempfile.TemporaryDirectory(prefix='thin-install-') as temporary:
         path.mkdir()
     original = '# Existing personal startup settings\nexport PERSONAL_SETTING=kept\n'
     (home / '.bashrc').write_text(original)
+    login_original = '# Existing login settings; does not source .bashrc\nexport LOGIN_PERSONAL=kept\n'
+    (home / '.bash_profile').write_text(login_original)
     personal = home / '.config/hpc-workspace'
     personal.mkdir(parents=True)
     (personal / 'bashrc').write_text('export WORKSPACE_PERSONAL=kept\n')
@@ -41,12 +43,19 @@ with tempfile.TemporaryDirectory(prefix='thin-install-') as temporary:
     prefix = home / '.local/share/hpc-workspace/runtime'
     assert (prefix / 'current').resolve().name == release['release']
     first = (home / '.bashrc').read_text()
+    first_login = (home / '.bash_profile').read_text()
     run([sys.executable, str(installer), str(manifest)])
     assert (home / '.bashrc').read_text() == first
     assert first.startswith(original)
     assert first.count('# >>> hpc-workspace managed PATH >>>') == 1
+    assert first_login.startswith(login_original)
+    assert first_login.count('# >>> hpc-workspace managed PATH >>>') == 1
+    assert (home / '.bash_profile').read_text() == first_login
     run(['/bin/bash', '--noprofile', '--norc', '-c',
          '. "$1"; test "$(command -v ws)" = "$2"', 'test', str(prefix / 'activate.sh'), str(prefix / 'bin/ws')])
+    for arguments in (['--noprofile', '-ic'], ['-lic']):
+        run(['/bin/bash'] + arguments + [
+            'test "$(command -v ws)" = "$1" && ws --help >/dev/null', 'test', str(prefix / 'bin/ws')])
     script = r'''
 set -e
 [[ $WS_LAYOUT == thin-v1 && $WS_RELEASE == "$1" ]]
@@ -61,6 +70,12 @@ printf 'installed-entry-passed\n'
     output = run([str(prefix / 'bin/ws'), 'enter', '--', 'bash', '--noprofile', '--rcfile',
                   '/workspace-tools/config/bashrc', '-ic', script, 'test', release['release'], str(project), str(manifest)])
     assert 'installed-entry-passed' in output
-    assert (home / '.bashrc').read_text() == first
+    after_update = (home / '.bashrc').read_text()
+    assert after_update.startswith(original)
+    assert after_update.count('# >>> hpc-workspace managed PATH >>>') == 1
+    assert (home / '.bash_profile').read_text() == first_login
+    for arguments in (['--noprofile', '-ic'], ['-lic']):
+        run(['/bin/bash'] + arguments + [
+            'test "$(command -v ws)" = "$1" && ws --help >/dev/null', 'test', str(prefix / 'bin/ws')])
     assert (personal / 'bashrc').read_text() == 'export WORKSPACE_PERSONAL=kept\n'
-    print('PASS: actual transferred bundle installs and reinstalls, activates, enters with no site/image arguments, preserves personal settings, and updates from inside the shell.')
+    print('PASS: actual transferred bundle installs and reinstalls; fresh Bash login and terminal shells find ws without activation; entry and in-shell update preserve personal settings and future startup.')

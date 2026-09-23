@@ -50,6 +50,38 @@ def point(path, target):
             temporary.unlink()
 
 
+def shell_hook_text(path, activation):
+    start, end = '# >>> hpc-workspace managed PATH >>>', '# <<< hpc-workspace managed PATH <<<'
+    source = shlex.quote(str(activation))
+    block = start + '\nif [ -r ' + source + ' ]; then\n    . ' + source + '\nfi\n' + end
+    contents = path.read_text() if path.exists() else ''
+    if start in contents or end in contents:
+        pattern = re.escape(start) + r'.*?' + re.escape(end)
+        if contents.count(start) != 1 or contents.count(end) != 1 or not re.search(pattern, contents, re.S):
+            raise ValueError('Incomplete or duplicate workspace PATH block in ' + str(path))
+        return re.sub(pattern, lambda _: block, contents, flags=re.S)
+    return contents + ('' if not contents or contents.endswith('\n') else '\n') + '\n' + block + '\n'
+
+
+def configure_shell(prefix):
+    """Cover ordinary Bash terminals and its active per-user login profile."""
+    home = Path.home()
+    profiles = [home / name for name in ('.bash_profile', '.bash_login', '.profile')]
+    # Bash reads only the first existing, readable login profile. Do not create
+    # a higher-priority profile that would hide the user's existing setup.
+    login = next((p for p in profiles if p.is_file() and os.access(str(p), os.R_OK)), profiles[0])
+    changes = []
+    for path in (home / '.bashrc', login):
+        contents = shell_hook_text(path, prefix / 'activate.sh')
+        destination = path.resolve() if path.is_symlink() else path
+        if all(destination != prior[0] for prior in changes):
+            changes.append((destination, contents))
+    # Validate both blocks before replacing either personal file. Follow an
+    # existing dotfile symlink, preserving the symlink and the target's mode.
+    for destination, contents in changes:
+        atomic_text(destination, contents, destination.stat().st_mode & 0o777 if destination.exists() else 0o644)
+
+
 def unpack(source, destination):
     destination.mkdir(mode=0o700)
     links, seen, total = [], set(), 0
@@ -165,21 +197,7 @@ def install(manifest_path, prefix=None, shell_hook=True):
         activation = 'case ":${PATH}:" in\n  *:' + shlex.quote(str(prefix / 'bin')) + ':*) ;;\n  *) export PATH=' + shlex.quote(str(prefix / 'bin')) + ':"$PATH" ;;\nesac\n'
         atomic_text(prefix / 'activate.sh', activation, 0o644)
         if shell_hook:
-            bashrc = Path.home() / '.bashrc'
-            start, end = '# >>> hpc-workspace managed PATH >>>', '# <<< hpc-workspace managed PATH <<<'
-            block = start + '\n. ' + shlex.quote(str(prefix / 'activate.sh')) + '\n' + end
-            contents = bashrc.read_text() if bashrc.exists() else ''
-            if start in contents:
-                pattern = re.escape(start) + r'.*?' + re.escape(end)
-                if not re.search(pattern, contents, re.S):
-                    raise ValueError('Incomplete workspace PATH block in .bashrc')
-                contents = re.sub(pattern, lambda _: block, contents, flags=re.S)
-            else:
-                contents = contents.rstrip('\n') + '\n\n' + block + '\n'
-            # Follow an existing personal dotfile symlink deliberately; leave all
-            # content outside the managed block untouched.
-            destination = bashrc.resolve() if bashrc.is_symlink() else bashrc
-            atomic_text(destination, contents, destination.stat().st_mode & 0o777 if destination.exists() else 0o644)
+            configure_shell(prefix)
         current = prefix / 'current'
         if current.is_symlink() and current.resolve() != target:
             point(prefix / 'previous', os.readlink(str(current)))

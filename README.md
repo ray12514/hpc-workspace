@@ -23,7 +23,7 @@ This preview establishes the integration and delivery foundation. Codex and Clau
 
 ## One release across systems
 
-Transfer the SIF, matching source bundle, standalone installer, and release manifest. Run the same installer on each system. It checks the files, installs the matching launcher, adds its Bash PATH hook, and selects the release. Local filesystem integration is generated automatically; optional existing Inspector facts and personal settings remain local.
+Transfer the SIF, matching source bundle, standalone installer, and release manifest. Run the same installer on each system. It checks the files, installs the matching launcher, adds its PATH hook to ordinary Bash startup and the active Bash login profile, and selects the release. After setup, log in normally and run `ws enter`; manual activation is only needed to use an already-open terminal immediately after installation. Local filesystem integration is generated automatically; optional existing Inspector facts and personal settings remain local.
 
 For later releases:
 

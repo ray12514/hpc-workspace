@@ -8,18 +8,26 @@ Download these four assets from the [preview release](https://github.com/ray1251
 
 - `hpc-workspace-thin-0.5.0-preview1-linux-amd64.sif`
 - `hpc-workspace-source-0.5.0-preview1.tar.gz`
-- `install-workspace-0.5.0-preview1.py`
-- `release-0.5.0-preview1.json`
+- `install-workspace-0.5.0-preview1-bashfix1.py`
+- `release-0.5.0-preview1-bashfix1.json`
 
 Keep the four files in the same directory. After verifying the downloaded checksums, run the same command on each system:
 
 ```bash
-python3 install-workspace-0.5.0-preview1.py release-0.5.0-preview1.json
+python3 install-workspace-0.5.0-preview1-bashfix1.py release-0.5.0-preview1-bashfix1.json
 ```
 
-The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc`, preserving the rest of that file. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
+The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc` and the active Bash login profile, preserving the existing contents and symlinks. It follows Bash's priority order (`.bash_profile`, `.bash_login`, `.profile`) and creates `.bash_profile` only when no readable login profile exists. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
 
-Open a new Bash session, or activate the newly installed launcher immediately:
+The `bashfix1` installer correction adds login-profile coverage. It uses the original 0.5.0-preview1 SIF and source archive; its manifest records the updated installer's checksum and source revision separately. If you already installed the original preview, rerun this updated installer once with the transferred files. No replacement SIF is needed.
+
+After this one-time setup, log in normally, change to your project, and run:
+
+```bash
+ws enter
+```
+
+There is no manual activation step on subsequent logins or ordinary Bash terminals. To start immediately in the terminal where you just installed, without opening a new shell, source the activation file once:
 
 ```bash
 source "$HOME/.local/share/hpc-workspace/runtime/activate.sh"
@@ -27,6 +35,8 @@ ws enter
 ```
 
 `activate.sh` only adds the installed launcher's `bin` directory to `PATH`, and avoids adding it twice. It does not start a container or mount any filesystems. `ws enter` selects the installed release and constructs the integration described below; `exit` returns to the calling shell.
+
+The startup blocks source this small activation file automatically; they do not run `ws enter`. Login stays in the site's normal shell until you choose to enter the workspace. A missing activation file is skipped quietly. See [Bash startup-file behavior](https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html).
 
 Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available through its normal setup. Nix is already in the image as prepared store contents; there is no host Nix installation, package compilation, or startup download.
 

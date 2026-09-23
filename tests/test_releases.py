@@ -3,6 +3,8 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -17,7 +19,7 @@ class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.home = self.root / 'home'
         self.home.mkdir()
         self.prefix = self.home / 'runtime with spaces'
@@ -87,3 +89,74 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
             releases.rollback(self.prefix)
         self.assertEqual((self.prefix / 'current').resolve().name, 'two')
+
+    def test_login_profile_selection_preserves_existing_setup_and_symlinks(self):
+        one = self.bundle('one')
+        original = 'export LOGIN_PERSONAL=yes\n'
+        profile = self.home / '.profile'
+        profile.write_text(original)
+        releases.install(one, self.prefix)
+        self.assertFalse((self.home / '.bash_profile').exists())
+        self.assertFalse((self.home / '.bash_login').exists())
+        self.assertTrue(profile.read_text().startswith(original))
+        before = profile.read_text()
+        releases.install(one, self.prefix)
+        self.assertEqual(before, profile.read_text())
+        for name in ('.bash_login', '.bash_profile'):
+            with self.subTest(profile=name):
+                target = self.home / (name + '.saved')
+                target.write_text(original)
+                target.chmod(0o640)
+                link = self.home / name
+                link.symlink_to(target.name)
+                releases.install(one, self.prefix)
+                self.assertTrue(link.is_symlink())
+                self.assertTrue(target.read_text().startswith(original))
+                self.assertEqual(target.stat().st_mode & 0o777, 0o640)
+                self.assertEqual(target.read_text().count('>>> hpc-workspace'), 1)
+                self.assertEqual(profile.read_text(), before)
+
+    def test_no_shell_hook_leaves_startup_files_untouched(self):
+        for name in ('.bashrc', '.bash_profile', '.bash_login', '.profile'):
+            (self.home / name).write_text('# personal\n')
+        releases.install(self.bundle('one'), self.prefix, False)
+        for path in self.home.glob('.*'):
+            self.assertEqual(path.read_text(), '# personal\n')
+
+    def test_invalid_login_block_does_not_modify_bashrc_or_current(self):
+        releases.install(self.bundle('one'), self.prefix)
+        bashrc = self.home / '.bashrc'
+        initial = bashrc.read_text()
+        (self.home / '.bash_profile').write_text('# >>> hpc-workspace managed PATH >>>\n')
+        with self.assertRaisesRegex(ValueError, 'Incomplete or duplicate'):
+            releases.install(self.bundle('two'), self.prefix)
+        self.assertEqual(initial, bashrc.read_text())
+        self.assertEqual((self.prefix / 'current').resolve().name, 'one')
+
+    @unittest.skipUnless(shutil.which('bash'), 'Bash startup behavior')
+    def test_real_bash_login_and_terminal_find_ws_without_manual_activation(self):
+        # Sourcing .bashrc from the login profile must not duplicate PATH, and
+        # a login profile which omits .bashrc must still find the launcher.
+        profile = self.home / '.bash_profile'
+        profile.write_text('. "$HOME/.bashrc"\nexport LOGIN_PERSONAL=yes\n')
+        (self.home / '.bashrc').write_text('export TERMINAL_PERSONAL=yes\n')
+        one = self.bundle('one')
+        check = '''
+test "$(command -v ws)" = "$1" || { printf 'launcher found: %s\n' "$(command -v ws)"; exit 11; }
+case "$2" in login) test "$LOGIN_PERSONAL" = yes || exit 12;;
+terminal) test "$TERMINAL_PERSONAL" = yes || exit 13;; esac
+IFS=: read -r -a parts <<< "$PATH"
+count=0
+for part in "${parts[@]}"; do [[ $part == "$3" ]] && count=$((count+1)); done
+test "$count" -eq 1
+'''
+        bash = shutil.which('bash')
+        for linked in (True, False):
+            if not linked:
+                profile.write_text('export LOGIN_PERSONAL=yes\n')
+            releases.install(one, self.prefix)
+            for arguments, kind in ((['--noprofile', '-ic'], 'terminal'), (['-lic'], 'login')):
+                result = subprocess.run([bash] + arguments + [check, 'test', str(self.prefix / 'bin/ws'), kind, str(self.prefix / 'bin')],
+                                        env=dict(os.environ, PATH='/usr/bin:/bin', TERM='dumb'),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=10)
+                self.assertEqual(result.returncode, 0, '{} linked={}: {}'.format(kind, linked, result.stdout + result.stderr))
