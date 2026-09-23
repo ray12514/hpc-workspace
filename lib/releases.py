@@ -63,15 +63,40 @@ def shell_hook_text(path, activation):
     return contents + ('' if not contents or contents.endswith('\n') else '\n') + '\n' + block + '\n'
 
 
-def configure_shell(prefix):
-    """Cover ordinary Bash terminals and its active per-user login profile."""
+def configure_shell(prefix, shell_hook=True, startup_files=None):
+    """Remember a local startup-file choice; default to normal Bash startup."""
     home = Path.home()
-    profiles = [home / name for name in ('.bash_profile', '.bash_login', '.profile')]
-    # Bash reads only the first existing, readable login profile. Do not create
-    # a higher-priority profile that would hide the user's existing setup.
-    login = next((p for p in profiles if p.is_file() and os.access(str(p), os.R_OK)), profiles[0])
+    settings = prefix / 'shell-startup.json'
+    if not shell_hook:
+        if startup_files:
+            raise ValueError('--shell-startup cannot be combined with --no-shell-hook')
+        policy = {'schema_version': 1, 'mode': 'none', 'files': []}
+    elif startup_files is not None:
+        policy = {'schema_version': 1, 'mode': 'custom',
+                  'files': [os.path.abspath(str(Path(p).expanduser())) for p in startup_files]}
+    elif settings.exists():
+        policy = json.loads(settings.read_text())
+    else:
+        policy = {'schema_version': 1, 'mode': 'auto', 'files': []}
+    if (not isinstance(policy, dict) or policy.get('schema_version') != 1
+            or policy.get('mode') not in ('none', 'auto', 'custom')
+            or not isinstance(policy.get('files'), list)
+            or any(not isinstance(p, str) or not Path(p).is_absolute() for p in policy['files'])
+            or (policy['mode'] == 'custom' and not policy['files'])):
+        raise ValueError('Invalid local shell startup configuration: ' + str(settings))
+    paths = []
+    if policy['mode'] == 'custom':
+        paths = [Path(p) for p in policy['files']]
+    elif policy['mode'] == 'auto':
+        profiles = [home / name for name in ('.bash_profile', '.bash_login', '.profile')]
+        # Bash reads only its first readable login profile; do not hide another
+        # existing profile by creating a higher-priority one.
+        login = next((p for p in profiles if p.is_file() and os.access(str(p), os.R_OK)), profiles[0])
+        paths = [home / '.bashrc', login]
     changes = []
-    for path in (home / '.bashrc', login):
+    for path in paths:
+        if path.is_dir():
+            raise ValueError('Choose a startup file, not a directory: ' + str(path))
         contents = shell_hook_text(path, prefix / 'activate.sh')
         destination = path.resolve() if path.is_symlink() else path
         if all(destination != prior[0] for prior in changes):
@@ -79,7 +104,9 @@ def configure_shell(prefix):
     # Validate both blocks before replacing either personal file. Follow an
     # existing dotfile symlink, preserving the symlink and the target's mode.
     for destination, contents in changes:
+        destination.parent.mkdir(parents=True, exist_ok=True)
         atomic_text(destination, contents, destination.stat().st_mode & 0o777 if destination.exists() else 0o644)
+    atomic_text(settings, json.dumps(policy, indent=2) + '\n')
 
 
 def unpack(source, destination):
@@ -138,7 +165,7 @@ def verify_installed(folder):
     return record
 
 
-def install(manifest_path, prefix=None, shell_hook=True):
+def install(manifest_path, prefix=None, shell_hook=True, startup_files=None):
     if platform.system() != 'Linux' or platform.machine() not in ('x86_64', 'amd64'):
         raise ValueError('This release installer targets x86_64 Linux')
     manifest_path = Path(manifest_path).expanduser().resolve()
@@ -196,8 +223,7 @@ def install(manifest_path, prefix=None, shell_hook=True):
         atomic_text(prefix / 'bin/ws', launcher, 0o755)
         activation = 'case ":${PATH}:" in\n  *:' + shlex.quote(str(prefix / 'bin')) + ':*) ;;\n  *) export PATH=' + shlex.quote(str(prefix / 'bin')) + ':"$PATH" ;;\nesac\n'
         atomic_text(prefix / 'activate.sh', activation, 0o644)
-        if shell_hook:
-            configure_shell(prefix)
+        configure_shell(prefix, shell_hook, startup_files)
         current = prefix / 'current'
         if current.is_symlink() and current.resolve() != target:
             point(prefix / 'previous', os.readlink(str(current)))
@@ -224,10 +250,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('manifest')
     parser.add_argument('--prefix')
-    parser.add_argument('--no-shell-hook', action='store_true')
+    startup = parser.add_mutually_exclusive_group()
+    startup.add_argument('--no-shell-hook', action='store_true', help='Remember that startup files should not be edited')
+    startup.add_argument('--shell-startup', action='append', metavar='FILE', help='Use this site-loaded Bash startup file; repeat for multiple files; remembered for updates')
     args = parser.parse_args()
     try:
-        result = install(args.manifest, args.prefix, not args.no_shell_hook)
+        result = install(args.manifest, args.prefix, not args.no_shell_hook, args.shell_startup)
         print('Installed {release}. Run {launcher} enter, or open a new Bash session and run ws enter.'.format(**result))
     except (OSError, ValueError, KeyError, tarfile.TarError) as exc:
         parser.exit(2, 'workspace install: ' + str(exc) + '\n')

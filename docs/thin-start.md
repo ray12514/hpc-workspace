@@ -1,25 +1,25 @@
 # Install the integrated development environment
 
-The **0.5.0-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. The larger tool catalog is still being expanded.
+The **0.5.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. The larger tool catalog is still being expanded.
 
 ## Transfer and install
 
-Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.0-preview1), together with their checksum files, and transfer them through the usual approved route:
+Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.1-preview1), together with their checksum files, and transfer them through the usual approved route:
 
-- `hpc-workspace-thin-0.5.0-preview1-linux-amd64.sif`
-- `hpc-workspace-source-0.5.0-preview1.tar.gz`
-- `install-workspace-0.5.0-preview1-bashfix1.py`
-- `release-0.5.0-preview1-bashfix1.json`
+- `hpc-workspace-thin-0.5.1-preview1-linux-amd64.sif`
+- `hpc-workspace-source-0.5.1-preview1.tar.gz`
+- `install-workspace-0.5.1-preview1.py`
+- `release-0.5.1-preview1.json`
 
 Keep the four files in the same directory. After verifying the downloaded checksums, run the same command on each system:
 
 ```bash
-python3 install-workspace-0.5.0-preview1-bashfix1.py release-0.5.0-preview1-bashfix1.json
+python3 install-workspace-0.5.1-preview1.py release-0.5.1-preview1.json
 ```
 
 The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc` and the active Bash login profile, preserving the existing contents and symlinks. It follows Bash's priority order (`.bash_profile`, `.bash_login`, `.profile`) and creates `.bash_profile` only when no readable login profile exists. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
 
-The `bashfix1` installer correction adds login-profile coverage. It uses the original 0.5.0-preview1 SIF and source archive; its manifest records the updated installer's checksum and source revision separately. If you already installed the original preview, rerun this updated installer once with the transferred files. No replacement SIF is needed.
+This release adds login-profile coverage and remembers custom startup-file choices. To upgrade an existing 0.5.0-preview1 installation, transfer the four new files and run the new standalone installer once. Later `ws update` operations use the saved startup choice.
 
 After this one-time setup, log in normally, change to your project, and run:
 
@@ -39,6 +39,19 @@ ws enter
 The startup blocks source this small activation file automatically; they do not run `ws enter`. Login stays in the site's normal shell until you choose to enter the workspace. A missing activation file is skipped quietly. See [Bash startup-file behavior](https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html).
 
 Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available through its normal setup. Nix is already in the image as prepared store contents; there is no host Nix installation, package compilation, or startup download.
+
+### A site-specific startup file
+
+If your site loads personal Bash configuration from another location, choose that file during the one-time installation:
+
+```bash
+python3 install-workspace-0.5.1-preview1.py release-0.5.1-preview1.json \
+    --shell-startup "$HOME/path/to/site-startup-file.sh"
+```
+
+Use the actual file your site's shell setup already sources. This option writes the managed PATH block into that file; it does not teach Bash to discover an arbitrary new startup path. Repeat `--shell-startup FILE` if the site requires separate files for login and terminal startup. The specified files replace the default `.bashrc`/login-profile targets for this installation. The installer preserves other contents, follows an existing dotfile symlink, and creates missing parent directories for an explicitly selected file.
+
+The choice is stored privately under the local installation in `shell-startup.json`. Subsequent `ws update /path/to/release-VERSION.json` operations reuse it without another flag. `ws update ... --shell-startup FILE` changes the choice. A remembered `--no-shell-hook` choice also persists across updates. Changing targets does not remove managed blocks previously installed into other files; activation remains idempotent if two existing startup files both source it. No real site path or profile contents are uploaded.
 
 ## Everyday use
 

@@ -1,5 +1,5 @@
 FROM nixos/nix:2.34.1@sha256:1d59121e0c361076b4f23c158d236702f2f045b3b477b51075b81ceb6188d34a AS tools
-ARG WORKSPACE_RELEASE=0.5.0-preview1
+ARG WORKSPACE_RELEASE=0.5.1-preview1
 COPY image/nix/ /build/nix/
 RUN nix --extra-experimental-features 'nix-command flakes' build \
       --no-write-lock-file --out-link /build/toolbox /build/nix \
@@ -20,7 +20,7 @@ RUN mv /output/workspace-tools/bin/tmux /output/workspace-tools/libexec/tmux \
     && ln -s /workspace-tools/thin-tmux /output/workspace-tools/bin/tmux
 
 FROM scratch
-ARG WORKSPACE_RELEASE=0.5.0-preview1
+ARG WORKSPACE_RELEASE=0.5.1-preview1
 ARG WORKSPACE_REVISION=development
 LABEL org.opencontainers.image.title="Integrated HPC development environment" \
       org.opencontainers.image.version="${WORKSPACE_RELEASE}" \

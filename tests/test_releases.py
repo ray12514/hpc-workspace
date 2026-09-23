@@ -120,8 +120,40 @@ class ReleaseTests(unittest.TestCase):
         for name in ('.bashrc', '.bash_profile', '.bash_login', '.profile'):
             (self.home / name).write_text('# personal\n')
         releases.install(self.bundle('one'), self.prefix, False)
+        releases.install(self.bundle('two'), self.prefix)
         for path in self.home.glob('.*'):
             self.assertEqual(path.read_text(), '# personal\n')
+
+    def test_custom_startup_paths_are_remembered_without_editing_default_files(self):
+        bashrc = self.home / '.bashrc'
+        bashrc.write_text('# unchanged\n')
+        custom = self.home / '.site/startup file.sh'
+        second = self.home / '.site/login.sh'
+        releases.install(self.bundle('one'), self.prefix, startup_files=[str(custom), str(second)])
+        self.assertEqual(bashrc.read_text(), '# unchanged\n')
+        self.assertFalse((self.home / '.bash_profile').exists())
+        self.assertTrue(custom.is_file() and second.is_file())
+        original = custom.read_text()
+        # A later update must restore a removed hook in the saved location,
+        # without requiring the path again or falling back to .bashrc.
+        custom.write_text('# local addition\n')
+        releases.install(self.bundle('two'), self.prefix)
+        self.assertTrue(custom.read_text().startswith('# local addition\n'))
+        self.assertEqual(custom.read_text().count('>>> hpc-workspace'), 1)
+        self.assertEqual(second.read_text(), original)
+        self.assertEqual(bashrc.read_text(), '# unchanged\n')
+        self.assertFalse((self.home / '.bash_profile').exists())
+        saved = json.loads((self.prefix / 'shell-startup.json').read_text())
+        self.assertEqual(saved['files'], [str(custom), str(second)])
+        self.assertEqual((self.prefix / 'shell-startup.json').stat().st_mode & 0o777, 0o600)
+
+    def test_custom_startup_rejects_directory_and_conflicting_options(self):
+        one = self.bundle('one')
+        with self.assertRaisesRegex(ValueError, 'not a directory'):
+            releases.install(one, self.prefix, startup_files=[str(self.home)])
+        self.assertFalse((self.prefix / 'current').exists())
+        with self.assertRaisesRegex(ValueError, 'cannot be combined'):
+            releases.install(one, self.prefix, False, [str(self.home / '.site.sh')])
 
     def test_invalid_login_block_does_not_modify_bashrc_or_current(self):
         releases.install(self.bundle('one'), self.prefix)

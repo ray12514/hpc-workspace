@@ -79,3 +79,26 @@ printf 'installed-entry-passed\n'
             'test "$(command -v ws)" = "$1" && ws --help >/dev/null', 'test', str(prefix / 'bin/ws')])
     assert (personal / 'bashrc').read_text() == 'export WORKSPACE_PERSONAL=kept\n'
     print('PASS: actual transferred bundle installs and reinstalls; fresh Bash login and terminal shells find ws without activation; entry and in-shell update preserve personal settings and future startup.')
+
+    custom_home = root / 'site-home'
+    custom_home.mkdir()
+    paths = [custom_home / '.site/startup.sh', custom_home / '.site/login.sh']
+    ordinary = {'.bashrc': '. "$HOME/.site/startup.sh"\n',
+                '.bash_profile': '. "$HOME/.site/login.sh"\n'}
+    for name, contents in ordinary.items():
+        (custom_home / name).write_text(contents)
+    env.update(HOME=str(custom_home), WS_CONFIG_DIR=str(custom_home / '.config/hpc-workspace'))
+    run([sys.executable, str(installer), str(manifest),
+         '--shell-startup', str(paths[0]), '--shell-startup', str(paths[1])])
+    prefix = custom_home / '.local/share/hpc-workspace/runtime'
+    paths[0].write_text('# Site-specific personal settings retained\n')
+    run([str(prefix / 'bin/ws'), 'enter', '--', 'ws', 'update', str(manifest)])
+    assert paths[0].read_text().startswith('# Site-specific personal settings retained\n')
+    for path in paths:
+        assert path.read_text().count('# >>> hpc-workspace managed PATH >>>') == 1
+    for name, contents in ordinary.items():
+        assert (custom_home / name).read_text() == contents
+    for arguments in (['--noprofile', '-ic'], ['-lic']):
+        run(['/bin/bash'] + arguments + [
+            'test "$(command -v ws)" = "$1" && ws --help >/dev/null', 'test', str(prefix / 'bin/ws')])
+    print('PASS: custom site-loaded startup files work for fresh shells and remain selected during an update from inside the workspace; ordinary startup files are unchanged.')

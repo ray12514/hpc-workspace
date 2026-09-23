@@ -573,7 +573,7 @@ def session(args):
 
 
 def update_release(args):
-    print(json.dumps(releases.install(args.manifest, args.prefix, not args.no_shell_hook), indent=2))
+    print(json.dumps(releases.install(args.manifest, args.prefix, not args.no_shell_hook, args.shell_startup), indent=2))
     return 0
 
 
@@ -620,7 +620,9 @@ def parser():
     update.set_defaults(handler=update_release, site=None)
     update.add_argument("manifest")
     update.add_argument("--prefix")
-    update.add_argument("--no-shell-hook", action="store_true")
+    startup = update.add_mutually_exclusive_group()
+    startup.add_argument("--no-shell-hook", action="store_true")
+    startup.add_argument("--shell-startup", action="append", metavar="FILE", help="Site-loaded Bash startup file; repeat for multiple files; remembered for updates")
     return result
 
 

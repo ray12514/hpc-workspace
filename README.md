@@ -2,9 +2,9 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-**0.5.0-preview1 is the first integrated thin-image implementation.** It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
+**0.5.1-preview1 adds Bash login setup and custom startup-file support to the integrated thin environment.** It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
 
-[Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.0-preview1) · [Validation and limitations](docs/validation.md)
+[Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.1-preview1) · [Validation and limitations](docs/validation.md)
 
 ## Daily workflow
 
@@ -50,11 +50,11 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.5.0-preview1
-scripts/export-thin 0.5.0-preview1
-scripts/test-thin dist/hpc-workspace-thin-0.5.0-preview1-linux-amd64.sif
-scripts/package-thin 0.5.0-preview1
-scripts/test-thin-install dist/release-0.5.0-preview1.json
+scripts/build-thin 0.5.1-preview1
+scripts/export-thin 0.5.1-preview1
+scripts/test-thin dist/hpc-workspace-thin-0.5.1-preview1-linux-amd64.sif
+scripts/package-thin 0.5.1-preview1
+scripts/test-thin-install dist/release-0.5.1-preview1.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.
