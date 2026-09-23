@@ -1,12 +1,20 @@
 # Development workspace, native jobs, and optional software stacks
 
-Date: 2026-09-22. Status: **daily workflow, optional Inspector import, and explicit dotfiles implemented through 0.4.0-preview1; scientific stacks remain proposed**.
+Updated: 2026-09-23. Status: **SIF daily workflow, optional Inspector import, and explicit dotfiles implemented through 0.4.0-preview1; native daily tools and scientific stacks remain proposed**.
 
 This note separates implemented workspace behavior from the proposed scientific-stack extensions. It uses public technical documentation and local source code. It does not require cluster inventories, credentials, private MPI paths, or uploaded site reports. The original 0.1.0-preview1 release remains available.
 
-## Recommended direction
+## Proposed next direction: native daily tools
 
-Keep the common development SIF as the consistent shell/editor/tool environment. Use the site's native scheduler to submit jobs. Jobs explicitly choose their runtime: a native site software stack, or a container plus a compatible scientific software stack. Introduce optional, immutable SquashFS software stacks as a controlled extension after a small mounting/activation pilot.
+The clarified requirement is to retain the cluster's normal shell and add consistent tools, appearance, and navigation. Make native Bash the daily interface, keep native tmux and scheduler/module/filesystem access, and expose selected versioned tools without replacing the host environment. Keep the SIF available as an explicit workspace or application environment. The [native tools research](research/native-tool-layer.md) compares portable binaries, site-supported Nix profiles, Spack build caches and externals, and per-tool containers.
+
+First separate reusable dotfiles from container-specific paths and initialization. Preserve existing personal settings and host prompt hooks; avoid global library-path changes. Establish a small native toolkit before extending Neovim or adding scientific layers. Native job submission uses ordinary `qsub` or `sbatch`; the existing submission connection remains specific to container mode. No native activation interface or new packaging backend is implemented yet.
+
+The reported tmux and bat failures are being investigated separately. Local synthetic checks have not reproduced them; this proposal is not a fix claim. The [startup troubleshooting guide](troubleshooting-startup.md) records the checked behavior and site-local steps.
+
+## Released SIF workflow and scientific extensions
+
+The current release uses the common development SIF as its consistent shell/editor/tool environment and the site's native scheduler to submit jobs. Jobs explicitly choose their runtime: a native site software stack, or a container plus a compatible scientific software stack. Optional, immutable SquashFS software stacks remain a later extension after a small mounting/activation pilot.
 
 This preserves the normal workflow of editing a batch script and submitting it without making every batch job depend on the development image. Interactive compute sessions can start another instance of the workspace inside their allocation. These are new processes on the allocated nodes; a login-node shell or mount is not migrated to them.
 
@@ -136,12 +144,13 @@ There are two configuration locations:
 
 VS Code exposes its own terminal font, palette, and cursor settings. Supply a matching optional settings snippet and a PuTTY setup guide, alongside the shared shell theme. This can create a similar terminal appearance in both clients; it does not require changing shells or installing a large prompt/plugin framework. [VS Code terminal appearance](https://code.visualstudio.com/docs/terminal/appearance)
 
-## Proposed implementation order
+## Implementation order
 
 1. **Daily workflow (implemented in 0.2.0-preview1):** coordinated Bash/tmux/editor appearance with terminal fallbacks and active site/node/allocation labels; host-side submission with deliberate environment handling and native scheduler errors; optional local submission connection. Home/project/work/profile mount behavior is unchanged; narrower mount selection remains future work.
-2. **Payload pilot:** add typed image mounts and manifest validation; prove the mechanism with a small benign software stack under Apptainer 1.3.6 and 1.5. Exercise activation, persistence boundaries, bad-checksum/incompatible-base rejection, and rollback.
-3. **GPU stacks:** build a coherent CUDA stack and a coherent ROCm stack only for the selected targets. In an allocation, validate a calculation and result, device visibility, and representative startup cost. All site results stay local.
-4. **MPI profiles:** validate the native launch and integration per site: serial, multiple ranks on one node, two nodes, then GPU-aware communication and performance. Preserve scheduler-provided device selection and process-management settings. The current generic clean development shell is not yet this MPI launcher.
-5. **Wider deployment:** offer a curated stack catalog, per-user state, trusted release metadata, a documented update/retirement policy, and explicit support boundaries. Keep generic public artifacts separate from any site-only components.
+2. **Native daily layer (next):** extract additive application configuration, preserve host initialization, select a small verified native toolkit, and test actual shell/editor subprocess behavior. Retain SIF mode and existing personal overrides. Choose further packaging through the local feasibility checks in the native tools research.
+3. **Payload pilot:** add typed image mounts and manifest validation; prove the mechanism with a small benign software stack under Apptainer 1.3.6 and 1.5. Exercise activation, persistence boundaries, bad-checksum/incompatible-base rejection, and rollback.
+4. **GPU stacks:** build a coherent CUDA stack and a coherent ROCm stack only for the selected targets. In an allocation, validate a calculation and result, device visibility, and representative startup cost. All site results stay local.
+5. **MPI profiles:** validate the native launch and integration per site: serial, multiple ranks on one node, two nodes, then GPU-aware communication and performance. Preserve scheduler-provided device selection and process-management settings. The current generic clean development shell is not yet this MPI launcher.
+6. **Wider deployment:** offer a curated stack catalog, per-user state, trusted release metadata, a documented update/retirement policy, and explicit support boundaries. Keep generic public artifacts separate from any site-only components.
 
-The immediate priority is the daily workspace and submission workflow. Software layering is a useful next capability; it should not require every existing native batch job to adopt a container runtime.
+The immediate priority is the native daily interface and a reproducible diagnosis of the reported startup failures. Scientific software layering follows once the everyday shell and tool boundaries are established.

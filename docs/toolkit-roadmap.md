@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-22. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1**. Additional tools and editor plugins below remain proposed. The [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
+Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. Native activation, additional tools, and editor plugins below remain proposed. The [native tools research](research/native-tool-layer.md) records the revised deployment direction; the [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
 
 ## Intended daily experience
 
@@ -8,9 +8,11 @@ Use the same Bash shell, shortcuts, editor, and project commands on Ruth, Jean, 
 
 The defaults should be discoverable. Add a short shortcut guide and a tool catalog showing what is installed, its version, and one useful example. File pickers and searches start in the project. Large scans, tests, and benchmarks are deliberate operations; compute-heavy work runs in an allocation.
 
+Keep the normal native shell in charge. Shared dotfiles add appearance and shortcuts; a selected tool directory adds commands. Site modules, scheduler clients, Git/SSH, compilers, MPI, and shared filesystems retain their normal native behavior. Keep the SIF as an explicit optional environment. The existing Bash file assumes container paths and replaces prompt hooks, so it must be adapted before use on the host. Start with suitable verified portable binaries; evaluate site-supported Nix or reusable Spack build caches when a broader package backend is useful.
+
 ## Common toolkit
 
-The exact package list is a proposal until its versions and integrations pass image tests.
+The exact package list is a proposal until its versions and integrations pass tests in the intended native or container execution context.
 
 | Workflow | Existing foundation | Proposed additions or improvements |
 | --- | --- | --- |
@@ -32,7 +34,7 @@ These are complementary roles. Htop remains the initial process monitor; btop is
 
 The existing editor already has the shared theme, persistent undo, session save/restore, and clangd setup. Extend it with file/text/symbol picking, shortcut hints, Git change markers, completion, diagnostics, and explicit formatting. Start with C/C++, Fortran, Python, and Bash support; add YAML/CMake/Lua where the projects need them. Language assistance for site-specific headers and MPI still needs a correct compilation database or matching include paths; editor plugins do not supply the scientific runtime.
 
-Keep one main editor configuration and a small, pinned plugin set. Preinstall the plugins, language servers, and selected syntax parsers during the image build. Opening the editor should not trigger downloads or tool installation. Use plain labels/signs by default and test narrow PuTTY-sized windows, colors, and keyboard behavior as well as VS Code.
+Keep one main editor configuration and a small, pinned plugin set. Package the plugins, language servers, and selected syntax parsers during release preparation for the selected execution context. Opening the editor should not trigger downloads or tool installation. Use plain labels/signs by default and test narrow PuTTY-sized windows, colors, and keyboard behavior as well as VS Code.
 
 Run Neovim and Codex or Claude Code in neighboring tmux panes/windows, with a shell for tests and native host operations. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
 
@@ -40,7 +42,7 @@ The workspace already sets `VISUAL=nvim` and `EDITOR=nvim`. Codex documents **Ct
 
 ## Current versions with reproducible releases
 
-For independently packaged productivity tools, select the newest stable upstream release available when preparing an image. Resolve concrete versions, verify artifacts, test the combination, and freeze it in the release manifest. A container started next month should have the same tools as that release today. Updates produce a new tested image with a changelog and rollback path.
+For independently packaged productivity tools, select the newest stable upstream release available when preparing a release. Resolve concrete versions, verify artifacts, test the combination, and freeze it in the release manifest. The same selected release should expose the same tools next month. Updates produce a new tested native tool bundle, package-manager generation, or image, with a changelog and rollback path. Each delivery format owns updates to its private libraries; host library updates only help programs that actually load those compatible shared libraries.
 
 Track the base OS on a supported stable release with a dated package snapshot. Record any older compatibility pin and its reason. Keep compiler, GPU, MPI, and language-server compatibility explicit instead of independently upgrading every component of a coupled stack. A newest-version preference does not remove the need to verify the entire combination.
 
@@ -60,7 +62,7 @@ Define a small integration convention before adding custom tools:
 - Store writable configuration, caches, and reports outside the immutable image. Keep system reports on their originating system; do not automatically attach them to agent prompts or public release artifacts.
 - Reuse saved Inspector-derived settings for relevant defaults, with explicit overrides and refresh. Do not rerun Inspector on every shell start or replace its existing workflow.
 
-Portable helpers can be installed directly in the common image. Host-dependent tools can have a matching host-installable package or source bundle and be invoked from the native host window. For fast local development, expose a checked-out tool through an explicit mounted tools directory; released images use the pinned package. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
+Host-dependent helpers belong in the native toolkit, with a pinned package or source bundle and an isolated tool-specific dependency environment where needed. Portable helpers can also be included in the optional image. During local development, explicitly select a checked-out tool; use pinned packages in releases. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
 
 `libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on host tools, connectivity, and authentication. Merely adding its executable to the SIF does not establish that integration. Begin with native-host execution; add a narrow adapter only if useful. The current workspace host connection supports **submit/jobs only** and cannot already run `libsweep`. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
 
@@ -80,10 +82,11 @@ These names are design examples, not commands the current release provides. Impl
 
 ## Delivery sequence
 
-1. Build on the explicit dotfiles and repaired shell integrations; add the high-value everyday tools and a discoverable guide.
-2. Build the compact Neovim configuration and validate the editor/agent/review workflow.
-3. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
-4. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
-5. Add further custom helpers and scientific runtime layers as concrete workflows require them.
+1. Separate additive native dotfiles from container startup; preserve personal overrides, module initialization, and existing prompt hooks. Keep the SIF workflow available. Diagnose the reported tmux/bat errors independently using the [local guide](troubleshooting-startup.md).
+2. Deliver a small verified native toolkit and shortcut guide. Validate real invocation, terminal input, paths, and subprocesses; use local feasibility checks to choose further Nix or Spack delivery where appropriate.
+3. Build the compact Neovim configuration and validate the native editor/agent/review workflow.
+4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
+5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
+6. Add further custom helpers and scientific runtime layers as concrete workflows require them.
 
 This roadmap uses public sources and local development code only. The implemented foundation is documented separately; the remaining proposals do not change any cluster configuration.
