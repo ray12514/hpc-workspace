@@ -7,7 +7,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
 
 FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 ARG TARGETARCH
-ARG WORKSPACE_RELEASE=0.3.0-preview1
+ARG WORKSPACE_RELEASE=0.4.0-preview1
 ARG UBUNTU_SNAPSHOT=20260921T000000Z
 LABEL org.opencontainers.image.title="HPC development workspace" \
       org.opencontainers.image.version="${WORKSPACE_RELEASE}" \
@@ -20,6 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN test "${TARGETARCH:-amd64}" = amd64 \
     && printf 'APT::Snapshot "%s";\n' "$UBUNTU_SNAPSHOT" > /etc/apt/apt.conf.d/50snapshot \
+    && printf '%s\n' 'path-include=/usr/share/doc/fzf*' > /etc/dpkg/dpkg.cfg.d/zz-workspace-fzf \
     && apt-get update -o APT::Update::Error-Mode=any \
     && apt-get install -y --no-install-recommends \
        bash bash-completion ca-certificates curl wget git openssh-client less file \
@@ -28,7 +29,8 @@ RUN test "${TARGETARCH:-amd64}" = amd64 \
        python3 python3-venv python3-pip python3-dev python3-yaml \
        build-essential gfortran cmake ninja-build pkg-config gdb clangd \
        shellcheck shfmt \
-    && mkdir -p /opt/workspace/bin /opt/workspace/manifests \
+    && mkdir -p /opt/workspace/bin /opt/workspace/manifests /opt/workspace/share/fzf \
+    && cp /usr/share/doc/fzf/examples/key-bindings.bash /opt/workspace/share/fzf/ \
     && dpkg-query -W -f='${Package}\t${Version}\n' > /opt/workspace/manifests/apt-packages.tsv \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/bin/fdfind /opt/workspace/bin/fd \

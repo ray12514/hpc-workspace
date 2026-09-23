@@ -1,0 +1,2 @@
+# Personal Bash settings, loaded after the workspace defaults.
+# Example: alias croot='cd "$HOME/my-project"'

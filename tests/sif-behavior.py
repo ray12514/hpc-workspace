@@ -17,6 +17,23 @@ runtime += ['--bind', '/home/node:/home/node', '--bind', '/workspace-state:/work
             '--bind', '/project:/project', '--pwd', '/project']
 entry = ['/input/workspace.sif', '/opt/workspace/bin/container-entry']
 subprocess.run(runtime + entry + ['container-smoke'], check=True, timeout=240)
+personal = Path('/home/node/.config/hpc-workspace')
+(personal / 'nvim.lua').write_text("vim.g.workspace_sif_preference = 'preserved'\n")
+dotfile_check = '''
+import os
+from pathlib import Path
+import subprocess
+personal = Path.home() / '.config/hpc-workspace'
+assert Path(os.environ['XDG_CONFIG_HOME']) == personal / 'xdg'
+assert os.access(os.environ['XDG_CONFIG_HOME'], os.W_OK)
+assert (personal / 'inputrc').is_file()
+assert (personal / 'nvim.lua').read_text() == "vim.g.workspace_sif_preference = 'preserved'\\n"
+subprocess.run(['nvim', '--headless',
+                "+lua if vim.g.workspace_sif_preference ~= 'preserved' then vim.cmd('cquit 1') end",
+                '+qa'], check=True, timeout=30)
+print('SIF dotfiles passed: writable app configuration and personal Neovim settings survive re-entry.')
+'''
+subprocess.run(runtime + entry + ['python3', '-c', dotfile_check], check=True, timeout=240)
 
 fixture = Fixture()
 fixture.setUp()
@@ -108,8 +125,11 @@ with tempfile.TemporaryDirectory(prefix='ws-import-integration-') as temporary:
             digest.update(block)
     ws('use', '/input/workspace.sif', '--sha256', digest.hexdigest())
     source.unlink()
-    result = ws('enter', '--project', '/project', '--', 'bash', '-c', 'printf "context=%s\\n" "$WS_SITE"')
+    result = ws('enter', '--project', '/project', '--', 'bash', '-c',
+                'printf "context=%s\\nhome=%s\\n" "$WS_SITE" "$HOME"')
     assert 'context=example-linux' in result.stdout, result.stdout
+    assert 'home=' + str(home) + '\n' in result.stdout, result.stdout
+    assert (home / '.config/hpc-workspace/xdg/nvim/init.lua').is_file()
     assert config.read_text() == json.dumps(imported, indent=2) + '\n'
     assert json.loads(ws('jobs', '--dry-run').stdout)['argv'][0] == 'squeue'
     source.write_text(original.replace('/example/openmpi', '/example/updated-openmpi').replace('name: slurm', 'name: pbs'))

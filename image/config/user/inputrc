@@ -1,0 +1,3 @@
+$include /opt/workspace/config/inputrc
+# Personal Readline settings go below the include.
+# Example: set completion-ignore-case off

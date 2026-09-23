@@ -4,14 +4,14 @@ This workflow uses a public GitHub repository and downloadable release files. It
 
 ## 1. Download the release
 
-Open [release 0.3.0-preview1](https://github.com/ray12514/hpc-workspace/releases/tag/v0.3.0-preview1) on your workstation and download these four assets:
+Open [release 0.4.0-preview1](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) on your workstation and download these four assets:
 
 | File | Purpose |
 | --- | --- |
-| [hpc-workspace-core-0.3.0-preview1-linux-amd64.sif](https://github.com/ray12514/hpc-workspace/releases/download/v0.3.0-preview1/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif) | Ready-to-run Linux amd64 container, about 600 MiB |
-| [SIF checksum](https://github.com/ray12514/hpc-workspace/releases/download/v0.3.0-preview1/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif.sha256) | Checks the image after transfer |
-| [hpc-workspace-source-0.3.0-preview1.tar.gz](https://github.com/ray12514/hpc-workspace/releases/download/v0.3.0-preview1/hpc-workspace-source-0.3.0-preview1.tar.gz) | Launcher, generic profiles, session configuration, documentation, and build recipes |
-| [Source checksum](https://github.com/ray12514/hpc-workspace/releases/download/v0.3.0-preview1/hpc-workspace-source-0.3.0-preview1.tar.gz.sha256) | Checks the launcher bundle after transfer |
+| [hpc-workspace-core-0.4.0-preview1-linux-amd64.sif](https://github.com/ray12514/hpc-workspace/releases/download/v0.4.0-preview1/hpc-workspace-core-0.4.0-preview1-linux-amd64.sif) | Ready-to-run Linux amd64 container, about 600 MiB |
+| [SIF checksum](https://github.com/ray12514/hpc-workspace/releases/download/v0.4.0-preview1/hpc-workspace-core-0.4.0-preview1-linux-amd64.sif.sha256) | Checks the image after transfer |
+| [hpc-workspace-source-0.4.0-preview1.tar.gz](https://github.com/ray12514/hpc-workspace/releases/download/v0.4.0-preview1/hpc-workspace-source-0.4.0-preview1.tar.gz) | Launcher, generic profiles, session configuration, documentation, and build recipes |
+| [Source checksum](https://github.com/ray12514/hpc-workspace/releases/download/v0.4.0-preview1/hpc-workspace-source-0.4.0-preview1.tar.gz.sha256) | Checks the launcher bundle after transfer |
 
 Use the explicitly named source bundle above. GitHub also generates its own source archives; their bytes and directory names differ from this bundle.
 
@@ -22,7 +22,7 @@ The release also includes installed-package manifests and a machine-readable rel
 On each cluster, choose a new, persistent directory with room for the four files and extracted source. For the examples below, create:
 
 ```bash
-mkdir -p "$HOME/hpc-workspace-releases/0.3.0-preview1"
+mkdir -p "$HOME/hpc-workspace-releases/0.4.0-preview1"
 ```
 
 Transfer the four files into that directory using your site's approved transfer method. You can also download the release files directly on a cluster where GitHub downloads are allowed. No upload of cluster files or reports is involved.
@@ -32,16 +32,16 @@ Transfer the four files into that directory using your site's approved transfer 
 Run these commands in the transfer directory. Continue only if both checks report `OK`:
 
 ```bash
-cd "$HOME/hpc-workspace-releases/0.3.0-preview1"
-sha256sum -c hpc-workspace-core-0.3.0-preview1-linux-amd64.sif.sha256
-sha256sum -c hpc-workspace-source-0.3.0-preview1.tar.gz.sha256
+cd "$HOME/hpc-workspace-releases/0.4.0-preview1"
+sha256sum -c hpc-workspace-core-0.4.0-preview1-linux-amd64.sif.sha256
+sha256sum -c hpc-workspace-source-0.4.0-preview1.tar.gz.sha256
 ```
 
 Extract into this new release directory and make its launcher available in the current shell:
 
 ```bash
-tar --keep-old-files -xzf hpc-workspace-source-0.3.0-preview1.tar.gz
-export PATH="$HOME/hpc-workspace-releases/0.3.0-preview1/hpc-workspace/bin:$PATH"
+tar --keep-old-files -xzf hpc-workspace-source-0.4.0-preview1.tar.gz
+export PATH="$HOME/hpc-workspace-releases/0.4.0-preview1/hpc-workspace/bin:$PATH"
 ```
 
 Do not extract over an existing installation. If you already unpacked this release, keep that directory and skip extraction. The host needs Python 3.6+ and the site's Apptainer module. Load Apptainer using the site's normal instructions; the initial runtime target is 1.3.6 through 1.5.
@@ -52,15 +52,15 @@ Run from the release directory used above. If an existing Inspector YAML is avai
 
 ```bash
 ws init --profile /path/to/local/profile.yaml \
-  --image "$PWD/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif"
+  --image "$PWD/hpc-workspace-core-0.4.0-preview1-linux-amd64.sif"
 ```
 
 Otherwise, save an original system default with `ws init --site ruth`, using `jean` or `blueback` where appropriate. Inspector is optional. Then select the verified image:
 
 ```bash
 ws use \
-  "$PWD/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif" \
-  --sha256 "$(cut -d ' ' -f 1 hpc-workspace-core-0.3.0-preview1-linux-amd64.sif.sha256)"
+  "$PWD/hpc-workspace-core-0.4.0-preview1-linux-amd64.sif" \
+  --sha256 "$(cut -d ' ' -f 1 hpc-workspace-core-0.4.0-preview1-linux-amd64.sif.sha256)"
 ```
 
 Then enter with an existing project directory, replacing the example path:
@@ -82,3 +82,5 @@ On a stable login host, `ws session --project "$HOME/my-project" --host-jobs` st
 For an update, transfer the new release into a new directory, verify its files, and unpack its matching launcher. Copy any needed site-local profile directly between local installations on that cluster. Update your launcher path and use `ws use` with the new image and checksum. Keep the previous release directory: `ws rollback --site SITE` can select its image again. Running sessions continue to use their existing image; use the matching older launcher if rolling back a launcher change. Batch jobs should specify a full, versioned `--image` path.
 
 Saved workspace configuration is outside the release directory and survives launcher/image updates. When the system changes, update its YAML using your existing Inspector workflow, then use `ws refresh --dry-run` and `ws refresh`. This refresh preserves personal overrides, image selections, and saved state. It does not run Inspector or rebuild the image.
+
+Release 0.4.0-preview1 also creates missing personal dotfile starters under `~/.config/hpc-workspace/` on entry. Your existing preferences and local `config.json` are preserved. Shared defaults follow the selected image through the starter include/loader files; see the [dotfile guide](dotfiles.md) before replacing those loaders with a complete personal configuration.

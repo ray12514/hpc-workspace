@@ -86,7 +86,7 @@ ws enter
 ws session
 ```
 
-The optional `--host-jobs` connection remains available for submission convenience. Release 0.2.0-preview1 and earlier still require `--site` on the host; use the matching 0.3.0-preview1 launcher to use saved configuration.
+The optional `--host-jobs` connection remains available for submission convenience. Release 0.2.0-preview1 and earlier still require `--site` on the host; use a matching launcher from 0.3.0-preview1 or later to use saved configuration.
 
 ## Refresh behavior
 

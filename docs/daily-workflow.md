@@ -2,6 +2,8 @@
 
 [View the running Bash, tmux, and Neovim configuration](previews/README.md).
 
+Release **0.4.0-preview1** makes [dotfiles an explicit part of the workspace](dotfiles.md). Shared defaults ship with the image; missing personal settings are created under `~/.config/hpc-workspace/` and existing preferences are preserved. It also enables fzf's Ctrl-R history selection, Ctrl-T path selection, Alt-C directory selection, and enhanced Tab completion.
+
 Release **0.3.0-preview1** adds [optional Inspector profile import](inspector-integration.md). After `ws init`, omit `--site` from the examples below to use the saved settings. An Inspector profile is optional; `ws init --site ruth` (or `jean` / `blueback`) also saves the system default. Submission behavior and the optional host connection are unchanged by this release.
 
 Release **0.2.0-preview1** adds a shared Bash/tmux/Neovim appearance and native PBS/Slurm submission. Transfer both the new SIF and its matching source bundle using the [transfer guide](transfer.md). A running shell keeps its old image; exit and re-enter after selecting the update. Existing tmux sessions keep their original configuration and image until recreated. Keep the previous release for rollback.
@@ -118,7 +120,7 @@ Color controls apply before starting the workspace/session:
 | `WS_COLOR=never` or `NO_COLOR=1` | Plain Bash prompt and tmux styles; leave Neovim's default theme instead of the custom palette |
 | `TERM=dumb` or redirected shell output | Plain Bash prompt |
 
-The workspace flags configure the shipped Bash/tmux/Neovim settings; they are not a universal switch for every third-party program. Personal Bash and Neovim overrides are loaded last from `~/.config/hpc-workspace/bashrc` and `nvim.lua`. Change tmux color settings before creating a fresh session; reconnecting does not replace an existing server's configuration.
+The workspace flags configure the shipped Bash/tmux/Neovim settings; they are not a universal switch for every third-party program. Personal Bash, Neovim, and tmux overrides are loaded last from `~/.config/hpc-workspace/bashrc`, `nvim.lua`, and `tmux.conf`. Readline key choices live in `inputrc`; application settings use the writable `xdg/` subdirectory. The [dotfile guide](dotfiles.md) explains loading order and updates. Change tmux color settings before creating a fresh session or explicitly reload your personal file; reconnecting does not replace an existing server's configuration.
 
 ## First local check after transferring this update
 

@@ -26,12 +26,12 @@ Nix is not a prerequisite. The Dockerfile pins base-image digests, uses a dated 
 
 ## Transfer and first launch
 
-Get the files from the [0.3.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.3.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
+Get the files from the [0.4.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
 
 Transfer these files using your approved transfer method:
 
-- `hpc-workspace-core-0.3.0-preview1-linux-amd64.sif` and its `.sha256` file.
-- `hpc-workspace-source-0.3.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
+- `hpc-workspace-core-0.4.0-preview1-linux-amd64.sif` and its `.sha256` file.
+- `hpc-workspace-source-0.4.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
 
 The Docker archive is an alternative for another Docker builder; it is not also required on a cluster. Keep images on a suitable persistent filesystem, outside purgeable scratch if they are your only copies.
 
@@ -44,7 +44,7 @@ For example, after placing the source at `$HOME/hpc-workspace` and the SIF under
 ```bash
 export PATH="$HOME/hpc-workspace/bin:$PATH"
 ws enter --site ruth \
-  --image "$HOME/containers/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif" \
+  --image "$HOME/containers/hpc-workspace-core-0.4.0-preview1-linux-amd64.sif" \
   --project "$HOME/my-project"
 ```
 
@@ -73,10 +73,9 @@ First entry can also import with `ws enter --profile FILE.yaml --image FILE.sif`
 
 The launcher explicitly binds your home and project at their normal paths. State defaults to `${XDG_STATE_HOME:-$HOME/.local/state}/hpc-workspace/SITE` and appears inside the image at `/workspace-state`. `--state-dir` can choose another persistent location. Shell history, editor sessions, undo files, and application data live there. Caches are separated by image release.
 
-Image defaults live under `/opt/workspace`, so a mounted home does not hide them. Optional personal configuration lives in:
+Shared dotfiles are versioned in `image/config/` and installed under `/opt/workspace/config`, so a mounted home does not hide them. First entry creates missing personal configuration under `~/.config/hpc-workspace/`: `bashrc`, `inputrc`, `nvim.lua`, `tmux.conf`, and writable application settings under `xdg/`. Existing files and symlinks are preserved. See the [dotfile guide](docs/dotfiles.md) for loading order, customization, and updates.
 
-- `~/.config/hpc-workspace/bashrc`
-- `~/.config/hpc-workspace/nvim.lua`
+The shell initializes enhanced Tab completion and fzf's **Ctrl-R** history picker, **Ctrl-T** path picker, and **Alt-C** directory picker. A history selection stays on the editable command line until you execute it.
 
 The managed skills are copied into `~/.local/share/hpc-workspace/skills/RELEASE` on first entry, then linked into `~/.agents/skills` and `~/.claude/skills`. Existing independent skills are preserved. A local report of preserved paths is written under the state directory. Set `WS_INSTALL_SKILLS=0` before `ws enter` to skip installation. Re-enter after an image update and start new agent sessions to load the new skills.
 

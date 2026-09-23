@@ -1,5 +1,17 @@
 # Workspace validation
 
+## Explicit dotfiles: 0.4.0-preview1
+
+Date: **2026-09-22**. Built locally for Linux amd64. Core tool versions and package pins are unchanged. No cluster access, private configuration, AI authentication, or live scheduler submission was used.
+
+- **Automated checks:** all **42 tests pass in Linux** with a read-only root, no network, and no capabilities. The macOS host passes 38 and skips four Linux peer-credential tests. The added checks cover preservation of edited files and dangling symlinks, private file permissions, and complete-file publication during simultaneous first entries.
+- **Real applications:** non-root Docker runs use a read-only image and replace the container between phases. Personal Bash, Readline, Neovim, bat, and Git preferences survive, application configuration is writable, normal host Bash/Neovim files are not sourced, and Git still reads the user's normal identity configuration. Real tmux loads the personal override and preserves its existing layout save/restore behavior.
+- **Interactive shell:** an actual non-root Bash PTY opens fzf with Ctrl-R, selects a synthetic history command without executing it, and completes `git chec` to `git checkout` with Tab. Existing prompt/color fallbacks and Neovim theme checks pass. Ctrl-T and Alt-C are provided by the same packaged binding script; their full picker interactions are not separately automated.
+- **Source consistency:** all 27 shipped configuration, launcher, helper, and generic profile files match this checkout byte-for-byte. Maintained shell scripts pass ShellCheck. All seven host Python files parse with Python 3.6 syntax rules; an actual Python 3.6 interpreter was not tested.
+- **Delivered SIF:** real Apptainer **1.3.6 and 1.5.3** runs pass as UID 1000 in `--unsquash` mode. Both verify writable application configuration and a retained personal Neovim preference after re-entry. The full launcher flow also checks an alternate host home: container `HOME` matches the explicit bind, and dotfiles are created there. Existing tool checks, synthetic PBS/Slurm host connections, and Inspector import/save/refresh checks pass under both versions.
+
+The SIF is **628,187,136 bytes** (about **599.1 MiB**), unencrypted, with gzip SquashFS. These are local extracted-SIF checks. Normal SIF mounting and actual site scheduler, GPU, and MPI behavior remain local validation work; the Docker Desktop nested-mount limitation recorded below still applies.
+
 ## Optional Inspector configuration: 0.3.0-preview1
 
 Date: **2026-09-22**. Built locally for Linux amd64. The image adds Ubuntu snapshot package `python3-yaml` **6.0.1-2build2** for the import helper; the existing core tools retain their pins. No cluster connection, real cluster profile, AI authentication, or live scheduler submission was used.

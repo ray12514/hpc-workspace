@@ -1,6 +1,6 @@
 # Development workspace, native jobs, and optional software stacks
 
-Date: 2026-09-22. Status: **daily workflow and optional Inspector import implemented in 0.3.0-preview1; scientific stacks remain proposed**.
+Date: 2026-09-22. Status: **daily workflow, optional Inspector import, and explicit dotfiles implemented through 0.4.0-preview1; scientific stacks remain proposed**.
 
 This note separates implemented workspace behavior from the proposed scientific-stack extensions. It uses public technical documentation and local source code. It does not require cluster inventories, credentials, private MPI paths, or uploaded site reports. The original 0.1.0-preview1 release remains available.
 
@@ -27,6 +27,8 @@ flowchart TD
 The host submission path is available through `ws submit`; enabling `--host-jobs` also makes it callable from a login-host container shell.
 
 The [Cluster Inspector integration](inspector-integration.md) optionally reads an existing local Inspector YAML during initial setup and saves useful facts as workspace configuration. Later starts reuse those settings; an explicit refresh imports an updated profile. Inspector keeps its existing workflow, while image and personal mount choices remain workspace settings. This import is available in 0.3.0-preview1.
+
+The [dotfile foundation](dotfiles.md) supplies shared defaults, persistent personal overrides, writable application configuration, and working fzf/Tab integration in 0.4.0-preview1. The [toolkit roadmap](toolkit-roadmap.md) proposes further shell utilities, Neovim with coding agents, reproducible tool updates, and a convention for personal HPC tools such as `libsweep`; those additions remain future work.
 
 ## Existing behavior and missing pieces
 

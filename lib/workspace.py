@@ -249,8 +249,12 @@ def container_plan(args, create_state=False, job_directory=None):
     if create_state:
         state.mkdir(parents=True, exist_ok=True, mode=0o700)
     runtime = shutil.which("apptainer") or "apptainer"
-    command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs"]
-    mounts = [bind_spec(Path.home(), str(Path.home())), bind_spec(project)]
+    home_mount = bind_spec(Path.home(), str(Path.home()))
+    # An explicit bind alone does not set HOME: Apptainer otherwise uses the
+    # account database even when the launching shell selected another home.
+    command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
+               "--home", home_mount.rsplit(":", 1)[0]]
+    mounts = [home_mount, bind_spec(project)]
     # A dry-run describes the state bind without creating directories.
     if not state.exists() and not create_state:
         if any(c in str(state) for c in (",", ":", "\n", "\r")):

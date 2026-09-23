@@ -1,0 +1,3 @@
+# Personal workspace Git settings. ~/.gitconfig is also read and takes precedence.
+# [diff]
+#     algorithm = histogram

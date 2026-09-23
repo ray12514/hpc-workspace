@@ -1,0 +1,2 @@
+-- Personal Neovim settings, loaded after the workspace defaults.
+-- Example: vim.opt.relativenumber = false

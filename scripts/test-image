@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.3.0-preview1}"
+workspace_release="${1:-0.4.0-preview1}"
 mkdir -p "$workspace_root/build"
 "$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
     --read-only --network none --cap-drop ALL --security-opt no-new-privileges \
@@ -19,6 +19,10 @@ workspace_fixture=$(mktemp -d "$workspace_root/build/smoke.XXXXXX")
 trap 'rm -rf "$workspace_fixture"' EXIT
 mkdir -p "$workspace_fixture/home/.agents/skills/research" "$workspace_fixture/state" "$workspace_fixture/project"
 printf 'keep my custom skill\n' > "$workspace_fixture/home/.agents/skills/research/SKILL.md"
+mkdir -p "$workspace_fixture/home/.config/nvim"
+printf '%s\n' 'touch /project/HOST_BASHRC_READ' > "$workspace_fixture/home/.bashrc"
+printf '%s\n' 'vim.g.host_nvim_was_read = true' > "$workspace_fixture/home/.config/nvim/init.lua"
+printf '[user]\n    name = Fixture User\n' > "$workspace_fixture/home/.gitconfig"
 for workspace_phase in save restore; do
     "$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
         --read-only --network none --cap-drop ALL --security-opt no-new-privileges \
@@ -41,3 +45,10 @@ done
     --mount "type=bind,src=$workspace_fixture/project,dst=/project" \
     --mount "type=bind,src=$workspace_root/tests,dst=/tests,readonly" \
     --workdir /project "hpc-workspace:$workspace_release" python3 /tests/terminal-behavior.py
+"$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
+    --read-only --network none --cap-drop ALL --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" \
+    --env HOME=/tmp/tester --env TERM=xterm-256color --env WS_INSTALL_SKILLS=0 \
+    --tmpfs /tmp:rw,mode=1777 \
+    --mount "type=bind,src=$workspace_root/tests,dst=/tests,readonly" \
+    --workdir /tmp "hpc-workspace:$workspace_release" python3 /tests/dotfiles-behavior.py

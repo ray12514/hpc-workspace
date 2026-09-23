@@ -1,0 +1,5 @@
+# Shared Readline defaults; loaded before personal inputrc settings.
+set bell-style none
+set completion-ignore-case on
+set show-all-if-ambiguous on
+set enable-bracketed-paste on

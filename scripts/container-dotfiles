@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Create missing workspace-only personal configuration from shipped templates."""
+import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from dotfiles import initialize
+
+os.umask(0o077)
+initialize("/opt/workspace/config/user", Path.home() / ".config/hpc-workspace")

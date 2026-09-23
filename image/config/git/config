@@ -1,0 +1,5 @@
+# Identity and credentials remain in the user's own Git configuration.
+[core]
+    editor = nvim
+[color]
+    ui = auto

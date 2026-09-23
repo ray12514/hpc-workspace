@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.3.0-preview1}"
+workspace_release="${1:-0.4.0-preview1}"
 workspace_dist="$workspace_root/dist"
 workspace_name="hpc-workspace-core-${workspace_release}-linux-amd64"
 mkdir -p "$workspace_dist"

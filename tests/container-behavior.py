@@ -13,7 +13,13 @@ def run(*command, **options):
 
 state = Path(os.environ["XDG_STATE_HOME"])
 home = Path.home()
+personal = home / ".config/hpc-workspace"
 phase = sys.argv[1]
+assert Path(os.environ["XDG_CONFIG_HOME"]) == personal / "xdg"
+assert os.access(os.environ["XDG_CONFIG_HOME"], os.W_OK)
+assert (personal / "inputrc").is_file()
+assert (personal / "xdg/nvim/init.lua").is_file()
+assert not (Path('/project') / 'HOST_BASHRC_READ').exists()
 assert (home / ".agents/skills/research/SKILL.md").read_text() == "keep my custom skill\n"
 assert (home / ".claude/skills/research/SKILL.md").is_file()
 assert (home / ".agents/skills/codebase-design").is_symlink()
@@ -26,12 +32,31 @@ if phase == "save":
     (state / "replacement-marker").write_text("survived replacement")
     run("bash", "--noprofile", "--rcfile", "/opt/workspace/config/bashrc", "-ic",
         "history -s history-survives-container-replacement; history -a")
+    (personal / "bashrc").write_text("export WS_PERSONAL_PROBE=preserved\n")
+    (personal / "nvim.lua").write_text("vim.g.workspace_personal_probe = 'preserved'\n")
+    (personal / "tmux.conf").write_text("set -g @workspace-personal-probe preserved\n")
+    (personal / "inputrc").write_text("$include /opt/workspace/config/inputrc\nset completion-ignore-case off\n")
+    (personal / "xdg/bat/config").write_text("--style=plain\n")
+    (personal / "xdg/git/config").write_text("[workspace]\n    personalProbe = preserved\n")
 elif phase == "restore":
     assert (state / "replacement-marker").read_text() == "survived replacement"
     assert "history-survives-container-replacement" in (state / "bash-history").read_text()
     run("nvim", "--headless", "+WorkspaceRestore",
         "+lua if #vim.api.nvim_list_wins() ~= 2 then vim.cmd('cquit 1') end", "+qa")
     assert Path("first.txt").read_text() == "persistent first file\n"
+    run("bash", "--noprofile", "--rcfile", "/opt/workspace/config/bashrc", "-ic",
+        'test "$WS_PERSONAL_PROBE" = preserved && '
+        'bind -v | grep -q "set completion-ignore-case off" && '
+        'complete -p -D | grep -q _completion_loader')
+    run("nvim", "--headless",
+        "+lua assert(vim.g.workspace_personal_probe == 'preserved'); assert(vim.g.host_nvim_was_read == nil)", "+qa")
+    assert run("git", "config", "--get", "workspace.personalProbe", capture_output=True).stdout.strip() == "preserved"
+    assert run("git", "config", "--get", "user.name", capture_output=True).stdout.strip() == "Fixture User"
+    assert run("git", "config", "--get", "core.editor", capture_output=True).stdout.strip() == "nvim"
+    assert (personal / "xdg/bat/config").read_text() == "--style=plain\n"
+    assert run("bat", "--config-file", capture_output=True).stdout.strip() == str(personal / "xdg/bat/config")
+    assert not (Path('/project') / 'HOST_BASHRC_READ').exists()
+    print("Writable configuration and Bash/Readline/Neovim/bat/Git preferences survived replacement.")
     print("Replacement preserved files, history, editor layout, and custom skills.")
 
     environment = dict(os.environ, WS_ROOT="/opt/workspace", WS_SESSION_STATE=str(state / "tmux-check"))
@@ -45,6 +70,7 @@ elif phase == "restore":
     try:
         tm("new-session", "-d", "-s", "saved", "-n", "editor")
         tm("new-window", "-t", "saved", "-n", "host")
+        assert tm("show-option", "-gv", "@workspace-personal-probe") == "preserved"
         assert tm("show-option", "-gv", "@resurrect-processes") == "false"
         assert tm("show-option", "-gv", "@resurrect-dir") == environment["WS_SESSION_STATE"]
         assert "continuum_save.sh" in tm("show-option", "-gv", "status-right")

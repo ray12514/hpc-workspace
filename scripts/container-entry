@@ -12,11 +12,16 @@ export XDG_STATE_HOME="$workspace_state/apps"
 export XDG_CACHE_HOME="$workspace_state/cache/${WS_RELEASE:-development}"
 export XDG_DATA_HOME="$workspace_state/data"
 export NVIM_APPNAME=nvim
-export XDG_CONFIG_HOME=/opt/workspace/config
+export WS_DOTFILES_DIR="${HOME}/.config/hpc-workspace"
+export XDG_CONFIG_HOME="$WS_DOTFILES_DIR/xdg"
+export XDG_CONFIG_DIRS=/opt/workspace/config
+export INPUTRC="$WS_DOTFILES_DIR/inputrc"
+export GIT_CONFIG_SYSTEM=/opt/workspace/config/git/config
 export EDITOR=nvim VISUAL=nvim
 export DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1
 export WS_CONTAINER=1
 mkdir -p "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
+python3 /opt/workspace/bin/container-dotfiles
 if [[ "${WS_INSTALL_SKILLS:-1}" == 1 ]]; then
     python3 /opt/workspace/bin/container-skills
 fi

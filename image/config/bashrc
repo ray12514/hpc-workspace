@@ -58,8 +58,15 @@ PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_b
 alias ll='ls -alF'
 alias la='ls -A'
 alias ..='cd ..'
-if [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]]; then
-    source /usr/share/doc/fzf/examples/key-bindings.bash
+if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+    source /usr/share/bash-completion/bash_completion
+fi
+if [[ -f /opt/workspace/share/fzf/key-bindings.bash ]]; then
+    source /opt/workspace/share/fzf/key-bindings.bash
+fi
+# Reapply personal key choices after the bundled fzf bindings.
+if [[ -r ${INPUTRC:-} ]]; then
+    bind -f "$INPUTRC"
 fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
