@@ -13,6 +13,9 @@ Local validation uses synthetic data only:
 - A deliberately invalid `libssl.so.3` on the module library path does not replace bat's private dependencies. Native editor subprocesses still receive that original library path. This is a targeted collision test, not a guarantee for arbitrary preload libraries or every package.
 - Packaged tmux starts without a host tmux dependency. Both windows accept keyboard input, Ctrl-R retrieves and reruns a historical command, Ctrl-C interrupts a command, and a second launcher invocation reconnects to the same session. The test checks that packaged executables still resolve after detachment.
 - The optional existing Inspector YAML import works through the thin image.
+- The exact transfer bundle installs and reinstalls in a disposable Linux home. Its generated launcher enters the SIF without `--site` or `--image`, retains personal Bash/Neovim settings, and completes `ws update` from inside the integrated shell. The managed PATH block remains unique and the original `.bashrc` content is retained.
+
+The final SIF is **141,090,816 bytes** (about **134.6 MiB**), built from source commit `6b2f9084f7f78ab06d18369d148a4a023c596042`. Its SHA256 is `a72ca4ff21fee7d42881623654b402874f9c28cf9b93656de6aaf7f573666cc8`. The final artifact passes both Apptainer fixture suites described above, including keeper shutdown after tmux exits. The release manifest records the matching source, image identity and file checksums.
 
 The session regression found during implementation was specific and reproducible: letting the container command return after starting detached tmux caused `--unsquash` cleanup to remove the tool files. A host keeper now holds the runtime open for the life of the packaged tmux server. The regression test checks executable resolution and actual Ctrl-R input after detachment; a live shell process alone is insufficient evidence.
 
