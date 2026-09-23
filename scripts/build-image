@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.2.0-preview1}"
+workspace_release="${1:-0.3.0-preview1}"
 exec "$workspace_root/scripts/docker-public" build --platform linux/amd64 \
     --build-arg "WORKSPACE_RELEASE=$workspace_release" \
     --tag "hpc-workspace:$workspace_release" --file "$workspace_root/image/Dockerfile" "$workspace_root"

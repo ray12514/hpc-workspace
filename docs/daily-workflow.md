@@ -2,6 +2,8 @@
 
 [View the running Bash, tmux, and Neovim configuration](previews/README.md).
 
+Release **0.3.0-preview1** adds [optional Inspector profile import](inspector-integration.md). After `ws init`, omit `--site` from the examples below to use the saved settings. An Inspector profile is optional; `ws init --site ruth` (or `jean` / `blueback`) also saves the system default. Submission behavior and the optional host connection are unchanged by this release.
+
 Release **0.2.0-preview1** adds a shared Bash/tmux/Neovim appearance and native PBS/Slurm submission. Transfer both the new SIF and its matching source bundle using the [transfer guide](transfer.md). A running shell keeps its old image; exit and re-enter after selecting the update. Existing tmux sessions keep their original configuration and image until recreated. Keep the previous release for rollback.
 
 Reconnecting also retains the session's original `--host-jobs` choice. For an immediate fresh shell, use `ws enter --host-jobs` from the host window. To replace the full tmux session, save your files/layouts and finish interactive work, then use `Ctrl-b :` followed by `kill-session`. This closes that session's panes; re-run `ws session` to create it with the new image and options.

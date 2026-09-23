@@ -1,0 +1,44 @@
+schema_version: 1
+system:
+  name: example-linux
+  family: linux
+os:
+  name: rocky
+  major: 9
+  glibc: '2.34'
+fabric:
+  type: infiniband
+  drivers: []
+  userspace:
+    - name: libfabric
+      version: '1.22.0'
+      prefix: /example/libfabric
+modules_system:
+  tool: lmod
+  version: '8.7'
+mpi_providers:
+  - name: openmpi
+    version: '5.0.5'
+    provider_family: openmpi
+    prefix: /example/openmpi
+    modules: [gcc/13, openmpi/5.0.5]
+system_externals:
+  - name: slurm
+    version: '24.11'
+    prefix: /example/slurm
+    provider_family: slurm
+    capabilities:
+      mpi_launch:
+        command: srun
+        plugins: [pmix]
+        development_interfaces: [pmix]
+filesystem:
+  install_tree_candidates: []
+node_types:
+  cpu:
+    role: both
+    cpu:
+      detected: zen4
+      preferred: zen4
+    gpu: null
+    build_stage: []

@@ -63,3 +63,64 @@ ws jobs
         print('SIF host connection passed: ' + kind + ', same UID, paths, environment, queue, native errors, cleanup.')
 finally:
     fixture.doCleanups()
+
+# Exercise the complete host -> SIF YAML reader -> saved configuration flow.
+# The image is the delivered artifact; all profiles and client data are synthetic.
+import hashlib
+import shlex
+import shutil
+import tempfile
+
+with tempfile.TemporaryDirectory(prefix='ws-import-integration-') as temporary:
+    root = Path(temporary)
+    home = root / 'home'
+    home.mkdir()
+    native = root / 'bin'
+    native.mkdir()
+    apptainer = shutil.which('apptainer')
+    wrapper = native / 'apptainer'
+    if sys.argv[1] == 'unsquash':
+        wrapper.write_text('#!/bin/sh\nif [ "$1" = exec ]; then shift; exec ' + shlex.quote(apptainer) +
+                           ' exec --unsquash "$@"; fi\nexec ' + shlex.quote(apptainer) + ' "$@"\n')
+        wrapper.chmod(0o755)
+    environment = dict(os.environ, HOME=str(home), WS_CONFIG_DIR=str(root / 'configuration'),
+                       XDG_STATE_HOME=str(root / 'state'), WS_INSTALL_SKILLS='0',
+                       PATH=str(native) + os.pathsep + os.environ['PATH'])
+    source = root / 'local profile.yaml'
+    original = Path('/src/tests/fixtures/inspector-slurm.yaml').read_text()
+    source.write_text(original)
+    config = root / 'configuration/config.json'
+
+    def ws(*arguments, expected=0):
+        result = subprocess.run([sys.executable, '/src/bin/ws'] + list(arguments), env=environment,
+                                cwd='/project', capture_output=True, text=True, timeout=240)
+        assert result.returncode == expected, (arguments, result.returncode, result.stdout, result.stderr)
+        return result
+
+    ws('init', '--profile', str(source), '--image', '/input/workspace.sif', '--dry-run')
+    assert not config.exists()
+    ws('init', '--profile', str(source), '--image', '/input/workspace.sif')
+    imported = json.loads(config.read_text())
+    assert imported['inspector']['facts']['fabric']['userspace'][0]['prefix'] == '/example/libfabric'
+    digest = hashlib.sha256()
+    with open('/input/workspace.sif', 'rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block)
+    ws('use', '/input/workspace.sif', '--sha256', digest.hexdigest())
+    source.unlink()
+    result = ws('enter', '--project', '/project', '--', 'bash', '-c', 'printf "context=%s\\n" "$WS_SITE"')
+    assert 'context=example-linux' in result.stdout, result.stdout
+    assert config.read_text() == json.dumps(imported, indent=2) + '\n'
+    assert json.loads(ws('jobs', '--dry-run').stdout)['argv'][0] == 'squeue'
+    source.write_text(original.replace('/example/openmpi', '/example/updated-openmpi').replace('name: slurm', 'name: pbs'))
+    before = config.read_bytes()
+    ws('refresh', '--dry-run')
+    assert config.read_bytes() == before
+    ws('refresh')
+    assert json.loads(config.read_text())['inspector']['facts']['mpi_providers'][0]['prefix'] == '/example/updated-openmpi'
+    assert json.loads(ws('jobs', '--dry-run').stdout)['argv'][0] == 'qstat'
+    before = config.read_bytes()
+    source.write_text('schema_version: 2\nsystem: {name: example-linux}\n')
+    ws('refresh', expected=2)
+    assert config.read_bytes() == before
+    print('SIF configuration passed: YAML import, preview, saved image, entry without source, PBS/Slurm defaults, refresh, failed-refresh preservation.')

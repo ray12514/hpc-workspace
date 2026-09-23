@@ -26,12 +26,12 @@ Nix is not a prerequisite. The Dockerfile pins base-image digests, uses a dated 
 
 ## Transfer and first launch
 
-Get the files from the [0.2.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.2.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
+Get the files from the [0.3.0-preview1 release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.3.0-preview1), or use the local copies in `dist/`. The [transfer and startup guide](docs/transfer.md) walks through downloading, verifying, and starting the environment on each cluster. A GitHub account, Docker Hub account, or container registry is not needed to download the public release.
 
 Transfer these files using your approved transfer method:
 
-- `hpc-workspace-core-0.2.0-preview1-linux-amd64.sif` and its `.sha256` file.
-- `hpc-workspace-source-0.2.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
+- `hpc-workspace-core-0.3.0-preview1-linux-amd64.sif` and its `.sha256` file.
+- `hpc-workspace-source-0.3.0-preview1.tar.gz` and its `.sha256` file. This small bundle supplies `ws`, site profiles, session configuration, and the build recipes.
 
 The Docker archive is an alternative for another Docker builder; it is not also required on a cluster. Keep images on a suitable persistent filesystem, outside purgeable scratch if they are your only copies.
 
@@ -44,20 +44,30 @@ For example, after placing the source at `$HOME/hpc-workspace` and the SIF under
 ```bash
 export PATH="$HOME/hpc-workspace/bin:$PATH"
 ws enter --site ruth \
-  --image "$HOME/containers/hpc-workspace-core-0.2.0-preview1-linux-amd64.sif" \
+  --image "$HOME/containers/hpc-workspace-core-0.3.0-preview1-linux-amd64.sif" \
   --project "$HOME/my-project"
 ```
 
 Use `--site jean` or `--site blueback` on those systems. Add `--work /your/work/directory` for an additional work directory. Add `--dry-run` before `--` to inspect the launch without creating state or running the container. Commands follow `--`, for example `-- nvim` or `-- python3 script.py`.
 
-Select a default release after verifying its checksum:
+To save system defaults once, optionally import your existing local Cluster Inspector profile using the new SIF:
 
 ```bash
-ws use --site ruth /path/to/release.sif --sha256 CHECKSUM_FROM_THE_SHA256_FILE
-ws enter --site ruth --project /path/to/project
+ws init --profile /path/to/profile.yaml --image /path/to/release.sif
 ```
 
-`ws use` checks the full file hash before changing the selection. `ws rollback --site ruth` revalidates and selects the previous image. Keep both image files. New releases use new filenames; do not overwrite a selected SIF. Running shells and sessions keep their current image. Batch jobs should always pass an explicit, versioned `--image` path.
+The workspace saves the system name, scheduler default when available, and useful MPI, libfabric, module, and hardware facts. It reads the existing YAML with a parser bundled in the image; it does not run or modify Inspector. Without a profile, `ws init --site ruth` (or `jean` / `blueback`) saves one of the original defaults. A basic shell also works with just `ws enter --image FILE.sif` and a generic local state directory.
+
+Select a default release after verifying its checksum. After setup, daily commands use the saved system settings:
+
+```bash
+ws use /path/to/release.sif --sha256 CHECKSUM_FROM_THE_SHA256_FILE
+ws enter --project /path/to/project
+```
+
+`ws use` checks the full file hash before changing the selection. `ws rollback` revalidates and selects the previous image. Keep both image files. New releases use new filenames; do not overwrite a selected SIF. Running shells and sessions keep their current image. Batch jobs should always pass an explicit, versioned `--image` path. Explicit `--site` remains available for the original per-site workflow.
+
+First entry can also import with `ws enter --profile FILE.yaml --image FILE.sif`, or a site module can supply `WS_INSPECTOR_PROFILE`. Later starts use saved settings even if the YAML is removed or changed. Use `ws refresh --dry-run` to preview an update, then `ws refresh` to import it. See [profile setup and refresh](docs/inspector-integration.md) for configuration locations, personal overrides, and shared-home setups.
 
 ## Files, configuration, and credentials
 

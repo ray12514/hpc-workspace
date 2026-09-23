@@ -2,7 +2,7 @@
 # Local nested-Apptainer fixture only; these Docker options are not cluster options.
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.2.0-preview1}"
+workspace_release="${1:-0.3.0-preview1}"
 workspace_sif="$workspace_root/dist/hpc-workspace-core-${workspace_release}-linux-amd64.sif"
 test -f "$workspace_sif"
 workspace_mode="${WS_SIF_TEST_MODE:-unsquash}"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.2.0-preview1}"
+workspace_release="${1:-0.3.0-preview1}"
 mkdir -p "$workspace_root/build"
 "$workspace_root/scripts/docker-public" run --rm --platform linux/amd64 \
     --read-only --network none --cap-drop ALL --security-opt no-new-privileges \

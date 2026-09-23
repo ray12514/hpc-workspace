@@ -1,5 +1,17 @@
 # Workspace validation
 
+## Optional Inspector configuration: 0.3.0-preview1
+
+Date: **2026-09-22**. Built locally for Linux amd64. The image adds Ubuntu snapshot package `python3-yaml` **6.0.1-2build2** for the import helper; the existing core tools retain their pins. No cluster connection, real cluster profile, AI authentication, or live scheduler submission was used.
+
+- **Automated checks:** all **40 tests pass in Linux** with a read-only root, no network, and no capabilities. The macOS host passes 36 tests and skips four Linux peer-credential tests. The 16 new checks cover initial import, optional/missing facts, PBS/Slurm defaults, explicit overrides, first-entry image/state preservation, cached startup without the source YAML or Inspector, concurrent edits, explicit refresh, and invalid/renamed-profile rejection.
+- **YAML handling:** actual YAML parsing checks typed provider paths, modules, and node facts. Unsafe tags, duplicate keys, recursive aliases, malformed input, and unsupported versions are rejected. Imports snapshot the source, use the image's parser, and write private configuration atomically. Host launcher syntax was also checked against Python 3.6.
+- **Delivered SIF:** real nested Apptainer **1.3.6 and 1.5.3** runs pass in `--unsquash` mode. Each tests initial import and preview through the SIF's reader, image selection, entry after deleting the original YAML, saved PBS/Slurm defaults, successful refresh, and preservation after a failed refresh. Existing SIF tool checks and actual container-to-host connections to synthetic PBS/Slurm clients also pass.
+- **Existing daily environment:** the Docker checks pass tool/C/Python smoke tests, preservation of files/history/editor state/custom skills after replacing the container, tmux save/restore, Bash PTY colors/literal names, and Neovim theme modes. Submission export behavior is unchanged.
+- **Source consistency:** the seven delivered launcher/library/entry files match the source byte-for-byte. Maintained shell scripts pass ShellCheck. The public documentation cites the public profile schema; the private implementation review and all build logs remain outside the release.
+
+The SIF is **628,166,656 bytes** (about **599.1 MiB**), unencrypted, with gzip SquashFS. These are local extracted-SIF checks, not a claim that direct SIF mounting, scheduler authentication, GPU toolkits, or MPI communication have been validated on the target clusters. The previously recorded Docker Desktop nested-mount limitation still applies. Site checks remain local to those machines.
+
 ## Daily workflow: 0.2.0-preview1
 
 Date: **2026-09-22**. Built locally for Linux amd64. Core tool versions and package pins are unchanged from the baseline table below. No cluster connection, private cluster files, AI authentication, or live job submission was used.

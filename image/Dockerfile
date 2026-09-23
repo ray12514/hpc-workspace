@@ -7,7 +7,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
 
 FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 ARG TARGETARCH
-ARG WORKSPACE_RELEASE=0.2.0-preview1
+ARG WORKSPACE_RELEASE=0.3.0-preview1
 ARG UBUNTU_SNAPSHOT=20260921T000000Z
 LABEL org.opencontainers.image.title="HPC development workspace" \
       org.opencontainers.image.version="${WORKSPACE_RELEASE}" \
@@ -25,7 +25,7 @@ RUN test "${TARGETARCH:-amd64}" = amd64 \
        bash bash-completion ca-certificates curl wget git openssh-client less file \
        rsync tar unzip xz-utils zstd zip procps htop lsof util-linux tzdata \
        ripgrep fd-find fzf bat jq tmux \
-       python3 python3-venv python3-pip python3-dev \
+       python3 python3-venv python3-pip python3-dev python3-yaml \
        build-essential gfortran cmake ninja-build pkg-config gdb clangd \
        shellcheck shfmt \
     && mkdir -p /opt/workspace/bin /opt/workspace/manifests \

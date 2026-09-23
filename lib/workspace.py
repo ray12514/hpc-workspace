@@ -1,5 +1,6 @@
 """Host-side workspace operations. Commands are argv lists, never shell input."""
 import argparse
+import datetime
 import fcntl
 import hashlib
 import json
@@ -16,9 +17,10 @@ import tempfile
 
 from scheduler import Scheduler, SchedulerError, selected_environment
 from job_bridge import HostJobs, call as call_host_jobs
+import configuration
+from inspector import MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
-SITES = ("ruth", "jean", "blueback")
 FORWARD = (
     "TERM", "COLORTERM", "LANG", "LC_ALL", "TZ", "SSH_AUTH_SOCK",
     "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
@@ -43,27 +45,140 @@ def load_json(path):
 
 
 def profile(site):
-    data = load_json(ROOT / "profiles" / (site + ".json"))
-    override = ROOT / "profiles" / (site + ".local.json")
-    if override.exists():
-        extra = load_json(override)
-        if set(extra) - {"binds", "scheduler_env"}:
-            raise WorkspaceError("Local profiles support only 'binds' and 'scheduler_env'.")
-        data.update(extra)
-    if data.get("schema_version") != 1 or data.get("site") != site:
-        raise WorkspaceError("Invalid profile for " + site)
+    return configuration.resolve(ROOT, site, configuration.read())
+
+
+def current_profile(args):
+    return args.resolved_profile if hasattr(args, "resolved_profile") else profile(args.site)
+
+
+def require_scheduler(data):
     if data.get("scheduler") not in ("pbs", "slurm"):
-        raise WorkspaceError("Unsupported scheduler")
-    if not isinstance(data.get("binds"), list):
-        raise WorkspaceError("Profile binds must be a list")
+        raise WorkspaceError("No single scheduler is configured. Set it once with 'ws init --scheduler pbs' or '--scheduler slurm'.")
     return data
+
+
+def import_profile(source, args):
+    """Parse a fixed local snapshot with the image's YAML helper, not Inspector."""
+    image = selected_image(args)
+    source = Path(source).expanduser().resolve()
+    with source.open("rb") as stream:
+        contents = stream.read(MAX_BYTES + 1)
+    if len(contents) > MAX_BYTES:
+        raise WorkspaceError("Inspector profile exceeds the 4 MiB import limit")
+    runtime = shutil.which("apptainer")
+    if not runtime:
+        raise WorkspaceError("Load Apptainer to import YAML. Ordinary startup uses the saved configuration without parsing YAML.")
+    with tempfile.TemporaryDirectory(prefix="ws-profile-") as temporary:
+        snapshot = Path(temporary) / "profile.yaml"
+        snapshot.write_bytes(contents)
+        snapshot.chmod(0o600)
+        command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
+                   "--bind", bind_spec(snapshot, "/tmp/ws-profile.yaml", "ro"), "--pwd", "/tmp",
+                   image["path"], "/usr/bin/python3", "-I", "/opt/workspace/lib/inspector.py", "/tmp/ws-profile.yaml"]
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(("APPTAINER", "SINGULARITY"))}
+        try:
+            result = subprocess.run(command, env=environment, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, universal_newlines=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise WorkspaceError("Inspector profile import timed out; saved configuration was not changed")
+        if result.returncode:
+            raise WorkspaceError("Profile import failed (use a workspace image with the import helper):\n" + result.stderr[-4000:])
+        if len(result.stdout) > MAX_BYTES:
+            raise WorkspaceError("Imported profile exceeds the 4 MiB configuration limit")
+        imported = json.loads(result.stdout)
+    if not isinstance(imported, dict):
+        raise WorkspaceError("Invalid response from the profile import helper")
+    imported.update(source=str(source), sha256=hashlib.sha256(contents).hexdigest(),
+                    imported_at=datetime.datetime.now(datetime.timezone.utc).isoformat())
+    return imported
+
+
+def configuration_candidate(args, source=None):
+    previous = args.saved_configuration
+    same_site = previous and (not args.explicit_site or args.explicit_site == previous["site"])
+    candidate = json.loads(json.dumps(previous)) if same_site else {
+        "schema_version": 1, "site": args.site, "overrides": {}}
+    if source:
+        imported = import_profile(source, args)
+        name = imported.get("facts", {}).get("system", {}).get("name")
+        if not isinstance(name, str):
+            raise WorkspaceError("Imported profile is missing system.name")
+        prior = candidate.get("inspector")
+        if prior and prior["facts"]["system"]["name"] != name:
+            raise WorkspaceError("Profile system.name changed; configuration and state were preserved. Use 'ws init --site NEW_KEY --profile FILE' for a different system.")
+        if not same_site and not args.explicit_site:
+            candidate["site"] = configuration.key_for_name(name)
+            # Preserve a workspace already used before a profile was available.
+            # Prefer the target's existing state if that system was used before.
+            prior_state = state_path(args)
+            target_state = prior_state.parent / candidate["site"]
+            if not args.state_dir and prior_state.exists() and not target_state.exists():
+                candidate["state_site"] = args.site
+        candidate["inspector"] = imported
+    if getattr(args, "scheduler", None):
+        candidate.setdefault("overrides", {})["scheduler"] = args.scheduler
+    configuration.validate(candidate)
+    return candidate
+
+
+def configure(args):
+    source = args.profile
+    if args.action == "refresh":
+        if not args.saved_configuration or not args.saved_configuration.get("inspector"):
+            raise WorkspaceError("No imported profile to refresh. Use 'ws init --profile FILE --image FILE.sif' first.")
+        if args.explicit_site and args.explicit_site != args.saved_configuration["site"]:
+            raise WorkspaceError("Refresh must target the configured site")
+        source = source or args.saved_configuration["inspector"]["source"]
+    elif not source and not (args.saved_configuration or {}).get("inspector"):
+        source = os.environ.get("WS_INSPECTOR_PROFILE")
+    candidate = configuration_candidate(args, source)
+    changes = configuration.changed_fields(args.saved_configuration or {}, candidate)
+    data = configuration.resolve(ROOT, candidate["site"], candidate)
+    report = {"site": candidate["site"], "scheduler": data["scheduler"], "changed_fields": changes,
+              "configuration": str(configuration.directory() / "config.json"), "dry_run": args.dry_run}
+    if not args.dry_run:
+        configuration.write(candidate, args.saved_configuration)
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def prepare(args):
+    args.explicit_site = args.site
+    if in_container():
+        args.site = configuration.site_key(args.site or os.environ.get("WS_SITE") or "local")
+        return
+    args.saved_configuration = configuration.read()
+    args.site = configuration.site_key(args.site or (args.saved_configuration or {}).get("site") or "local")
+    args.resolved_profile = configuration.resolve(ROOT, args.site, args.saved_configuration)
+    if args.action not in ("enter", "session"):
+        return
+    same_site = not args.saved_configuration or args.site == args.saved_configuration["site"]
+    source = args.profile or (os.environ.get("WS_INSPECTOR_PROFILE") if same_site else None)
+    imported = args.resolved_profile.get("inspector")
+    if source and not imported:
+        reader_image = selected_image(args)["path"]
+        candidate = configuration_candidate(args, source)
+        args.site = candidate["site"]
+        args.resolved_profile = configuration.resolve(ROOT, args.site, candidate)
+        # Keep the SIF found before the system name was imported for this entry.
+        if not args.image:
+            args.image = reader_image
+        if not args.dry_run:
+            configuration.write(candidate, args.saved_configuration)
+        print("{} workspace settings for {} from Inspector YAML. Use 'ws refresh' to update them.".format(
+              "Would import" if args.dry_run else "Imported", args.site), file=sys.stderr)
+    elif args.profile and imported and str(Path(args.profile).expanduser().resolve()) != imported["source"]:
+        raise WorkspaceError("A profile is already imported. Use 'ws refresh --profile FILE' to change its source.")
 
 
 def state_path(args):
     if getattr(args, "state_dir", None):
         return Path(args.state_dir).expanduser().resolve()
     base = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
-    return (base / "hpc-workspace" / args.site).resolve()
+    site = getattr(args, "resolved_profile", {}).get("state_site", args.site)
+    return (base / "hpc-workspace" / site).resolve()
 
 
 def checksum(path):
@@ -96,6 +211,9 @@ def selected_image(args):
 
 
 def allocation(data):
+    if data.get("scheduler") not in ("pbs", "slurm"):
+        jobs = [os.environ[key] for key in ("PBS_JOBID", "SLURM_JOB_ID") if os.environ.get(key)]
+        return jobs[0] if len(jobs) == 1 else None
     key = "PBS_JOBID" if data["scheduler"] == "pbs" else "SLURM_JOB_ID"
     return os.environ.get(key) or None
 
@@ -113,18 +231,20 @@ def bind_spec(source, destination=None, mode="rw"):
 
 
 def container_plan(args, create_state=False, job_directory=None):
-    data = profile(args.site)
+    data = current_profile(args)
     project = Path(args.project).expanduser().resolve()
     if not project.is_dir():
         raise WorkspaceError("Project directory does not exist: " + str(project))
     image = selected_image(args)
     job = allocation(data)
     if args.compute and not job:
-        raise WorkspaceError("Compute mode requires an existing {} allocation.".format(data["scheduler"]))
+        raise WorkspaceError("Compute mode requires an existing {} allocation.".format(data["scheduler"] or "scheduler"))
     if args.gpu != "none" and not job:
         raise WorkspaceError("GPU access requires an existing allocation.")
     if args.host_jobs and (os.environ.get("SLURM_JOB_ID") or os.environ.get("PBS_JOBID")):
         raise WorkspaceError("Start --host-jobs on a login host, outside a compute allocation.")
+    if args.host_jobs:
+        require_scheduler(data)
     state = state_path(args)
     if create_state:
         state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -202,7 +322,7 @@ def enter(args):
         return 0
     if args.host_jobs:
         roots = [args.project] + ([args.work] if args.work else [])
-        scheduler = Scheduler(profile(args.site), os.environ, roots=roots)
+        scheduler = Scheduler(require_scheduler(current_profile(args)), os.environ, roots=roots)
         with HostJobs(scheduler) as bridge:
             command, environment = container_plan(args, create_state=True, job_directory=bridge.directory)
             return execute(command, environment)
@@ -225,7 +345,7 @@ def scheduler_operation(args):
             raise WorkspaceError("No host scheduler connection. Use the host window, or enter with --host-jobs on a login host.")
         result = call_host_jobs(connection, request)
     else:
-        result = Scheduler(profile(args.site), os.environ).request(request)
+        result = Scheduler(require_scheduler(current_profile(args)), os.environ).request(request)
     sys.stdout.write(result["stdout"])
     sys.stderr.write(result["stderr"])
     return result["returncode"]
@@ -244,13 +364,15 @@ def probe(command):
 
 
 def doctor(args):
-    data = profile(args.site)
+    data = current_profile(args)
     result = {"schema_version": 1, "site": args.site, "hostname": socket.gethostname(),
               "platform": platform.system(), "architecture": platform.machine(),
               "kernel": platform.release(), "scheduler": data["scheduler"],
               "allocation": allocation(data), "modules": os.environ.get("LOADEDMODULES", "").split(":") if os.environ.get("LOADEDMODULES") else [],
               "mpi_status": data["mpi_status"], "project": str(Path(args.project).resolve()),
               "state_directory": str(state_path(args)), "checks": {}}
+    result["configuration"] = {"path": str(configuration.directory() / "config.json"),
+                               "inspector": data.get("inspector")}
     os_release = Path("/etc/os-release")
     if os_release.is_file():
         result["os_release"] = os_release.read_text()
@@ -259,7 +381,7 @@ def doctor(args):
     if data["scheduler"] == "slurm":
         commands["scheduler"] = ["srun", "--version"]
         commands["mpi_plugins"] = ["srun", "--mpi=list"]
-    else:
+    elif data["scheduler"] == "pbs":
         commands["scheduler"] = ["qstat", "--version"]
     if args.gpu_inventory:
         if not allocation(data):
@@ -322,7 +444,9 @@ def select_release(args):
 
 
 def session(args):
-    data = profile(args.site)
+    data = current_profile(args)
+    if args.host_jobs:
+        require_scheduler(data)
     if allocation(data) or os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID"):
         raise WorkspaceError("Start the persistent session on a login host, outside a compute allocation.")
     project = Path(args.project).expanduser().resolve()
@@ -334,6 +458,7 @@ def session(args):
     environment = dict(os.environ)
     environment["WS_ROOT"] = str(ROOT)
     environment["WS_SITE"] = args.site
+    environment["WS_CONFIG_DIR"] = str(configuration.directory())
     environment["WS_SESSION_STATE"] = str(state_path(args) / "tmux" / socket.gethostname() / name)
     entry = [str(ROOT / "bin/ws"), "enter", "--site", args.site, "--project", str(project),
              "--image", image["path"], "--state-dir", str(state_path(args))]
@@ -374,18 +499,23 @@ def parser():
     result = argparse.ArgumentParser(description="A consistent development workspace on HPC clusters.")
     sub = result.add_subparsers(dest="action")
     for name, handler in (("enter", enter), ("jobs", scheduler_operation), ("submit", scheduler_operation), ("doctor", doctor),
-                          ("use", select_release), ("rollback", select_release), ("session", session)):
+                          ("use", select_release), ("rollback", select_release), ("session", session),
+                          ("init", configure), ("refresh", configure)):
         command = sub.add_parser(name)
         command.set_defaults(handler=handler)
-        default_site = os.environ.get("WS_SITE") if in_container() and name in ("jobs", "submit") else None
-        command.add_argument("--site", choices=SITES, default=default_site, required=not bool(default_site))
+        command.add_argument("--site", help="Override the configured system key for this command")
         if name not in ("jobs", "submit"):
             command.add_argument("--state-dir", help="Override this site's persistent workspace-state directory")
         if name in ("enter", "doctor", "session"):
             command.add_argument("--project", default=os.getcwd())
+        if name in ("enter", "doctor", "session", "init", "refresh"):
             command.add_argument("--image", help="Explicit SIF; otherwise use the selected image")
-        if name in ("enter", "jobs", "submit", "session"):
-            command.add_argument("--dry-run", action="store_true", help="Print argv without running commands or creating state")
+        if name in ("enter", "jobs", "submit", "session", "init", "refresh"):
+            command.add_argument("--dry-run", action="store_true", help="Preview without saving settings, entering the workspace, or submitting jobs; new YAML is parsed")
+        if name in ("enter", "session", "init", "refresh"):
+            command.add_argument("--profile", help="Existing local Inspector YAML (initial setup or explicit refresh)")
+        if name in ("init", "refresh"):
+            command.add_argument("--scheduler", choices=("pbs", "slurm"), help="Save an explicit scheduler default")
         if name in ("enter", "session"):
             command.add_argument("--work", help="Additional work directory mounted at its native path")
             command.add_argument("--host-jobs", action="store_true", help="Enable submit/jobs from this login-host container session")
@@ -416,6 +546,7 @@ def main(argv=None):
     try:
         if in_container() and args.action not in ("jobs", "submit"):
             raise WorkspaceError("Run 'ws " + args.action + "' on the host. Inside the workspace use submit or jobs.")
+        prepare(args)
         return args.handler(args)
     except (WorkspaceError, SchedulerError, OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
         print("ws: " + str(exc), file=sys.stderr)
