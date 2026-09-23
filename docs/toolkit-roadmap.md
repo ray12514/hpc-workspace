@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. Nix packaging inside the container, additional tools, and editor plugins remain proposed. The [design direction](design-direction.md) retains the thin-container goal; the [native tools research](research/native-tool-layer.md) is an alternative analysis, not a selected migration. The [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
+Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. The [thin-container implementation plan](thin-container-plan.md) recommends Nix tools inside the image and a tested site integration recipe as the next milestone. Those changes, additional tools, and editor plugins remain proposed. The [native tools research](research/native-tool-layer.md) is an alternative analysis, not a selected migration. The [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
 
 ## Intended daily experience
 
@@ -83,7 +83,7 @@ These names are design examples, not commands the current release provides. Impl
 ## Delivery sequence
 
 1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides; clarify which site operations must work from within it.
-2. Evaluate a small Nix-packaged tool set inside the image and test the required host integration. Validate real invocation, terminal input, paths, and subprocesses before selecting a packaging change.
+2. Build the small Nix tool pilot and explicit host-integration recipe described in the [implementation plan](thin-container-plan.md). Validate real invocation, terminal input, paths, modules, editor subprocesses and native scheduler behavior, then perform site-local acceptance before extending the toolkit.
 3. Build the compact Neovim configuration and validate the editor/agent/review workflow in the intended execution contexts.
 4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
 5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
