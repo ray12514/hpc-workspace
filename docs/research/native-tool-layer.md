@@ -1,14 +1,16 @@
-# A native tools layer for everyday HPC work
+# Native tools alternative for everyday HPC work
 
-Research date: 23 September 2026. This is a proposed direction following the clarified requirement: keep the normal cluster shell and add consistent appearance and useful tools. No target cluster was accessed, no private profile was inspected, and no cluster compatibility is claimed. The reported tmux startup and bat/SSL failures are separate diagnostic questions; their causes cannot be inferred from an approximate error description.
+Research date: 23 September 2026. **Status: alternative analysis, not the selected direction.** The initial recommendation misinterpreted the user's goal. The user clarified that they were considering Nix inside a thin container, with useful access to the host system; they did not select replacing that container with a native toolbox. The [design direction](../design-direction.md) and [roadmap](../toolkit-roadmap.md) retain that container goal. No target cluster was accessed, no private profile was inspected, and no cluster compatibility is claimed. The reported tmux startup and bat/SSL failures are separate diagnostic questions.
 
-## Recommendation
+The host Nix installation constraints below apply to the native alternative. They do not imply that an image carrying its own Nix store needs `/nix` installed on the cluster host. Nix can build images containing its packages and their runtime dependencies. [Nix container builds](https://nix.dev/tutorials/nixos/building-and-running-docker-images.html)
 
-Make **native Bash plus the versioned workspace configuration** the everyday interface. Keep native tmux, scheduler commands, environment modules, Git/SSH, filesystem access, and scientific launch commands in that environment. Add a deliberately selected set of tools through a versioned tool directory. Keep the SIF as an explicit optional environment for applications that benefit from its complete userspace.
+## Native alternative considered
 
-This changes the deployment boundary, not the desired consistent experience. A container provides a consistent userspace; the user now wants consistent tools within the site's userspace. Trying to expose enough of the host to make a container indistinguishable from the native shell creates extra integration work. Filesystem binds expose paths, while environment handling and executable dependencies remain separate concerns. Apptainer documents all three separately. [Bind mounts](https://apptainer.org/docs/user/1.3/bind_paths_and_mounts.html), [environment handling](https://apptainer.org/docs/user/1.3/environment_and_metadata.html), [MPI integration](https://apptainer.org/docs/user/1.3/mpi.html)
+One alternative would make **native Bash plus versioned workspace configuration** the everyday interface, keep scheduler/module/scientific commands native, and add selected tools through a versioned tool directory. The SIF would become optional in that alternative. This is not the current container design.
 
-Choose the package backend after the native interface is established:
+A container provides a consistent userspace. Integrating it with host tools requires distinguishing file visibility, environment handling, and executable dependencies. That integration work needs testing; it does not by itself require abandoning the container. [Bind mounts](https://apptainer.org/docs/user/1.3/bind_paths_and_mounts.html), [environment handling](https://apptainer.org/docs/user/1.3/environment_and_metadata.html), [MPI integration](https://apptainer.org/docs/user/1.3/mpi.html)
+
+Delivery choices considered for the native alternative:
 
 | Delivery choice | Recommended role | Feasibility condition |
 | --- | --- | --- |
@@ -53,7 +55,7 @@ Spack environments provide a package manifest and a concrete lockfile. They can 
 
 Externals are a real advantage here: Spack can describe existing installations by prefix or module. Merely listing an external does not force its use; `buildable: false` and appropriate requirements express when the native provider is mandatory. This is useful for site MPI, compilers, and intentionally shared system libraries. Detection is not universal, and module-provided packages may need their modules loaded for detection. Record local details locally. [Spack externals](https://spack.readthedocs.io/en/latest/packages_yaml.html#external-packages)
 
-**Spack does not require rebuilding every tool on every cluster.** A signed build cache may be a transferred local directory, and Spack relocates encoded installation paths when installing cached artifacts. Relocation has limits, including available path space. The build-cache-only installation option can prevent an unavailable binary from silently turning into a source build. Relocation handles location changes; it does not make incompatible libraries or CPU instructions compatible. [Spack build caches and relocation](https://spack.readthedocs.io/en/latest/binary_caches.html)
+Spack supports reusable binary delivery. A signed build cache may be a transferred local directory, and Spack relocates encoded installation paths when installing cached artifacts. Relocation has limits, including available path space. The build-cache-only installation option can prevent an unavailable binary from silently turning into a source build. Relocation handles location changes; it does not make incompatible libraries or CPU instructions compatible. [Spack build caches and relocation](https://spack.readthedocs.io/en/latest/binary_caches.html)
 
 Use compatible deployment families and local external declarations, rather than promise one scientific lockfile will work everywhere. An external dependency is a destination prerequisite, not a library that automatically arrives with the cached application. The tutorial explicitly shows glibc remaining external. Build externally where a representative environment is sufficient; use an approved site build when proprietary/site-specific interfaces require it. [Spack binary-cache tutorial](https://spack-tutorial.readthedocs.io/en/latest/tutorial_binary_cache.html)
 
@@ -111,7 +113,7 @@ These checks can be run locally by the user or site support. No profile, hostnam
 
 For ELF inspection, `readelf`/`objdump` can inspect metadata without executing the target; smoke tests should use the already verified artifacts. A glibc/CPU match is a prerequisite, not a substitute for the integration tests above.
 
-## Migration without discarding the current work
+## Possible migration only if the native alternative is selected later
 
 1. Preserve the v0.4 SIF mode while diagnosing its reported failures independently. Architecture changes must not be presented as proof that either failure is fixed.
 2. Extract shared appearance and navigation configuration from container-specific startup. The current Bash file resets `PATH` to `/opt/...` and replaces `PROMPT_COMMAND`; it must not be sourced unchanged on the host. Make asset paths relative to the selected workspace release and compose with native hooks.

@@ -6,7 +6,7 @@ The current release is **core / linux-amd64**: Ubuntu 24.04, Neovim 0.12.5, tmux
 
 The image carries its own glibc. The initial runtime target is **Apptainer 1.3.6 through 1.5**. CPU architecture, host kernel capabilities, and any host libraries added later still matter; local validation results are recorded in [validation.md](docs/validation.md).
 
-The clarified next direction is a **native shell with additive tools and shared dotfiles**, preserving site modules, scheduler commands, and filesystems directly. The SIF would become an optional explicit environment. This is a proposal, not an implemented change to 0.4: see the [native tools research](docs/research/native-tool-layer.md) and [updated roadmap](docs/toolkit-roadmap.md). For the reported tmux startup and bat library errors, use the [local troubleshooting guide](docs/troubleshooting-startup.md); their cluster-side causes remain unconfirmed.
+The intended direction remains a **thin container with consistent tools and dotfiles, integrated with the cluster**. Nix inside the container is a packaging option to evaluate; replacing the container with a native installation has not been selected. See the [design direction](docs/design-direction.md) and [roadmap](docs/toolkit-roadmap.md). For the reported tmux startup and bat library errors, use the [local troubleshooting guide](docs/troubleshooting-startup.md); their cluster-side causes remain unconfirmed.
 
 ## What is built now
 

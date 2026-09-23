@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. Native activation, additional tools, and editor plugins below remain proposed. The [native tools research](research/native-tool-layer.md) records the revised deployment direction; the [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
+Updated 2026-09-23. The [dotfile foundation](dotfiles.md), fzf shortcuts, and enhanced Tab completion are implemented in **0.4.0-preview1** in the SIF workflow. Nix packaging inside the container, additional tools, and editor plugins remain proposed. The [design direction](design-direction.md) retains the thin-container goal; the [native tools research](research/native-tool-layer.md) is an alternative analysis, not a selected migration. The [shell tool research](research/shell-usability-tools.md) records the earlier image audit and upstream sources; the [Neovim research](research/neovim-agent-workflow.md) records the editor proposal.
 
 ## Intended daily experience
 
@@ -8,7 +8,7 @@ Use the same Bash shell, shortcuts, editor, and project commands on Ruth, Jean, 
 
 The defaults should be discoverable. Add a short shortcut guide and a tool catalog showing what is installed, its version, and one useful example. File pickers and searches start in the project. Large scans, tests, and benchmarks are deliberate operations; compute-heavy work runs in an allocation.
 
-Keep the normal native shell in charge. Shared dotfiles add appearance and shortcuts; a selected tool directory adds commands. Site modules, scheduler clients, Git/SSH, compilers, MPI, and shared filesystems retain their normal native behavior. Keep the SIF as an explicit optional environment. The existing Bash file assumes container paths and replaces prompt hooks, so it must be adapted before use on the host. Start with suitable verified portable binaries; evaluate site-supported Nix or reusable Spack build caches when a broader package backend is useful.
+Keep the container as the consistent shell and tools environment, with shared dotfiles for appearance and shortcuts. Evaluate Nix inside the image to manage the selected binaries and their dependencies. Preserve useful access to site filesystems, schedulers, modules, and scientific tools through explicitly tested integration. File visibility and host command execution are separate requirements; packaging tools with Nix does not by itself establish host integration. No switch to a native-only installation has been selected.
 
 ## Common toolkit
 
@@ -36,7 +36,7 @@ The existing editor already has the shared theme, persistent undo, session save/
 
 Keep one main editor configuration and a small, pinned plugin set. Package the plugins, language servers, and selected syntax parsers during release preparation for the selected execution context. Opening the editor should not trigger downloads or tool installation. Use plain labels/signs by default and test narrow PuTTY-sized windows, colors, and keyboard behavior as well as VS Code.
 
-Run Neovim and Codex or Claude Code in neighboring tmux panes/windows, with a shell for tests and native host operations. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
+Run Neovim and Codex or Claude Code in neighboring tmux panes/windows, with a clearly identified execution context for tests and host operations. Validate editor/agent subprocesses across the chosen container/host integration. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
 
 The workspace already sets `VISUAL=nvim` and `EDITOR=nvim`. Codex documents **Ctrl-G** for composing a longer prompt in that editor and returning it to the CLI before sending. That is a useful initial integration, followed by an optional editor adapter if it adds value. The shortcut itself was not exercised during this research. [Official Codex CLI customization](https://learn.chatgpt.com/docs/cli-customization)
 
@@ -62,7 +62,7 @@ Define a small integration convention before adding custom tools:
 - Store writable configuration, caches, and reports outside the immutable image. Keep system reports on their originating system; do not automatically attach them to agent prompts or public release artifacts.
 - Reuse saved Inspector-derived settings for relevant defaults, with explicit overrides and refresh. Do not rerun Inspector on every shell start or replace its existing workflow.
 
-Host-dependent helpers belong in the native toolkit, with a pinned package or source bundle and an isolated tool-specific dependency environment where needed. Portable helpers can also be included in the optional image. During local development, explicitly select a checked-out tool; use pinned packages in releases. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
+Portable helpers can be included in the image. Host-dependent helpers need a tested host execution path or compatible container integration, with pinned packages and coherent tool-specific dependencies. During local development, explicitly select a checked-out tool; use pinned packages in releases. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
 
 `libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on host tools, connectivity, and authentication. Merely adding its executable to the SIF does not establish that integration. Begin with native-host execution; add a narrow adapter only if useful. The current workspace host connection supports **submit/jobs only** and cannot already run `libsweep`. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
 
@@ -82,9 +82,9 @@ These names are design examples, not commands the current release provides. Impl
 
 ## Delivery sequence
 
-1. Separate additive native dotfiles from container startup; preserve personal overrides, module initialization, and existing prompt hooks. Keep the SIF workflow available. Diagnose the reported tmux/bat errors independently using the [local guide](troubleshooting-startup.md).
-2. Deliver a small verified native toolkit and shortcut guide. Validate real invocation, terminal input, paths, and subprocesses; use local feasibility checks to choose further Nix or Spack delivery where appropriate.
-3. Build the compact Neovim configuration and validate the native editor/agent/review workflow.
+1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides; clarify which site operations must work from within it.
+2. Evaluate a small Nix-packaged tool set inside the image and test the required host integration. Validate real invocation, terminal input, paths, and subprocesses before selecting a packaging change.
+3. Build the compact Neovim configuration and validate the editor/agent/review workflow in the intended execution contexts.
 4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
 5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
 6. Add further custom helpers and scientific runtime layers as concrete workflows require them.

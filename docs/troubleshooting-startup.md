@@ -55,4 +55,4 @@ A message such as `libssl.so... cannot open shared object file`, `version ... no
 
 ## Next diagnostic boundary
 
-The missing evidence is the exact generic error and launch context. Once those are available, create a matching local failing case before changing runtime behavior. If site policy prevents sharing even that information, use this guide for local diagnosis and keep the results on the system. The [native tools proposal](research/native-tool-layer.md) is a separate architectural change and does not establish a fix for either report.
+The missing evidence is the exact generic error and launch context. Once those are available, create a matching local failing case before changing runtime behavior. If site policy prevents sharing even that information, use this guide for local diagnosis and keep the results on the system. Neither the [Nix packaging proposal](design-direction.md) nor the [native tools alternative](research/native-tool-layer.md) establishes a fix for either report.
