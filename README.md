@@ -6,9 +6,29 @@ One centrally maintained development environment for Linux HPC systems. Build th
 
 [Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1) · [Validation and limitations](docs/validation.md)
 
+## Get the current release
+
+From your normal Linux login shell, clone this repo and run **`./setup`**:
+
+```bash
+git clone https://github.com/ray12514/hpc-workspace.git
+cd hpc-workspace
+./setup
+```
+
+Already have the checkout? Install or update with one command from that directory:
+
+```bash
+git pull --ff-only && ./setup
+```
+
+`setup` downloads and verifies the recommended release's SIF, source bundle, manifest, and matching installer, then installs them together. **It does not need an existing `ws` command**, so this also works from 0.5 or when only the skills directory exists. No version numbers, individual download commands, or manual extraction are needed. Verified downloads are reused and interrupted downloads can resume. Python 3.6+ and either curl or wget are required; there is no build or GitHub login step.
+
+After setup finishes, open a new Bash session and run `ws enter`. For a site-specific Bash startup file, use `./setup --shell-startup /path/to/your/startup-file`; the installer remembers that choice. To download on another machine for offline transfer, see the [startup guide](docs/thin-start.md#download-elsewhere-and-transfer).
+
 ## Daily workflow
 
-After installing the transferred release, work from your project directory:
+After installing the release, work from your project directory:
 
 ```bash
 ws enter          # one integrated development shell
@@ -23,16 +43,15 @@ This preview includes Codex and Claude Code, the expanded CLI toolkit, and a pre
 
 ## One release across systems
 
-Transfer the SIF, matching source bundle, standalone installer, and release manifest. Run the same installer on each system. It checks the files, installs the matching launcher, adds its PATH hook to ordinary Bash startup and the active Bash login profile, and selects the release. After setup, log in normally and run `ws enter`; manual activation is only needed to use an already-open terminal immediately after installation. Local filesystem integration is generated automatically; optional existing Inspector facts and personal settings remain local.
+Run `./setup` from the updated checkout on each system. It checks the files, installs the matching launcher, adds its PATH hook to ordinary Bash startup and the active Bash login profile, and selects the release. After setup, log in normally and run `ws enter`; manual activation is only needed to use an already-open terminal immediately after installation. Local filesystem integration is generated automatically; optional existing Inspector facts and personal settings remain local.
 
 For later releases:
 
 ```bash
-ws update /path/to/release-VERSION.json
-ws rollback
+git pull --ff-only && ./setup
 ```
 
-Updates preserve personal files and state. Existing sessions keep their original image; new sessions use the selected release. The [startup guide](docs/thin-start.md) includes exact filenames and commands.
+Updates preserve personal files and state. Existing sessions keep their original image; new sessions use the selected release. Use `ws rollback` to select the previous installed release. `ws update /path/to/release-VERSION.json` remains available for bundles transferred separately. The [startup guide](docs/thin-start.md) covers offline transfer and custom installation locations.
 
 ## Implementation and validation
 
@@ -63,5 +82,7 @@ scripts/test-thin-install dist/release-0.6.1-preview1.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.
+
+After publishing and validating a release, update [releases/recommended.json](releases/recommended.json) with its version and published manifest's SHA-256, then commit and push that recommendation. `./setup` uses this checked-in recommendation, including preview releases, rather than GitHub's stable-only "latest" selection. Downloaded code is verified against that manifest before execution. Updating this host-side setup command does not require rebuilding the SIF.
 
 The default local test uses real Apptainer 1.5.3 with an extracted SIF inside a disposable Debian container. A fixture argument selects another runtime/host combination; the validation record identifies which combinations were exercised for each release. These tests do not establish normal SIF mounting or live cluster integration on Ruth, Jean, or Blueback.

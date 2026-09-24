@@ -2,9 +2,35 @@
 
 The **0.6.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
 
-## Transfer and install
+## Download and install in one command
 
-Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1), together with their checksum files, and transfer them through the usual approved route:
+From your normal Linux login shell:
+
+```bash
+git clone https://github.com/ray12514/hpc-workspace.git
+cd hpc-workspace
+./setup
+```
+
+For an existing checkout, run `git pull --ff-only && ./setup`. This is also the upgrade path from 0.5 and the recovery path when `ws` is missing. It does not call the old launcher. The command downloads the recommended release's four files, verifies the manifest against the checksum pinned in the repo, verifies all three artifacts including the installer, and runs that matching installer. It uses Python 3.6+ and the host's curl or wget; no GitHub account, Nix installation, or compilation is required.
+
+Downloads are cached under `dist/downloads/VERSION` in the checkout. Repeating `./setup` reuses files whose hashes match and resumes partial transfers. A checksum failure stops installation. The recommendation in the updated repo determines the version, including preview releases; you never need to type a version number.
+
+The installer selects the release under `~/.local/share/hpc-workspace/runtime`, adds its PATH hook to normal Bash startup, and preserves personal files. It reuses an active custom installation found through `WS_INSTALL_ROOT` or the installed `ws` on `PATH`. If a custom installation is not active, use `./setup --prefix /path/to/runtime`. Existing startup-file preferences at the selected installation are retained. After success, open a new Bash session and run `ws enter`.
+
+### Download elsewhere and transfer
+
+On the machine with GitHub access, clone or update the repo and run:
+
+```bash
+./setup --download-only
+```
+
+Transfer the checkout **including `dist/downloads`** through your normal approved route. On the Linux system, run `./setup` from that transferred directory. With all verified files present, it installs without network access. The download-only option also works on macOS. If you use `--download-dir DIRECTORY` for a different cache location, transfer that directory too and pass the same option with its target-system path.
+
+### Manual bundle transfer (optional)
+
+If you prefer managing release files yourself, download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1), together with their checksum files, and transfer them through the usual approved route:
 
 - `hpc-workspace-thin-0.6.1-preview1-linux-amd64.sif`
 - `hpc-workspace-source-0.6.1-preview1.tar.gz`
@@ -45,35 +71,26 @@ Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available th
 If your site loads personal Bash configuration from another location, choose that file during the one-time installation:
 
 ```bash
-python3 install-workspace-0.6.1-preview1.py release-0.6.1-preview1.json \
-    --shell-startup "$HOME/path/to/site-startup-file.sh"
+./setup --shell-startup "$HOME/path/to/site-startup-file.sh"
 ```
 
 Use the actual file your site's shell setup already sources. This option writes the managed PATH block into that file; it does not teach Bash to discover an arbitrary new startup path. Repeat `--shell-startup FILE` if the site requires separate files for login and terminal startup. The specified files replace the default `.bashrc`/login-profile targets for this installation. The installer preserves other contents, follows an existing dotfile symlink, and creates missing parent directories for an explicitly selected file.
 
-The choice is stored privately under the local installation in `shell-startup.json`. Subsequent `ws update /path/to/release-VERSION.json` operations reuse it without another flag. `ws update ... --shell-startup FILE` changes the choice. A remembered `--no-shell-hook` choice also persists across updates. Changing targets does not remove managed blocks previously installed into other files; activation remains idempotent if two existing startup files both source it. No real site path or profile contents are uploaded.
+The choice is stored privately under the local installation in `shell-startup.json`. Subsequent `./setup` or `ws update /path/to/release-VERSION.json` operations reuse it without another flag. `./setup --shell-startup FILE` changes the choice. A remembered `--no-shell-hook` choice also persists across updates. Changing targets does not remove managed blocks previously installed into other files; activation remains idempotent if two existing startup files both source it. No real site path or profile contents are uploaded.
 
 ### Missing launcher or only a skills directory
 
 `~/.local/share/hpc-workspace/skills` holds agent skills. It does not contain the host launcher or establish that the runtime installer completed. The older core image can create this directory on entry. A runtime may also have been installed at a different path with `--prefix`; use its actual `activate.sh` if that is the installation you intend to keep.
 
-To establish the standard installation without an existing `ws` command, return to the native login shell and run the following from the directory containing the verified release assets:
+To establish the standard installation without an existing `ws` command, return to the native login shell and run the following from the updated repo checkout:
 
 ```bash
-python3 install-workspace-0.6.1-preview1.py release-0.6.1-preview1.json \
-    --prefix "$HOME/.local/share/hpc-workspace/runtime"
+./setup
 ```
 
 For a site-loaded startup file, add `--shell-startup "$HOME/path/to/site-startup-file.sh"` using the real local path. Existing remembered preferences at the chosen prefix are reused when this option is omitted. The installer creates `runtime/bin/ws`, `runtime/activate.sh`, and the selected versioned runtime. It preserves the separate skills directory and personal workspace configuration. It does not require manually extracting the source archive.
 
-After the installer reports success, activate it in the current Bash shell and check the launcher:
-
-```bash
-source "$HOME/.local/share/hpc-workspace/runtime/activate.sh"
-hash -r
-command -v ws
-ws update --help
-```
+After the installer reports success, open a new Bash session and run `ws enter`.
 
 If installation fails, its local error needs resolving before activation will work. A missing default runtime directory by itself does not identify the cause of an earlier installation failure or locate a custom installation. Keep site diagnostics local.
 
@@ -97,13 +114,13 @@ Optional saved Inspector configuration continues to work. An available `WS_INSPE
 
 ## Updates and rollback
 
-Transfer the next release's files together, then run:
+From the repo checkout, run:
 
 ```bash
-ws update /path/to/release-VERSION.json
+git pull --ff-only && ./setup
 ```
 
-The same command updates the image, launcher and shared defaults together. It handles the local setup automatically and preserves personal configuration and state. `ws rollback` selects the previous installed release after checking its image checksum. Neither operation replaces the image underneath an existing shell or kills sessions; new shells use the selected version. Managed tmux sessions use a separate server per release, so an update cannot quietly attach a new image to old processes.
+The same command updates the image, launcher and shared defaults together, regardless of whether the old `ws` works. It handles the local setup automatically and preserves personal configuration and state. For an offline system, repeat the download-only and checkout-transfer flow above; separately transferred bundles can still be installed with `ws update /path/to/release-VERSION.json`. `ws rollback` selects the previous installed release after checking its image checksum. Neither operation replaces the image underneath an existing shell or kills sessions; new shells use the selected version. Managed tmux sessions use a separate server per release, so an update cannot quietly attach a new image to old processes.
 
 ## What the integration does
 

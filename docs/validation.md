@@ -1,5 +1,16 @@
 # Workspace validation
 
+## One-command release setup
+
+Date: **2026-09-24**. The repository now provides `./setup` to download, verify, and install the recommended release without an existing `ws`. This host-side addition delivers the unchanged, published **0.6.1-preview1** image and matching installer.
+
+- The Linux unit suite passes **65 tests**, with one wget-only test skipped because that fixture lacks wget. The focused macOS run passes six bootstrap tests, including real wget download/resume; two Linux installer tests skip there. Both curl and wget are exercised against a synthetic local HTTP server.
+- Bootstrap tests cover complete download, reuse without network access, resumed partial transfers, integrity failure before installer execution, invalid manifest records, unsupported hosts, installation from a skills-only home, repeat installation, and a synthetic 0.5-to-0.6.1 upgrade retaining a custom prefix/startup file and rollback.
+- The actual `./setup --download-only` fetches the published manifest, source archive, and installer from GitHub and verifies them against the repo's recommendation. It reuses and verifies the previously downloaded production SIF.
+- The actual command installs that exact bundle into a disposable Linux home with networking disabled. A fresh Bash finds the installed `ws` and its update command; personal shell settings and existing skills remain intact. Host bootstrap sources parse with Python 3.6 syntax rules; an actual Python 3.6 interpreter was not exercised.
+
+No image rebuild or cluster access was needed for this change. The image/runtime acceptance results remain those recorded below.
+
 ## Tmux exit and installer recovery: 0.6.1-preview1
 
 Date: **2026-09-24**. Tool versions and the Nix lock are unchanged from 0.6.0. The production change disables `remain-on-exit` in the shared tmux defaults; personal overrides continue to load last.
