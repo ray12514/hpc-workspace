@@ -24,12 +24,13 @@ try:
         subprocess.run(base+['send-keys','-t',name+':agents',command,'Enter'],check=True)
         time.sleep(1)
         screen=subprocess.check_output(base+['capture-pane','-p','-t',name+':agents'],text=True)
-        if tool == 'spf' and 'Thanks for using superfile' in screen:
-            # Upstream's first-use help consumes the first keypress.
+        welcome = {'spf': 'Thanks for using superfile', 'lazygit': 'Thanks for using lazygit!'}
+        if tool in welcome and welcome[tool] in screen:
+            # Dismiss first-use help before inspecting the working file view.
             subprocess.run(base+['send-keys','-t',name+':agents','Enter'],check=True)
             time.sleep(.5)
             screen=subprocess.check_output(base+['capture-pane','-p','-t',name+':agents'],text=True)
-            assert 'Thanks for using superfile' not in screen, screen
+            assert welcome[tool] not in screen, screen
         assert not any(0xe000 <= ord(c) <= 0xf8ff for c in screen), (tool,screen)
         subprocess.run(base+['send-keys','-t',name+':agents','q'],check=True)
         deadline=time.monotonic()+10

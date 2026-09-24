@@ -76,8 +76,12 @@ apply_overrides(os.environ, {
 # Keep valid host locales. An SSH client can also send an unavailable name
 # (notably the bare "UTF-8"); normalize only those values before starting Bash.
 locale_fallbacks = {}
+locale_keys = {'LANG', 'LC_ALL', 'LC_CTYPE', 'LC_COLLATE', 'LC_MESSAGES',
+               'LC_MONETARY', 'LC_NUMERIC', 'LC_TIME', 'LC_ADDRESS',
+               'LC_IDENTIFICATION', 'LC_MEASUREMENT', 'LC_NAME', 'LC_PAPER',
+               'LC_TELEPHONE'}
 for key, value in list(os.environ.items()):
-    if value and (key == 'LANG' or key == 'LC_ALL' or key.startswith('LC_')):
+    if value and key in locale_keys:
         try:
             locale.setlocale(locale.LC_CTYPE, value)
         except locale.Error:

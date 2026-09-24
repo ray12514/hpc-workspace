@@ -21,7 +21,7 @@ Use `df -h` for human-readable filesystem capacity and `findmnt` to inspect visi
 
 Superfile, lazygit, btop, and tealdeer have personal configuration templates under `~/.config/hpc-workspace/xdg`. Their wrappers scope configuration to those programs; they do not globally redirect host application settings. Templates are seeded only when missing. The offline help cache is read-only; update it with a workspace release rather than `tldr --update`.
 
-On Superfile's first run, press any key to dismiss its welcome screen. Then `?` opens the key guide and `q` quits.
+On Superfile's first run, press any key to dismiss its welcome screen. Then `?` opens the key guide and `q` quits. Lazygit's first-run welcome uses Enter to continue into the repository view.
 
 ## Neovim defaults to refine together
 

@@ -43,6 +43,7 @@ print(json.dumps({'argv':sys.argv[1:], 'cwd':os.getcwd(), 'uid':os.getuid(),
                PATH=str(native) + ':' + os.environ['PATH'], PROJECT_INPUT=literal,
                MODULE_SENTINEL='before', LD_LIBRARY_PATH=str(poison),
                LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8',
+               LC_TERMINAL='fixture-terminal',
                TEST_PRIVATE_VALUE='synthetic-private-not-in-plan')
     env['BASH_FUNC_module%%'] = '() { export MODULE_SENTINEL="after"; export LD_LIBRARY_PATH=' + shlex.quote(str(poison)) + '; }'
     common = ['--image', image, '--project', str(project), '--state-dir', str(state)]

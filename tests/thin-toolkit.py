@@ -14,6 +14,7 @@ def run(command, **kwargs):
     return result
 
 
+assert os.environ.get('LC_TERMINAL') == 'fixture-terminal', 'Terminal metadata is not a locale setting'
 versions = json.loads(run(['ws', 'tools', '--json']).stdout)
 for name in versions:
     if name in ('bash', 'infocmp', 'tput', 'nvim'):
