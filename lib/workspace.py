@@ -21,6 +21,7 @@ from scheduler import Scheduler, SchedulerError, selected_environment
 from job_bridge import HostJobs, call as call_host_jobs
 import configuration
 import integration
+import tool_environment
 import releases
 from inspector import MAX_BYTES
 
@@ -320,7 +321,8 @@ def print_plan(command, environment=None):
 
 
 def execute(command, environment=None):
-    if not shutil.which(command[0]):
+    search_path = (environment if environment is not None else os.environ).get('PATH', os.defpath)
+    if not shutil.which(command[0], path=search_path):
         raise WorkspaceError("Command unavailable: {}. Load the site's module first.".format(command[0]))
     return subprocess.call(command, env=environment)
 
@@ -349,6 +351,28 @@ def enter(args):
 
 def in_container():
     return os.environ.get("WS_CONTAINER") == "1" or bool(os.environ.get("APPTAINER_CONTAINER"))
+
+
+def job_env(args):
+    command = list(args.command)
+    if command[:1] == ['--']:
+        command.pop(0)
+    if not command:
+        raise WorkspaceError('Use ws job-env -- COMMAND [ARGUMENTS...]')
+    return execute(command, tool_environment.job_environment(os.environ))
+
+
+def toolkit(args):
+    path = Path('/workspace-tools/manifests/tools.json')
+    if not path.is_file():
+        raise WorkspaceError('Run ws tools inside ws enter to inspect that image')
+    data = load_json(path)
+    if args.json:
+        print(json.dumps(data, indent=2, sort_keys=True))
+    else:
+        for name, record in sorted(data.items()):
+            print('{:<24} {}'.format(name, record['version']))
+    return 0
 
 
 def scheduler_operation(args):
@@ -616,6 +640,12 @@ def parser():
             command.add_argument("--sha256", required=True)
         if name == "session":
             command.add_argument("--detach", action="store_true")
+    remote = sub.add_parser('job-env', help='Run a native job client without exporting image-only settings')
+    remote.set_defaults(handler=job_env)
+    remote.add_argument('command', nargs=argparse.REMAINDER)
+    catalog = sub.add_parser('tools', help='List the installed image tool versions')
+    catalog.set_defaults(handler=toolkit)
+    catalog.add_argument('--json', action='store_true')
     update = sub.add_parser("update", help="Install a transferred release and select it atomically")
     update.set_defaults(handler=update_release, site=None)
     update.add_argument("manifest")
@@ -627,12 +657,20 @@ def parser():
 
 
 def main(argv=None):
+    # Schedulers can export login-node variables into a plain compute-node shell.
+    # An inherited marker alone is not evidence that the image is mounted there.
+    if os.environ.get('WS_LAYOUT') == integration.LAYOUT and not Path('/workspace-tools/manifests/release.txt').is_file():
+        clean = tool_environment.job_environment(os.environ)
+        os.environ.clear()
+        os.environ.update(clean)
     arguments = parser()
     args = arguments.parse_args(argv)
     if not getattr(args, "handler", None):
         arguments.print_help()
         return 0
     try:
+        if args.action in ('job-env', 'tools'):
+            return args.handler(args)
         if args.action == "update" or (args.action == "rollback" and os.environ.get("WS_INSTALL_ROOT")):
             return args.handler(args)
         if in_container() and args.action not in ("jobs", "submit", "doctor"):

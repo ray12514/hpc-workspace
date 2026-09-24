@@ -21,6 +21,12 @@ vim.opt.splitbelow = true
 vim.opt.undofile = true
 vim.opt.signcolumn = 'yes'
 vim.opt.updatetime = 300
+vim.opt.autoread = true
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold' }, {
+  callback = function()
+    if vim.fn.mode() ~= 'c' then vim.cmd('silent! checktime') end
+  end,
+})
 vim.opt.sessionoptions = 'buffers,curdir,folds,help,tabpages,winsize'
 local root = vim.fn.stdpath('state')
 vim.fn.mkdir(root .. '/undo', 'p')
@@ -52,6 +58,9 @@ if vim.fn.executable('clangd') == 1 then
     root_markers = { '.clangd', 'compile_commands.json', '.git' },
   })
   vim.lsp.enable('clangd')
+end
+if vim.env.WS_LAYOUT == 'thin-v1' and vim.fn.isdirectory('/workspace-tools/share/nvim') == 1 then
+  require('workspace.editor').setup()
 end
 local custom = vim.env.HOME .. '/.config/hpc-workspace/nvim.lua'
 if vim.fn.filereadable(custom) == 1 then dofile(custom) end

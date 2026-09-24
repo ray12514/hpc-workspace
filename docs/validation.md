@@ -1,5 +1,24 @@
 # Workspace validation
 
+## Expanded toolkit and editor: 0.6.0-preview1
+
+Date: **2026-09-24**. The Nixpkgs revision remains `8825bebf6324e0579d012936eff73379af284b6d`; the expanded tool set, plugin dependencies, selected parser/query pairs, and offline help pages are built together. `ws tools --json` reports the exact installed CLI versions. The image includes Codex **0.155.1**, Claude Code **2.1.280**, Neovim **0.12.5**, and tmux **3.7c**.
+
+Source and runtime checks completed before packaging:
+
+- All **58 Linux unit tests pass**. On macOS, 52 pass and six environment-specific checks skip. Changed shell scripts pass ShellCheck, and host Python modules parse with Python 3.6 syntax rules; an actual Python 3.6 interpreter was not tested.
+- Non-root, read-only runtime fixtures with networking disabled start every packaged CLI and both AI clients. A deliberately incompatible `libssl.so.3` remains on the inherited library path. The tools keep their own libraries, while a native child receives the original module/library settings. This is a targeted collision check, not a guarantee for arbitrary preload libraries or every library-loading path.
+- The previous SIF reproduced the missing `en_US.UTF-8` locale warning. The new matching archive is available before process initialization, and the expanded fixture preserves that valid locale without a Bash warning.
+- All 13 selected Treesitter parsers and highlight queries load. Real Python diagnostics/completion, Bash and Fortran document symbols, manual Ruff formatting, external-edit reload, and preservation of unsaved editor changes pass. Personal Neovim configuration loads last.
+- Actual tmux input opens and quits Superfile, lazygit, and btop without private-use font glyphs; Neovim's file picker selects a file and its navigation reaches an adjacent tmux pane. Ctrl-R retrieves/reruns a history entry and Ctrl-C interrupts a command. The native job-environment check also runs from a tmux pane.
+- Offline tldr pages, YAML/CSV tools, and log reading pass. No compiler, Python, or Node command is introduced ahead of the host's commands; editor/agent helpers use private runtimes.
+
+The log viewer needs its indirect curl/OpenSSL dependency path scoped to its own loader. Its wrapper uses the loader's `--library-path` option without rewriting `LD_LIBRARY_PATH` for native children. Broadening every executable's RPATH caused a reproducible Go-tool startup regression during development; that change was removed, and real startup checks now run before image export. [Dynamic-loader options](https://man7.org/linux/man-pages/man8/ld.so.8.html)
+
+The release manifest records the SIF, source commit, and checksums. Artifact acceptance uses real Apptainer with extracted-SIF execution because of the Docker Desktop mount limitation described below. These larger-image fixtures use disposable disk-backed temporary storage rather than a RAM filesystem. Final artifact results are recorded with the release after packaging.
+
+No real AI authentication/API request, scheduler submission, cluster mount, MPI/GPU workload, or nested container-engine test was performed. Login-node and compute-node API access and all site results remain local acceptance work.
+
 ## Bash startup and local startup preferences: 0.5.1-preview1
 
 The tool versions and Nix lock are unchanged. This release adds ordinary Bash/login-profile setup, `--shell-startup FILE` for site-loaded files, and private persistence of that choice across updates. The installer, host launcher and in-container updater ship together.

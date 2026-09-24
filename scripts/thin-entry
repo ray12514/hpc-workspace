@@ -1,8 +1,11 @@
 #!/workspace-tools/libexec/python3 -I
 """Restore the calling environment as data, then add the shared development layer."""
 import json
+import locale
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 
 ROOT = Path('/workspace-tools')
@@ -15,6 +18,7 @@ if sys.argv[1:2] == ['--import-profile']:
     sys.exit(0)
 
 from dotfiles import initialize
+from tool_environment import apply_overrides
 
 release = (ROOT / 'manifests/release.txt').read_text().strip()
 payload_path = Path('/workspace-bootstrap/environment.json')
@@ -53,7 +57,7 @@ try:
 finally:
     os.umask(old_umask)
 host_path = os.environ.get('PATH', '/usr/local/bin:/usr/bin:/bin')
-os.environ.update({
+apply_overrides(os.environ, {
     'PATH': str(ROOT / 'bin') + ':' + host_path,
     'WS_ROOT': str(ROOT), 'WS_RELEASE': release, 'WS_LAYOUT': 'thin-v1',
     'WS_CONTAINER': '1', 'WS_STATE_HOME': str(state),
@@ -62,8 +66,27 @@ os.environ.update({
     'WS_SITE': payload.get('site', os.environ.get('WS_SITE', 'local')),
     'WS_HOSTNAME': payload.get('hostname', os.uname().nodename),
     'WS_CONTEXT': 'compute' if os.environ.get('SLURM_JOB_ID') or os.environ.get('PBS_JOBID') else 'login',
+    'SHELL': str(ROOT / 'bin/bash'),
     'EDITOR': 'nvim', 'VISUAL': 'nvim', 'INPUTRC': str(inputrc),
+    'PAGER': 'less', 'LESS': '-FRX', 'HISTFILE': str(state / 'bash-history'),
     'TERMINFO_DIRS': str(ROOT / 'share/terminfo') + ':' + os.environ.get('TERMINFO_DIRS', '/etc/terminfo:/lib/terminfo:/usr/share/terminfo'),
+    # Recognized by Nix's glibc patch; ordinary host glibc keeps its own locales.
+    'LOCALE_ARCHIVE_2_27': str(ROOT / 'share/locale-archive'),
 })
+# Keep valid host locales. An SSH client can also send an unavailable name
+# (notably the bare "UTF-8"); normalize only those values before starting Bash.
+locale_fallbacks = {}
+for key, value in list(os.environ.items()):
+    if value and (key == 'LANG' or key == 'LC_ALL' or key.startswith('LC_')):
+        try:
+            locale.setlocale(locale.LC_CTYPE, value)
+        except locale.Error:
+            locale_fallbacks[key] = 'C.UTF-8'
+apply_overrides(os.environ, locale_fallbacks)
+if 'GIT_PAGER' not in os.environ and shutil.which('git'):
+    pager = subprocess.run(['git', 'config', '--get', 'core.pager'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if pager.returncode == 1:
+        apply_overrides(os.environ, {'GIT_PAGER': 'delta --paging=auto'})
 command = sys.argv[1:] or [str(ROOT / 'thin-shell')]
 os.execvpe(command[0], command, os.environ)

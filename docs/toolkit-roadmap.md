@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-23. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. Codex and Claude Code are the priority for the next expansion; editor plugins and custom HPC helpers remain toolkit work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
+Updated 2026-09-24. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. The 0.6 preview implements the common CLI expansion, Codex and Claude Code, and the first editor plugin/parser bundle. See [current behavior and shortcuts](editor-and-agents.md). Personal HPC helpers and a deeper editor-agent adapter remain future work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
 
 Use the site's existing compilers through its normal module environment. Additional compiler installations are outside the default toolkit; include one only for a concrete workflow that requires a specific version unavailable from the site. Editor language servers and agent runtimes remain separate packaging decisions and must preserve access to the selected site compiler.
 
@@ -14,11 +14,11 @@ Keep the container as the consistent shell and tools environment, with shared do
 
 ## Common toolkit
 
-The exact package list is a proposal until its versions and integrations pass tests in the intended native or container execution context.
+The common additions below are packaged in the 0.6 preview. Host compilers/build tools remain native; C/C++ editor assistance uses a site-provided clangd/clang-format. The current guide and validation record describe what was exercised.
 
-| Workflow | Existing foundation | Proposed additions or improvements |
+| Workflow | Existing foundation | Packaged additions and their role |
 | --- | --- | --- |
-| Shell navigation | Bash, fzf with shortcuts, fd, ripgrep, bat, enhanced Tab completion | Add zoxide and eza with icons disabled; integrate project-scoped path candidates/previews |
+| Shell navigation | Bash, fzf with shortcuts, fd, ripgrep, bat, enhanced Tab completion | zoxide and eza with icons disabled; editor pickers start in the project |
 | Documentation | Built-in help | Tealdeer with an offline command-example cache and a workspace shortcut guide |
 | Git review | Git | Delta and lazygit; optional Difftastic for structural comparisons |
 | Project tasks | Make, CMake, Ninja | Just for named project recipes; watchexec for explicitly started, narrowly scoped watches |
@@ -34,7 +34,7 @@ These are complementary roles. Htop remains the initial process monitor; btop is
 
 ## Neovim and coding agents
 
-The existing editor already has the shared theme, persistent undo, session save/restore, and clangd setup. Extend it with file/text/symbol picking, shortcut hints, Git change markers, completion, diagnostics, and explicit formatting. Start with C/C++, Fortran, Python, and Bash support; add YAML/CMake/Lua where the projects need them. Language assistance for site-specific headers and MPI still needs a correct compilation database or matching include paths; editor plugins do not supply the scientific runtime.
+The editor has the shared theme, persistent undo, session save/restore, file/text/symbol picking, shortcut hints, Git change markers, completion, diagnostics, and explicit formatting. The 0.6 bundle provides Fortran, Python, and Bash language servers, host clangd integration for C/C++, and syntax parsers including YAML/CMake/Lua. Language assistance for site-specific headers and MPI still needs a correct compilation database or matching include paths; editor plugins do not supply the scientific runtime.
 
 Keep one main editor configuration and a small, pinned plugin set. Package the plugins, language servers, and selected syntax parsers during release preparation for the selected execution context. Opening the editor should not trigger downloads or tool installation. Use plain labels/signs by default and test narrow PuTTY-sized windows, colors, and keyboard behavior as well as VS Code.
 

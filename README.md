@@ -2,9 +2,9 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-**0.5.1-preview1 adds Bash login setup and custom startup-file support to the integrated thin environment.** It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
+**0.6.0-preview1 adds the expanded CLI/AI toolkit, Neovim plugins and Treesitter, and a locale fix.** It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
 
-[Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.1-preview1) · [Validation and limitations](docs/validation.md)
+[Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.0-preview1) · [Validation and limitations](docs/validation.md)
 
 ## Daily workflow
 
@@ -17,9 +17,9 @@ ws session        # the same environment in packaged tmux
 
 Use ordinary site commands such as `module`, `sbatch`, and `qsub` from that shell. Your existing native job scripts retain their usual role. Enter the workspace within an interactive allocation when you want its tools on the allocated node.
 
-The first thin tool set is Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. It includes the common prompt, history/path shortcuts, completion, editor defaults and personal overrides. The package set is locked in [flake.lock](image/nix/flake.lock); runtime dependencies ship in the image. No Nix installation or toolbox compilation is needed on the hosts.
+The shell foundation is Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. It includes the common prompt, history/path shortcuts, completion, editor defaults and personal overrides. The package set is locked in [flake.lock](image/nix/flake.lock); runtime dependencies ship in the image. No Nix installation or toolbox compilation is needed on the hosts.
 
-This preview establishes the integration and delivery foundation. Codex and Claude Code are the priority for the next toolkit expansion, followed by further custom tools. Use the site's existing compilers through its normal module environment; bundle a compiler only when a concrete workflow needs a specific version that the site does not provide. Existing host programs remain available. The earlier [0.4 core image](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) and its [instructions](docs/transfer.md) remain available.
+This preview includes Codex and Claude Code, the expanded CLI toolkit, and a preconfigured Neovim/Treesitter bundle. See the [editor, agents, and interactive-job guide](docs/editor-and-agents.md). Use the site's existing compilers through its normal module environment; bundle a compiler only when a concrete workflow needs a specific version that the site does not provide. Existing host programs remain available. The earlier [0.4 core image](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) and its [instructions](docs/transfer.md) remain available.
 
 ## One release across systems
 
@@ -50,13 +50,18 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.5.1-preview1
-scripts/export-thin 0.5.1-preview1
-scripts/test-thin dist/hpc-workspace-thin-0.5.1-preview1-linux-amd64.sif
-scripts/package-thin 0.5.1-preview1
-scripts/test-thin-install dist/release-0.5.1-preview1.json
+scripts/build-thin 0.6.0-preview1
+scripts/docker-public build -f image/Apptainer.Dockerfile \
+  -t hpc-workspace-apptainer:1.5.3 .
+scripts/export-thin 0.6.0-preview1
+# Prepare the public Linux acceptance fixture (Apptainer plus native Git).
+scripts/docker-public build --target native -f tests/ThinTools.Dockerfile \
+  -t hpc-workspace-test-native:1.5.3 .
+scripts/test-thin dist/hpc-workspace-thin-0.6.0-preview1-linux-amd64.sif
+scripts/package-thin 0.6.0-preview1
+scripts/test-thin-install dist/release-0.6.0-preview1.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.
 
-The default local test uses real Apptainer 1.5.3 with an extracted SIF inside a disposable Debian container. The suite also runs with Apptainer 1.3.6 and a public Ubuntu fixture. Those tests do not establish normal SIF mounting or live cluster integration on Ruth, Jean, or Blueback.
+The default local test uses real Apptainer 1.5.3 with an extracted SIF inside a disposable Debian container. A fixture argument selects another runtime/host combination; the validation record identifies which combinations were exercised for each release. These tests do not establish normal SIF mounting or live cluster integration on Ruth, Jean, or Blueback.

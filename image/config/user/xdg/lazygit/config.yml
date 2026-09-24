@@ -1,0 +1,9 @@
+gui:
+  nerdFontsVersion: ""
+git:
+  autoFetch: false
+update:
+  method: never
+refresher:
+  refreshInterval: 10
+  fetchInterval: 0

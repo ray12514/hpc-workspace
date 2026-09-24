@@ -1,0 +1,26 @@
+#!/workspace-tools/libexec/python3 -I
+"""Packaged agents retain the user's auth, proxy, and site module environment."""
+import os
+from pathlib import Path
+import sys
+
+root = Path('/workspace-tools')
+sys.path.insert(0, str(root / 'lib'))
+from tool_environment import apply_overrides
+
+name = Path(sys.argv[0]).name
+environment = dict(os.environ)
+apply_overrides(environment, {'PATH': environment.get('PATH', '') + ':' + str(root / 'agent-bin')})
+if not environment.get('SSL_CERT_FILE'):
+    for path in ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', str(root / 'share/ca-bundle.crt')):
+        if Path(path).is_file():
+            apply_overrides(environment, {'SSL_CERT_FILE': path})
+            break
+if name == 'claude':
+    apply_overrides(environment, {'DISABLE_AUTOUPDATER': '1', 'DISABLE_UPDATES': '1',
+                                 'USE_BUILTIN_RIPGREP': '0'})
+    environment.setdefault('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', '1')
+args = [str(root / 'libexec' / name)]
+if name == 'codex':
+    args += ['-c', 'check_for_update_on_startup=false']
+os.execve(args[0], args + sys.argv[1:], environment)

@@ -1,6 +1,8 @@
 # Workspace dotfiles
 
-Shared defaults are versioned in `image/config/` beside the image recipe. The **0.5 thin preview** carries them under `/workspace-tools/config` and uses the same personal `bashrc`, `inputrc`, `nvim.lua`, `tmux.conf`, and bat configuration locations described below. It applies settings to those tools without globally changing the host's XDG directories. The thin Neovim launcher loads the shared configuration and personal `nvim.lua` directly; `xdg/nvim/init.lua` remains the older core-image loader. Git uses its normal host configuration in this first thin preview.
+Shared defaults are versioned in `image/config/` beside the image recipe. The **0.6 thin preview** carries them under `/workspace-tools/config` and uses the same personal `bashrc`, `inputrc`, `nvim.lua`, `tmux.conf`, and bat configuration locations described below. It applies settings to those tools without globally changing the host's XDG directories. The thin Neovim launcher loads the shared configuration and personal `nvim.lua` directly; `xdg/nvim/init.lua` remains the older core-image loader. Git uses its normal host configuration; the shell defaults to the Delta pager only when no pager was chosen already.
+
+The thin release also seeds missing `xdg/superfile/config.toml`, `xdg/lazygit/config.yml`, `xdg/btop/btop.conf`, and `xdg/tealdeer/config.toml`. Their wrappers select these settings only for those applications. Shared Neovim plugins/parsers remain in the image and personal `nvim.lua` loads last. Packaged tmux runs inside the thin environment and reads personal `tmux.conf` after the image defaults. See the [current editor and tool guide](editor-and-agents.md).
 
 The remaining image-path and global-XDG details on this page describe the retained **0.4 core release**, which uses `/opt/workspace/config`. See the [thin startup guide](thin-start.md) for the current workflow. No dotfile manager or startup download is required.
 

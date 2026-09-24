@@ -1,0 +1,8 @@
+[updates]
+auto_update = false
+
+[directories]
+cache_dir = "/workspace-tools/share/tldr"
+
+[display]
+use_pager = false

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.5.1-preview1}"
+workspace_release="${1:-0.6.0-preview1}"
 workspace_revision=$(git -C "$workspace_root" rev-parse HEAD 2>/dev/null || printf 'source-release')
 if [[ -d "$workspace_root/.git" && -n $(git -C "$workspace_root" status --porcelain) ]]; then
     workspace_revision+="-dirty"

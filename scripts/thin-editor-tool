@@ -1,0 +1,11 @@
+#!/workspace-tools/libexec/python3 -I
+"""Launch an editor's JavaScript helper with a private, library-isolated Node."""
+import os
+from pathlib import Path
+import sys
+
+root = Path('/workspace-tools')
+name = Path(sys.argv[0]).name
+script = (root / 'manifests' / (name + '.txt')).read_text().strip()
+node = str(root / 'libexec/node')
+os.execve(node, [node, script] + sys.argv[1:], os.environ)

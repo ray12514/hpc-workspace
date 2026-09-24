@@ -2,9 +2,11 @@
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 workspace_manifest=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$1")
+workspace_fixture="${2:-hpc-workspace-test-native:1.5.3}"
+# The expanded SIF and two disposable installations need disk-backed /tmp.
 exec "$workspace_root/scripts/docker-public" run --rm --network none --user 1000:1000 \
     --security-opt seccomp=unconfined --security-opt systempaths=unconfined \
-    --tmpfs /tmp:exec,mode=1777 --env PYTHONDONTWRITEBYTECODE=1 \
+    --env PYTHONDONTWRITEBYTECODE=1 \
     --mount "type=bind,src=$workspace_root,dst=/src,readonly" \
     --mount "type=bind,src=$(dirname -- "$workspace_manifest"),dst=/input,readonly" \
-    --entrypoint python3 hpc-workspace-apptainer:1.5.3 /src/tests/thin-install.py "/input/$(basename -- "$workspace_manifest")"
+    --entrypoint python3 "$workspace_fixture" /src/tests/thin-install.py "/input/$(basename -- "$workspace_manifest")"

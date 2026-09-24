@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_fixture="${WS_TEST_IMAGE:-hpc-workspace-toolkit-fixture}"
+mkdir -p "$workspace_root/build/toolkit-poison"
+printf 'synthetic incompatible library\n' > "$workspace_root/build/toolkit-poison/libssl.so.3"
+workspace_scripts=()
+for workspace_script in thin-entry thin-shell thin-session thin-nvim thin-tmux thin-agent thin-editor-tool thin-app; do
+    workspace_scripts+=(--mount "type=bind,src=$workspace_root/scripts/$workspace_script,dst=/workspace-tools/$workspace_script,readonly")
+done
+exec "$workspace_root/scripts/docker-public" run --pull=never --rm --read-only --network none \
+    --user 10001:10001 --env LC_ALL=en_US.UTF-8 --env TERM=xterm-256color \
+    --env LOCALE_ARCHIVE_2_27=/workspace-tools/share/locale-archive \
+    --env MODULE_SENTINEL=before --env LD_LIBRARY_PATH=/poison \
+    --tmpfs /tmp:exec,mode=1777 --tmpfs /home/workspace:exec,mode=0700,uid=10001,gid=10001 \
+    --mount "type=bind,src=$workspace_root/tests,dst=/src/tests,readonly" \
+    --mount "type=bind,src=$workspace_root/lib,dst=/workspace-tools/lib,readonly" \
+    --mount "type=bind,src=$workspace_root/image/config,dst=/workspace-tools/config,readonly" \
+    --mount "type=bind,src=$workspace_root/build/toolkit-poison,dst=/poison,readonly" \
+    "${workspace_scripts[@]}" \
+    "$workspace_fixture" /workspace-tools/libexec/python3 -I /src/tests/thin-fast.py "${1:-toolkit}"

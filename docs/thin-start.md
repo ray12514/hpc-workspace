@@ -1,25 +1,25 @@
 # Install the integrated development environment
 
-The **0.5.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. The larger tool catalog is still being expanded.
+The **0.6.0-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
 
 ## Transfer and install
 
-Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.5.1-preview1), together with their checksum files, and transfer them through the usual approved route:
+Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.0-preview1), together with their checksum files, and transfer them through the usual approved route:
 
-- `hpc-workspace-thin-0.5.1-preview1-linux-amd64.sif`
-- `hpc-workspace-source-0.5.1-preview1.tar.gz`
-- `install-workspace-0.5.1-preview1.py`
-- `release-0.5.1-preview1.json`
+- `hpc-workspace-thin-0.6.0-preview1-linux-amd64.sif`
+- `hpc-workspace-source-0.6.0-preview1.tar.gz`
+- `install-workspace-0.6.0-preview1.py`
+- `release-0.6.0-preview1.json`
 
 Keep the four files in the same directory. After verifying the downloaded checksums, run the same command on each system:
 
 ```bash
-python3 install-workspace-0.5.1-preview1.py release-0.5.1-preview1.json
+python3 install-workspace-0.6.0-preview1.py release-0.6.0-preview1.json
 ```
 
 The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc` and the active Bash login profile, preserving the existing contents and symlinks. It follows Bash's priority order (`.bash_profile`, `.bash_login`, `.profile`) and creates `.bash_profile` only when no readable login profile exists. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
 
-This release adds login-profile coverage and remembers custom startup-file choices. To upgrade an existing 0.5.0-preview1 installation, transfer the four new files and run the new standalone installer once. Later `ws update` operations use the saved startup choice.
+To upgrade a 0.5.1-preview1 installation, transfer the new bundle and run `ws update /path/to/release-0.6.0-preview1.json`. Saved startup-file choices are retained. Older installations can use the new standalone installer once.
 
 After this one-time setup, log in normally, change to your project, and run:
 
@@ -45,7 +45,7 @@ Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available th
 If your site loads personal Bash configuration from another location, choose that file during the one-time installation:
 
 ```bash
-python3 install-workspace-0.5.1-preview1.py release-0.5.1-preview1.json \
+python3 install-workspace-0.6.0-preview1.py release-0.6.0-preview1.json \
     --shell-startup "$HOME/path/to/site-startup-file.sh"
 ```
 
@@ -55,7 +55,7 @@ The choice is stored privately under the local installation in `shell-startup.js
 
 ## Everyday use
 
-Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace and editor windows that both use the integrated environment. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
+Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace, editor, and agents windows that use the integrated environment. The agents window starts a shell; run `codex` or `claude` when ready. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
 
 Use the site's ordinary commands from that shell:
 
@@ -65,9 +65,9 @@ sbatch job.slurm     # on a Slurm system
 qsub job.pbs         # on a PBS system
 ```
 
-The site clients and script arguments are used directly. This workflow does not require `--host-jobs` or the older limited submission bridge. Existing native jobs remain native. After obtaining an interactive allocation through the site's normal procedure, use `ws enter` there to bring the same tools into that allocation.
+The site clients and script arguments are used directly. This workflow does not require `--host-jobs` or the older limited submission bridge. Existing native jobs remain native. For an interactive command that exports your environment, prefix your normal site command with `ws job-env --`, for example `ws job-env -- qsub -I YOUR_SITE_OPTIONS` or `ws job-env -- srun YOUR_SITE_OPTIONS --pty /bin/bash -l`. Replace the placeholder with your existing resource options; the launcher does not invent or translate them. Once on the compute node, run `ws enter`. See the [interactive-job explanation](editor-and-agents.md#interactive-jobs-and-tmux), including the distinction between a Slurm allocation and a shell actually running on a compute node.
 
-The image supplies Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. Bash includes the shared prompt, fzf history/path bindings and completion. Neovim loads the shared defaults and existing `~/.config/hpc-workspace/nvim.lua` overrides. Codex and Claude Code are planned for the next expansion. Use the site's compilers through its normal module environment; a bundled compiler is only needed for a concrete workflow requiring a specific version unavailable from the site.
+The image supplies Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. Bash includes the shared prompt, fzf history/path bindings and completion. Neovim loads the shared defaults and existing `~/.config/hpc-workspace/nvim.lua` overrides. Run `ws tools` for the complete installed tool/version list. [Editor and agent workflow](editor-and-agents.md) describes the expanded toolkit, shortcuts, and local AI setup. Use the site's compilers through its normal module environment; a bundled compiler is only needed for a concrete workflow requiring a specific version unavailable from the site.
 
 Optional saved Inspector configuration continues to work. An available `WS_INSPECTOR_PROFILE` is imported once, or `ws init --profile FILE` imports an existing local YAML file explicitly. Daily entry does not require choosing Ruth/Jean/Blueback or running Inspector. Without a saved name the prompt uses `local` alongside the actual hostname; ordinary site commands still come from that system.
 

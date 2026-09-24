@@ -6,6 +6,7 @@ if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
     _ws_lmod=${LMOD_CMD:-/nonexistent}
     for _ws_module_init in "${MODULESHOME:-/nonexistent}/init/bash" "${_ws_lmod%/libexec/*}/init/bash" /etc/profile.d/lmod.sh /etc/profile.d/modules.sh; do
         if [[ -r $_ws_module_init ]]; then
+            # shellcheck disable=SC1090
             source "$_ws_module_init"
             declare -F module >/dev/null && break
         fi
@@ -86,6 +87,7 @@ if [[ -r ${INPUTRC:-} ]]; then
 fi
 if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && command -v zoxide >/dev/null; then
     eval "$(zoxide init bash)"
+    alias ll='eza --long --all --group-directories-first --icons=never'
 fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
