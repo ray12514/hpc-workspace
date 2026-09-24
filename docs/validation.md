@@ -15,7 +15,11 @@ Source and runtime checks completed before packaging:
 
 The log viewer needs its indirect curl/OpenSSL dependency path scoped to its own loader. Its wrapper uses the loader's `--library-path` option without rewriting `LD_LIBRARY_PATH` for native children. Broadening every executable's RPATH caused a reproducible Go-tool startup regression during development; that change was removed, and real startup checks now run before image export. [Dynamic-loader options](https://man7.org/linux/man-pages/man8/ld.so.8.html)
 
-The release manifest records the SIF, source commit, and checksums. Artifact acceptance uses real Apptainer with extracted-SIF execution because of the Docker Desktop mount limitation described below. These larger-image fixtures use disposable disk-backed temporary storage rather than a RAM filesystem. Final artifact results are recorded with the release after packaging.
+The final SIF passes the complete integrated suite with real Apptainer **1.3.6 and 1.5.3**, using extracted-SIF execution (`--unsquash`) because of the Docker Desktop mount limitation described below. Both versions pass native command/module/file access, tool and agent startup, locale preservation and unavailable-locale fallback, editor integration, tmux input/reconnect/cleanup, stale login-node marker handling, and optional Inspector import. These larger-image fixtures use disposable disk-backed temporary storage rather than a RAM filesystem.
+
+The exact transfer bundle also passes installation, repeated installation, fresh Bash login and terminal startup, and an update from inside the workspace. A separate custom-startup-file fixture confirms that updates remember the chosen site-loaded files and leave the ordinary startup files unchanged. Personal configuration survives both flows.
+
+The SIF is **724,914,176 bytes** (about **691.3 MiB**), built from source commit `d473768818d0a2e8022b2cf914bcd3ffe9731849`. SHA256: `9a755f50601e7b1fb4dbed9869ecb7848c293f41e7b553983815b3fa7dc4739e`. All eight uploaded transfer assets match their local sizes and SHA256 hashes. The release manifest records the matching SIF, source commit, image identity, and checksums.
 
 No real AI authentication/API request, scheduler submission, cluster mount, MPI/GPU workload, or nested container-engine test was performed. Login-node and compute-node API access and all site results remain local acceptance work.
 
