@@ -78,5 +78,17 @@ try:
     deadline=time.monotonic()+10
     while time.monotonic()<deadline and not (project/'interrupt-ready').exists(): time.sleep(.1)
     assert (project/'interrupt-ready').exists()
+    # Close the managed session normally, so the keeper must finish without
+    # relying on the forced server cleanup in the finally block.
+    subprocess.run(base+['send-keys','-t',name+':editor',':qa!','Enter'],check=True)
+    for window in ('workspace', 'agents'):
+        subprocess.run(base+['send-keys','-t',name+':'+window,'exit','Enter'],check=True)
+    deadline=time.monotonic()+10
+    while time.monotonic()<deadline:
+        if subprocess.run(base+['has-session','-t',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+            break
+        time.sleep(.1)
+    else:
+        raise AssertionError('Closing every managed window left a dead session and kept the runtime open')
 finally:
-    subprocess.run(base+['kill-server'],check=False)
+    subprocess.run(base+['kill-server'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

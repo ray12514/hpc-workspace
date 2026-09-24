@@ -1,25 +1,25 @@
 # Install the integrated development environment
 
-The **0.6.0-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
+The **0.6.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
 
 ## Transfer and install
 
-Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.0-preview1), together with their checksum files, and transfer them through the usual approved route:
+Download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1), together with their checksum files, and transfer them through the usual approved route:
 
-- `hpc-workspace-thin-0.6.0-preview1-linux-amd64.sif`
-- `hpc-workspace-source-0.6.0-preview1.tar.gz`
-- `install-workspace-0.6.0-preview1.py`
-- `release-0.6.0-preview1.json`
+- `hpc-workspace-thin-0.6.1-preview1-linux-amd64.sif`
+- `hpc-workspace-source-0.6.1-preview1.tar.gz`
+- `install-workspace-0.6.1-preview1.py`
+- `release-0.6.1-preview1.json`
 
 Keep the four files in the same directory. After verifying the downloaded checksums, run the same command on each system:
 
 ```bash
-python3 install-workspace-0.6.0-preview1.py release-0.6.0-preview1.json
+python3 install-workspace-0.6.1-preview1.py release-0.6.1-preview1.json
 ```
 
 The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc` and the active Bash login profile, preserving the existing contents and symlinks. It follows Bash's priority order (`.bash_profile`, `.bash_login`, `.profile`) and creates `.bash_profile` only when no readable login profile exists. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
 
-To upgrade a 0.5.1-preview1 installation, transfer the new bundle and run `ws update /path/to/release-0.6.0-preview1.json`. Saved startup-file choices are retained. Older installations can use the new standalone installer once.
+When the installed launcher is available, transfer the new bundle and run `ws update /path/to/release-0.6.1-preview1.json`. The command exists in 0.5.0 and later; 0.5.1 and later also retain saved startup-file choices. When `ws` is missing or comes from an older source checkout, use the new standalone installer directly as shown above.
 
 After this one-time setup, log in normally, change to your project, and run:
 
@@ -45,13 +45,37 @@ Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available th
 If your site loads personal Bash configuration from another location, choose that file during the one-time installation:
 
 ```bash
-python3 install-workspace-0.6.0-preview1.py release-0.6.0-preview1.json \
+python3 install-workspace-0.6.1-preview1.py release-0.6.1-preview1.json \
     --shell-startup "$HOME/path/to/site-startup-file.sh"
 ```
 
 Use the actual file your site's shell setup already sources. This option writes the managed PATH block into that file; it does not teach Bash to discover an arbitrary new startup path. Repeat `--shell-startup FILE` if the site requires separate files for login and terminal startup. The specified files replace the default `.bashrc`/login-profile targets for this installation. The installer preserves other contents, follows an existing dotfile symlink, and creates missing parent directories for an explicitly selected file.
 
 The choice is stored privately under the local installation in `shell-startup.json`. Subsequent `ws update /path/to/release-VERSION.json` operations reuse it without another flag. `ws update ... --shell-startup FILE` changes the choice. A remembered `--no-shell-hook` choice also persists across updates. Changing targets does not remove managed blocks previously installed into other files; activation remains idempotent if two existing startup files both source it. No real site path or profile contents are uploaded.
+
+### Missing launcher or only a skills directory
+
+`~/.local/share/hpc-workspace/skills` holds agent skills. It does not contain the host launcher or establish that the runtime installer completed. The older core image can create this directory on entry. A runtime may also have been installed at a different path with `--prefix`; use its actual `activate.sh` if that is the installation you intend to keep.
+
+To establish the standard installation without an existing `ws` command, return to the native login shell and run the following from the directory containing the verified release assets:
+
+```bash
+python3 install-workspace-0.6.1-preview1.py release-0.6.1-preview1.json \
+    --prefix "$HOME/.local/share/hpc-workspace/runtime"
+```
+
+For a site-loaded startup file, add `--shell-startup "$HOME/path/to/site-startup-file.sh"` using the real local path. Existing remembered preferences at the chosen prefix are reused when this option is omitted. The installer creates `runtime/bin/ws`, `runtime/activate.sh`, and the selected versioned runtime. It preserves the separate skills directory and personal workspace configuration. It does not require manually extracting the source archive.
+
+After the installer reports success, activate it in the current Bash shell and check the launcher:
+
+```bash
+source "$HOME/.local/share/hpc-workspace/runtime/activate.sh"
+hash -r
+command -v ws
+ws update --help
+```
+
+If installation fails, its local error needs resolving before activation will work. A missing default runtime directory by itself does not identify the cause of an earlier installation failure or locate a custom installation. Keep site diagnostics local.
 
 ## Everyday use
 

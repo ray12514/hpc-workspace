@@ -16,6 +16,12 @@ with tempfile.TemporaryDirectory(prefix='thin-install-') as temporary:
     home, project, native = [root / name for name in ('home', 'project', 'bin')]
     for path in (home, project, native):
         path.mkdir()
+    # A legacy skills-only directory is not an installed host launcher. The
+    # standalone installer must create the runtime without touching the skills.
+    skills = home / '.local/share/hpc-workspace/skills/personal'
+    skills.mkdir(parents=True)
+    (skills / 'SKILL.md').write_text('Existing local skill; preserve it.\n')
+    assert not (home / '.local/share/hpc-workspace/runtime').exists()
     original = '# Existing personal startup settings\nexport PERSONAL_SETTING=kept\n'
     (home / '.bashrc').write_text(original)
     login_original = '# Existing login settings; does not source .bashrc\nexport LOGIN_PERSONAL=kept\n'
@@ -42,6 +48,8 @@ with tempfile.TemporaryDirectory(prefix='thin-install-') as temporary:
     run([sys.executable, str(installer), str(manifest)])
     prefix = home / '.local/share/hpc-workspace/runtime'
     assert (prefix / 'current').resolve().name == release['release']
+    assert (prefix / 'activate.sh').is_file() and (prefix / 'bin/ws').is_file()
+    assert (skills / 'SKILL.md').read_text() == 'Existing local skill; preserve it.\n'
     first = (home / '.bashrc').read_text()
     first_login = (home / '.bash_profile').read_text()
     run([sys.executable, str(installer), str(manifest)])

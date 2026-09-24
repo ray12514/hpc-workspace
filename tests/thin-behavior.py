@@ -108,6 +108,9 @@ printf 'integration-passed\n'
     env.update(original_environment)
     print('PASS: unavailable locales fall back quietly; inherited login-node markers do not block a fresh workspace entry.', flush=True)
 
+    exited = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-exit.py')
+    print(exited.stdout, end='', flush=True)
+
     session = ws('session', *common, '--detach')
     name = re.search(r'Workspace session (ws-[a-z0-9-]+)', session.stdout).group(1)
     again = ws('session', *common, '--detach')

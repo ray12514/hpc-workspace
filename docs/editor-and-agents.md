@@ -54,6 +54,12 @@ Ctrl-B followed by `|` or `-` splits at the current directory. Ctrl-B then h/j/k
 
 Detach with Ctrl-B then d. Reattach with `ws session` on the same node and project. Layout saving remains separate from live process persistence: it cannot preserve a finished allocation or move a running process to another node. Release updates create separate tmux servers; start a fresh session to test a new release's locale/tool configuration.
 
+Ctrl-C interrupts a foreground command. Ctrl-D at an empty Bash prompt, or `exit`, closes that pane's shell. In 0.6.1 and later, the pane closes with it; closing the final pane/window returns the client to its parent shell. Ending an interactive job in a pane returns to the pane's login-node shell rather than closing that shell.
+
+Earlier releases set `remain-on-exit on`, retaining a dead pane after its shell exited. This can look like a frozen terminal because there is no shell left to read ordinary input. Ctrl-B then d detaches even from that screen. Ctrl-B then x and confirmation closes the current pane; use it on the dead pane, not on work you want to retain. A fresh patch-release session uses `remain-on-exit off`. A personal `tmux.conf` override still takes precedence.
+
+For an older image, put `set -g remain-on-exit off` in `~/.config/hpc-workspace/tmux.conf` to change future workspace tmux servers. In an existing tmux session, Ctrl-B then `:` opens the tmux command prompt; enter `set -g remain-on-exit off` to change the server's default. Close an already-dead pane separately. This setting changes pane-exit behavior; it does not add the container keeper that `ws session` supplies.
+
 ## Interactive jobs and tmux
 
 The scheduler starts the compute-node process. A login-node container and its tmux server do not migrate with it. A pane can hold the interactive job's terminal connection while tmux itself remains on the login node.
