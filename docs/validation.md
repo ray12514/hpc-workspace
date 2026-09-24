@@ -1,5 +1,18 @@
 # Workspace validation
 
+## Tmux exit and installer recovery: 0.6.1-preview1
+
+Date: **2026-09-24**. Tool versions and the Nix lock are unchanged from 0.6.0. The production change disables `remain-on-exit` in the shared tmux defaults; personal overrides continue to load last.
+
+- A real terminal driving packaged tmux reproduced the old behavior: Ctrl-D exited Bash, left `pane_dead=1`, and kept the client attached. With the default changed, Ctrl-C leaves a usable shell, Ctrl-D and `exit` remove finished panes, another pane remains usable, and closing the final pane returns the attached client. The regression waits for an empty Bash prompt before sending EOF.
+- All **58 Linux unit tests** pass. The nine installer unit tests also pass on macOS, changed Python test files parse, and the maintained build/test shell scripts pass ShellCheck.
+- The exact SIF passes the complete integrated suite through Apptainer **1.3.6 and 1.5.3**, using extracted-SIF execution (`--unsquash`). Both pass direct terminal exit, native command/module/file access, tool and agent startup, locale handling, editor integration, tmux input/reconnect, and optional Inspector import. The managed-session check closes all three windows normally and verifies that the host keeper stops, instead of depending on forced server cleanup.
+- The exact transfer bundle installs into a disposable Linux home containing an existing workspace skills directory but no runtime. It creates `runtime/bin/ws` and `runtime/activate.sh`, preserves the skill file and personal dotfiles, and makes `ws` available in fresh Bash login and terminal shells. Reinstallation and an update from inside the image pass. The separate custom-startup-file flow also passes, retaining its chosen files and leaving ordinary startup files unchanged.
+
+The SIF is **724,914,176 bytes** (about **691.3 MiB**), built from source commit `4639c1c67d600a85f39160f4056c7b2cd3eb1e19`. SHA256: `4ea1af9efb54e79ce0c1c757970aae6587d1a20e54bdea63deb4684036066e50`. All eight uploaded transfer assets match their local sizes and SHA256 hashes.
+
+These checks reproduce and fix the retained-dead-pane behavior locally; no target cluster or PuTTY client was accessed. The cause of the user's earlier missing runtime installation is not established. The tested standalone installation provides a repair path without requiring an existing launcher. Normal mounted-SIF execution, real scheduler authentication, AI API requests, and MPI/GPU workloads remain site-local acceptance work.
+
 ## Expanded toolkit and editor: 0.6.0-preview1
 
 Date: **2026-09-24**. The Nixpkgs revision remains `8825bebf6324e0579d012936eff73379af284b6d`; the expanded tool set, plugin dependencies, selected parser/query pairs, and offline help pages are built together. `ws tools --json` reports the exact installed CLI versions. The image includes Codex **0.155.1**, Claude Code **2.1.280**, Neovim **0.12.5**, and tmux **3.7c**.
