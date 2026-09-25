@@ -2,9 +2,9 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-**0.7.0-preview1 adds Gum configuration forms, named API gateway profiles, private credential updates, and remembered Apptainer setup.** It retains the CLI/AI toolkit, Neovim/Treesitter, locale support, and tmux exit fix from 0.6.1. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
+**0.7.1-preview1 fixes configuration-form contrast on dark terminals.** It includes the Gum forms, named API gateway profiles, private credential updates, and remembered Apptainer setup introduced in 0.7.0. It retains the CLI/AI toolkit, Neovim/Treesitter, locale support, and tmux exit fix from 0.6.1. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
 
-[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.0-preview1)
+[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.1-preview1)
 
 ## Get the current release
 
@@ -76,16 +76,16 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.7.0-preview1
+scripts/build-thin 0.7.1-preview1
 scripts/docker-public build -f image/Apptainer.Dockerfile \
   -t hpc-workspace-apptainer:1.5.3 .
-scripts/export-thin 0.7.0-preview1
+scripts/export-thin 0.7.1-preview1
 # Prepare the public Linux acceptance fixture (Apptainer plus native Git).
 scripts/docker-public build --target native -f tests/ThinTools.Dockerfile \
   -t hpc-workspace-test-native:1.5.3 .
-scripts/test-thin dist/hpc-workspace-thin-0.7.0-preview1-linux-amd64.sif
-scripts/package-thin 0.7.0-preview1
-scripts/test-thin-install dist/release-0.7.0-preview1.json
+scripts/test-thin dist/hpc-workspace-thin-0.7.1-preview1-linux-amd64.sif
+scripts/package-thin 0.7.1-preview1
+scripts/test-thin-install dist/release-0.7.1-preview1.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.
@@ -94,4 +94,4 @@ After publishing and validating a release, update [releases/recommended.json](re
 
 The default local test uses real Apptainer 1.5.3 with an extracted SIF inside a disposable Debian container. A fixture argument selects another runtime/host combination; the validation record identifies which combinations were exercised for each release. These tests do not establish normal SIF mounting or live cluster integration on Ruth, Jean, or Blueback.
 
-For faster configuration iteration, build `tests/ThinTools.Dockerfile` as `hpc-workspace-toolkit-fixture`, then run `scripts/test-configuration`. It drives the real forms and packaged agents against a loopback-only synthetic gateway with external networking disabled.
+For faster configuration iteration, build `tests/ThinTools.Dockerfile` as `hpc-workspace-toolkit-fixture`, then run `scripts/test-configuration`. It drives the real forms and packaged agents against a loopback-only synthetic gateway with external networking disabled. Add `--forms-only` for focused checks of terminal contrast, input, masking, selection, and cancellation.

@@ -1,10 +1,12 @@
 """Real terminal forms and packaged-agent routing against loopback-only HTTP fixtures."""
+import argparse
 import http.server
 import fcntl
 import json
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import signal
 import subprocess
@@ -21,6 +23,39 @@ from config_documents import commit
 
 ROOT = Path('/workspace-tools')
 PYTHON = str(ROOT / 'libexec/python3')
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--forms-only', action='store_true', help='Run terminal checks without launching agents')
+args = parser.parse_args()
+
+
+def check_form_contrast(environment):
+    """Real Gum must leave text in the terminal's readable foreground/background."""
+    program = """import os, sys
+sys.path.insert(0, '/workspace-tools/lib')
+from terminal_forms import Form
+before = dict(os.environ)
+form = Form()
+assert form.text('API base URL', 'https://fixture.example.invalid/v1') == 'https://fixture.example.invalid/v1'
+assert form.text('Model identifier') == 'fixture-model'
+assert form.choose('Credential source', ['Stored key', 'Environment variable']) == 'Environment variable'
+assert dict(os.environ) == before, 'Form changed the parent color environment'
+print('CONTRAST_OK')
+"""
+    code, output = terminal([PYTHON, '-I', '-c', program],
+                            [('https://fixture.example.invalid/v1', b'\r'),
+                             ('Model identifier', b'fixture-model'), ('fixture-model', b'\r'),
+                             ('Stored key', b'\x1b[B\r'), ('CONTRAST_OK', b'')], environment)
+    assert code == 0, 'Contrast fixture did not complete'
+    for text in (b'API base URL', b'Model identifier', b'Credential source', b'Environment variable'):
+        assert text in output, 'Form omitted a label or option'
+    # A fixed color can be unreadable on a user's light/dark palette. Retaining
+    # default colors also keeps the help and placeholder legible; cursor reverse
+    # video and ordinary emphasis remain permitted.
+    fixed_colors = set(range(30, 38)) | set(range(40, 48)) | set(range(90, 98)) | set(range(100, 108)) | {38, 48}
+    for match in re.finditer(rb'\x1b\[([0-9:;]*)m', output):
+        parameters = {int(value) for value in re.split(rb'[;:]', match[1]) if value}
+        assert not parameters & (fixed_colors | {2, 8}), 'Form overrides readable terminal colors: ' + repr(match[0])
 
 
 def create(tool, name, endpoint, key, auth='bearer'):
@@ -74,6 +109,21 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
     for variable in list(os.environ):
         if variable.startswith(('ANTHROPIC_', 'CLAUDE_CODE_USE_')) or variable in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'WS_AGENT_PROFILE'):
             del os.environ[variable]
+    # PuTTY-compatible TERM values, tmux, and inherited themes must all preserve
+    # the terminal's normal contrast. No terminal background query is answered.
+    for term, overrides in (
+            ('xterm', {}),
+            ('xterm-256color', {'COLORTERM': 'truecolor'}),
+            ('screen-256color', {}),
+            ('tmux-256color', {'GUM_INPUT_HEADER_FOREGROUND': '0', 'GUM_INPUT_HEADER_BACKGROUND': '0',
+                               'GUM_INPUT_PROMPT_FOREGROUND': '0', 'GUM_INPUT_PLACEHOLDER_FOREGROUND': '0',
+                               'GUM_CHOOSE_ITEM_FOREGROUND': '0', 'GUM_CHOOSE_SELECTED_FOREGROUND': '0',
+                               'CLICOLOR_FORCE': '1', 'FORCE_COLOR': '3'})):
+        environment = dict(os.environ, TERM=term)
+        for key in ('NO_COLOR', 'CLICOLOR', 'CLICOLOR_FORCE', 'FORCE_COLOR', 'COLORTERM'):
+            environment.pop(key, None)
+        environment.update(overrides)
+        check_form_contrast(environment)
     # Real Gum selection/input and cancellation, including a masked synthetic key.
     hidden = 'synthetic-hidden-' + 'x' * 600
     snippet = "from terminal_forms import Form; f=Form(); assert f.choose('Fixture menu',['One','Two'])=='Two'; assert f.text('Fixture secret',secret=True)==" + repr(hidden) + "; print('FORM_OK')"
@@ -96,6 +146,9 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
     assert code == 0
     assert b'plain-hidden-key' not in output
     assert profiles.load_profile('claude', 'plain')[2] == 'plain-hidden-key'
+    if args.forms_only:
+        print('PASS: terminal contrast, selection, typed/saved values, masked input, cancellation, and plain forms')
+        raise SystemExit(0)
     captured = []
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
@@ -153,4 +206,4 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
         assert profiles.load_profile('claude', 'two')[2] == 'synthetic-key-claude-two'
     finally:
         server.shutdown()
-    print('PASS: Gum and plain forms, cancellation, masked input, actual Codex/Claude gateway routing, stale-auth cleanup, and key rotation')
+    print('PASS: terminal contrast, Gum and plain forms, cancellation, masked input, actual Codex/Claude gateway routing, stale-auth cleanup, and key rotation')

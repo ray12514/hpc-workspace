@@ -1,5 +1,14 @@
 # Workspace validation
 
+## Configuration form contrast: 0.7.1-preview1
+
+Date: **2026-09-25**. A real PTY running the shipped Gum **2.0.1** reproduced fixed dark-gray labels on black: the heading's palette color 240 has a 2.95:1 contrast ratio against black. The form now inherits the terminal's normal text/background colors. Color suppression is local to the Gum child process, including inherited forced-color settings.
+
+- The original reproduction passes after the fix. The regression fails on the previous form and passes with xterm, xterm-256color, screen-256color, and tmux-256color, including truecolor advertisement and conflicting inherited Gum/forced-color settings. Headings, help, placeholders, choices, saved values, and typed text emit no fixed colors or dim/concealed text. The parent environment is unchanged.
+- Real form checks also pass selection, a masked synthetic credential longer than 400 characters, cancellation without writing files, and a complete basic-prompt configuration edit. These tests use disposable homes and no external network access.
+
+No actual PuTTY client, VS Code terminal, cluster, or real credential was accessed. Inheriting terminal colors preserves the contrast of ordinary terminal text; it cannot repair an unreadable foreground/background pair selected in the terminal itself. The prior tool/runtime validation is recorded under 0.7.0 below.
+
 ## Configuration forms and runtime setup: 0.7.0-preview1
 
 Date: **2026-09-25**. The source adds Gum forms, named Codex/Claude gateways, private credential updates, and remembered native Apptainer setup. The Nix lock is unchanged; Gum **2.0.1** and TOMLKit **0.15.0** are added from that pinned package set. The packaged agents remain Codex **0.155.1** and Claude Code **2.1.280**.

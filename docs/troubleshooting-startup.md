@@ -20,6 +20,20 @@ Rerun `./setup`; verified downloads are reused and partial files can resume. A c
 
 The repo's recommendation selects the version, so use `git pull --ff-only` before setup. A running shell or tmux server retains its original image. Inside it, `printf '%s\n' "$WS_RELEASE"` and `ws tools` show that session's version. Return to the native shell and start a new `ws enter` or `ws session` to use the selected release.
 
+## Configuration form text is too dark to read
+
+The 0.7.0 form used Gum's fixed gray headings, placeholders, and help text. Those can have poor contrast on a black background. **0.7.1-preview1** uses your terminal's normal foreground/background colors for the interactive form, including its choices and help; it does not depend on detecting a dark theme through SSH or tmux.
+
+Until you update and enter a fresh workspace, use basic prompts:
+
+```bash
+ws configure codex --plain
+# Or:
+ws configure claude --plain
+```
+
+Choose the existing gateway and **Edit connection** to review its endpoint and model. **Rotate key** changes only the credential. Keys remain hidden intentionally; ordinary fields and their questions should be readable. No PuTTY update is required to use the basic prompts. See the [profile guide](agent-profiles.md) for editing and key rotation.
+
 ## Tmux says the pane is dead or looks frozen after exit
 
 Releases before 0.6.1 retained an exited pane with `remain-on-exit on`. There was no shell left to read normal input. A fresh 0.6.1 server defaults to `off`: Ctrl-D at an empty prompt or `exit` closes the pane; closing the final pane/window returns to the parent shell. Ctrl-C interrupts a command without normally closing Bash.

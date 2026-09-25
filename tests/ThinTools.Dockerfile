@@ -1,6 +1,6 @@
 # Fast editor iteration with public native Linux tools. Final acceptance still
 # exercises the real SIF through Apptainer in thin-behavior.py.
-ARG WORKSPACE_IMAGE=hpc-workspace-thin:0.7.0-preview1
+ARG WORKSPACE_IMAGE=hpc-workspace-thin:0.7.1-preview1
 ARG APPTAINER_IMAGE=hpc-workspace-apptainer:1.5.3
 FROM ${APPTAINER_IMAGE} AS native
 USER root

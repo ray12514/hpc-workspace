@@ -9,4 +9,4 @@ exec "$workspace_root/scripts/docker-public" run --pull=never --rm --read-only -
     --mount "type=bind,src=$workspace_root/tests,dst=/src/tests,readonly" \
     --mount "type=bind,src=$workspace_root/lib,dst=/workspace-tools/lib,readonly" \
     --mount "type=bind,src=$workspace_root/scripts/thin-agent,dst=/workspace-tools/thin-agent,readonly" \
-    "$workspace_fixture" /workspace-tools/libexec/python3 -I /src/tests/configuration-behavior.py
+    "$workspace_fixture" /workspace-tools/libexec/python3 -I /src/tests/configuration-behavior.py "$@"

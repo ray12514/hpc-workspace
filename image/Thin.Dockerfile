@@ -19,7 +19,7 @@ RUN mv /output/workspace-tools/bin/tmux /output/workspace-tools/libexec/tmux \
 FROM scratch
 # Keep the large immutable tool layer independent of release labels/dotfiles.
 COPY --from=tools /output/ /
-ARG WORKSPACE_RELEASE=0.7.0-preview1
+ARG WORKSPACE_RELEASE=0.7.1-preview1
 ARG WORKSPACE_REVISION=development
 LABEL org.opencontainers.image.title="Integrated HPC development environment" \
       org.opencontainers.image.version="${WORKSPACE_RELEASE}" \

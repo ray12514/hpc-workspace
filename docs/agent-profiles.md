@@ -14,6 +14,10 @@ ws configure claude
 
 Choose **Add a gateway**, name it (for example `team-a`), and enter the endpoint and model supplied by its operator. The form shows destination files and previews changes before Save. Cancelling does not save. `ws configure --plain` uses basic prompts; `TERM=dumb` selects that mode automatically.
 
+Starting with **0.7.1-preview1**, forms use the terminal's normal text and background colors for readable headings, values, choices, and help on dark or light backgrounds. Arrow-key selection and the input cursor remain interactive. This applies only to workspace forms; your shell, editor, and standalone Gum theme retain their colors. Keys remain masked.
+
+If a form in 0.7.0 is hard to read, use `ws configure codex --plain` (or `claude`) to select an existing gateway and choose **Edit connection**. Review the endpoint and model before saving. You can also name it directly: `ws configure codex team-a --plain`. Use **Rotate key** only if the credential needs replacing.
+
 Choose a **stored key**, entered with hidden input, or a **gateway-specific environment variable** such as `TEAM_A_API_KEY`. The variable option stores its name, not its value. Supply that variable through the site's normal approved mechanism. Real keys belong on the system, outside this repository, chat, project templates, and shell command history.
 
 Codex uses an **OpenAI Responses-compatible** endpoint. Claude uses an **Anthropic Messages-compatible** endpoint; choose the Bearer token or API-key header that gateway requires. Changing a URL does not translate between protocols. This first adapter does not configure cloud-provider authentication, extra headers/query parameters, federation, or automatic credential refresh. [Codex providers](https://learn.chatgpt.com/docs/config-file/config-advanced#custom-model-providers), [Claude gateway protocol](https://code.claude.com/docs/en/llm-gateway-protocol)

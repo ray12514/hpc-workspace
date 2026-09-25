@@ -20,8 +20,15 @@ class Form:
         print(message, file=sys.stderr)
 
     def _gum(self, *args):
+        # Gum's fixed gray labels/help can disappear on dark PuTTY palettes.
+        # Inherit the terminal's normal contrast while retaining the interactive
+        # controls and reverse-video cursor. Scope this to the form process so
+        # shell/editor colors and the user's standalone Gum theme stay intact.
+        environment = dict(os.environ, NO_COLOR='1')
+        environment.pop('CLICOLOR_FORCE', None)
+        environment.pop('FORCE_COLOR', None)
         result = subprocess.run([self.gum] + list(args), stdout=subprocess.PIPE,
-                                universal_newlines=True)
+                                universal_newlines=True, env=environment)
         if result.returncode in (1, 130, -2):
             raise Cancelled()
         if result.returncode:
