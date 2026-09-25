@@ -1,0 +1,19 @@
+{
+  "terminal.integrated.profiles.windows": {
+    "HPC - Ruth": {
+      "path": "C:\\REPLACE_WITH_APPROVED_KIT_PATH\\plink.exe",
+      "args": ["-load", "REPLACE_WITH_RUTH_SAVED_SESSION", "-t"],
+      "overrideName": true
+    },
+    "HPC - Jean": {
+      "path": "C:\\REPLACE_WITH_APPROVED_KIT_PATH\\plink.exe",
+      "args": ["-load", "REPLACE_WITH_JEAN_SAVED_SESSION", "-t"],
+      "overrideName": true
+    },
+    "HPC - Blueback": {
+      "path": "C:\\REPLACE_WITH_APPROVED_KIT_PATH\\plink.exe",
+      "args": ["-load", "REPLACE_WITH_BLUEBACK_SAVED_SESSION", "-t"],
+      "overrideName": true
+    }
+  }
+}

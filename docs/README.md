@@ -8,12 +8,15 @@ These user guides describe the **0.7 thin workspace** and the repository's **`./
 | Learn a complete working routine, with a practice project | [Daily workflow](daily-workflow.md) |
 | Look up a command or shortcut quickly | [Command reference](command-reference.md) |
 | Understand editor features, agents, tmux, and interactive allocations | [Editor and sessions](editor-and-agents.md) |
+| Find the login node that holds a detached workspace | [Session locations](session-locations.md) (new repository command; not yet in 0.7.1) |
+| Use existing Windows connection tools from VS Code | [Windows, Kerberos, and VS Code](windows-vscode-hpc.md) |
 | Change your preferences and understand what persists | [Personal configuration](dotfiles.md) |
 | Reuse an existing local system profile | [Inspector integration](inspector-integration.md) |
 | Resolve startup, terminal, locale, or tool problems | [Troubleshooting](troubleshooting-startup.md) |
 | Configure a module-provided Apptainer once | [Runtime setup](runtime-setup.md) |
 | See the plan for forms that create and edit configuration files | [Guided configuration](guided-configuration.md) |
 | Configure agents, rotate keys, and switch API gateways | [Agent profiles and forms](agent-profiles.md) |
+| Use a restricted native Codex configuration with custom headers and a CA | [Site-provided Codex configuration](restricted-codex.md) |
 | Understand which agent skills are shipped and activated | [Skills](skills.md) |
 | See exactly what was tested | [Validation record](validation.md) |
 

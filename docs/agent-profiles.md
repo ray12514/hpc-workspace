@@ -22,6 +22,8 @@ Choose a **stored key**, entered with hidden input, or a **gateway-specific envi
 
 Codex uses an **OpenAI Responses-compatible** endpoint. Claude uses an **Anthropic Messages-compatible** endpoint; choose the Bearer token or API-key header that gateway requires. Changing a URL does not translate between protocols. This first adapter does not configure cloud-provider authentication, extra headers/query parameters, federation, or automatic credential refresh. [Codex providers](https://learn.chatgpt.com/docs/config-file/config-advanced#custom-model-providers), [Claude gateway protocol](https://code.claude.com/docs/en/llm-gateway-protocol)
 
+For a site-provided Codex configuration that requires a custom header, use `ws agent codex --native` with the working native TOML. The [restricted configuration guide](restricted-codex.md) maps the required fields, CA bundle, and credential source, and outlines the next form extension. The current managed Codex form does not support that header mode.
+
 Enter the base URL supplied by the gateway operator; each client appends its API route. Claude may present its usual one-time approval when an API key replaces an existing subscription login in an interactive session. [Claude gateway credential selection](https://code.claude.com/docs/en/llm-gateway-connect#conflicts-with-an-existing-login)
 
 ## Launch and switch

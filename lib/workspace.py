@@ -24,6 +24,7 @@ import integration
 import tool_environment
 import releases
 import runtime_setup
+import session_records
 from inspector import MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -559,7 +560,7 @@ def thin_session(args, image):
     project = Path(args.project).expanduser().resolve()
     name = integration.session_name(args.site, project, image["release"])
     state = state_path(args)
-    folder = state / "session-hosts" / hashlib.sha256(socket.gethostname().encode()).hexdigest()[:16]
+    folder = state / "session-hosts" / session_records.host_key(socket.gethostname())
     ready, record, log = (folder / (name + suffix) for suffix in (".ready", ".json", ".log"))
     keeper = [sys.executable, str(ROOT / "bin/ws"), "enter", "--site", args.site,
               "--project", str(project), "--image", image["path"], "--state-dir", str(state)]
@@ -573,12 +574,19 @@ def thin_session(args, image):
         container_plan(entry)
         print_plan(keeper)
         return 0
+    other_hosts = sorted({row['hostname'] for row in session_records.locations(state)['sessions']
+                          if row['session'] == name and row['hostname'] and
+                          row['hostname'] != socket.gethostname()})
+    if other_hosts:
+        print('This project/release also has session records on: {}. Their status is unverified; '
+              'use ws sessions to find an earlier session before starting another here.'.format(
+                  ', '.join(session_records.display(host) for host in other_hosts)), file=sys.stderr)
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(str(folder / (name + ".lock")), os.O_WRONLY | os.O_CREAT, 0o600)
     with os.fdopen(descriptor, "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         prior = load_json(record) if record.exists() else {}
-        running = prior.get("identity") and integration.process_identity(prior.get("pid")) == prior["identity"]
+        running = session_records.keeper_running(prior)
         if running and prior.get("image") != image["path"]:
             raise WorkspaceError("A session for this release already uses another image: " + prior["image"])
         if not running:
@@ -590,7 +598,7 @@ def thin_session(args, image):
                                            stderr=output, start_new_session=True)
             prior = {"pid": process.pid, "identity": integration.process_identity(process.pid),
                      "image": image["path"], "session": name}
-            releases.atomic_text(record, json.dumps(prior) + "\n")
+        prior = session_records.save(record, prior, args.site, project, image['release'])
         deadline = time.monotonic() + 90
         while not ready.exists():
             if not prior["identity"] or integration.process_identity(prior["pid"]) != prior["identity"]:
@@ -598,12 +606,34 @@ def thin_session(args, image):
             if time.monotonic() >= deadline:
                 raise WorkspaceError("Workspace session is still starting; retry ws session. Local details: " + str(log))
             time.sleep(0.1)
-    print("Workspace session {} ({})".format(name, image["release"]), flush=True)
+    print("Workspace session {} on {} ({})".format(name, socket.gethostname(), image["release"]), flush=True)
     if args.detach:
         return 0
     entry = argparse.Namespace(**vars(args))
     entry.gpu, entry.compute, entry.command = "none", False, ["/workspace-tools/thin-session", "--attach"]
     return enter(entry)
+
+
+def sessions(args):
+    report = session_records.locations(state_path(args))
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+    print('Current node: ' + session_records.display(report['hostname']))
+    print('State directory: ' + session_records.display(report['state_dir']))
+    if not report['sessions']:
+        print('No managed session records found in this state directory.')
+    for row in report['sessions']:
+        print('\n{}  [{}]'.format(session_records.display(row['hostname']), row['status']))
+        for label in ('session', 'project', 'release', 'image', 'recorded_at'):
+            print('  {}: {}'.format(label, session_records.display(row[label])))
+    for warning in report['warnings']:
+        print(session_records.display(warning), file=sys.stderr)
+    if report['sessions']:
+        print('\nrecorded = another node; liveness was not checked. '
+              'Reconnect using its site-approved login address, then run ws session '
+              'with the same project and image. Sessions do not move between nodes.')
+    return 0
 
 
 def session(args):
@@ -669,7 +699,7 @@ def parser():
     result = argparse.ArgumentParser(description="A consistent development workspace on HPC clusters.")
     sub = result.add_subparsers(dest="action")
     for name, handler in (("enter", enter), ("jobs", scheduler_operation), ("submit", scheduler_operation), ("doctor", doctor),
-                          ("use", select_release), ("rollback", select_release), ("session", session),
+                          ("use", select_release), ("rollback", select_release), ("session", session), ("sessions", sessions),
                           ("init", configure), ("refresh", configure)):
         command = sub.add_parser(name)
         command.set_defaults(handler=handler)
@@ -704,6 +734,8 @@ def parser():
             command.add_argument("--sha256", required=True)
         if name == "session":
             command.add_argument("--detach", action="store_true")
+        if name == "sessions":
+            command.add_argument("--json", action="store_true", help="Print recorded node/project/image metadata as JSON")
     remote = sub.add_parser('job-env', help='Run a native job client without exporting image-only settings')
     remote.set_defaults(handler=job_env)
     remote.add_argument('command', nargs=argparse.REMAINDER)

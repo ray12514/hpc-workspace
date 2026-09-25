@@ -1,5 +1,15 @@
 # Workspace validation
 
+## Session locations and connection guides: repository update
+
+Date: **2026-09-25**. This source update adds `bin/ws sessions`, readable node/project/release records for managed thin sessions, a Windows/VS Code connection guide, and a restricted native Codex configuration outline. It does **not** publish a replacement for 0.7.1-preview1 or extend its gateway form.
+
+- The Linux source suite runs **87 tests: 84 pass and 3 skip** (the fixture lacks wget and the importable YAML parser). Eight focused session tests cover another node with a colliding PID, local ready/starting/ended keepers, a changed boot identity, older metadata, malformed/missing records, private record creation and keeper reuse, safe display, and a lookup that needs no runtime/image and writes no state. Those eight also pass on macOS.
+- Host modules parse with Python 3.6 syntax rules. Changed Python files pass focused Ruff checks. JSON examples, local documentation links, and code fences validate.
+- The shipped **Codex 0.155.1** parses the example TOML in a disposable home with networking disabled. Its feature listing confirms both historical WebSocket flags are marked removed. This proves parsing, not private gateway connectivity or enforcement of every field; the active provider mapping is checked against official OpenAI documentation.
+
+No Windows client, Kerberos kit, target cluster, real gateway, private configuration, or credential was accessed. The VS Code profiles/tasks are documented setup examples, not an end-to-end Windows acceptance result. No new SIF was built. Existing 0.7.1 records can be inspected with the updated repository launcher; remote records are explicitly unverified.
+
 ## Configuration form contrast: 0.7.1-preview1
 
 Date: **2026-09-25**. A real PTY running the shipped Gum **2.0.1** reproduced fixed dark-gray labels on black: the heading's palette color 240 has a 2.95:1 contrast ratio against black. The form now inherits the terminal's normal text/background colors. Color suppression is local to the Gum child process, including inherited forced-color settings.

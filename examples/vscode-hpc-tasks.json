@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Connect to HPC",
+      "type": "process",
+      "command": "C:\\REPLACE_WITH_APPROVED_KIT_PATH\\plink.exe",
+      "args": ["-load", "REPLACE_WITH_SAVED_SESSION", "-t"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "echo": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen",
+        "instanceLimit": 1
+      }
+    }
+  ]
+}

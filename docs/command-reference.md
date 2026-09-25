@@ -21,6 +21,8 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 
 `ws session` already enters the workspace. If you used `ws enter` first, ordinary `tmux` works there, but has no independent container keeper. Return to the native shell to start a managed `ws session`.
 
+The updated **repository launcher** also has `./bin/ws sessions` and `./bin/ws sessions --json` for [recorded session locations](session-locations.md). These are not yet in the published 0.7.1 runtime. Use the lookup from the native shell after a round-robin login to find the original node.
+
 The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, and rotation. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
 
 ## Keyboard essentials

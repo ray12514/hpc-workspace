@@ -93,3 +93,5 @@ Use plain labels, ordinary fonts, keyboard navigation, and a limited-color theme
 4. Add named templates for personal HPC tools as those tools enter the workspace. Only then consider general schema-driven forms or a richer Huh application.
 
 Before extending the forms, test existing files, unknown-key preservation, invalid input, cancellation, concurrent edits, backups, symlinks, offline operation, terminal behavior, and the actual applications reading the result. Syntax validity alone does not establish that an application accepts a setting. Huh, arbitrary schemas, project templates, and noninteractive provider editing are not included. See [validation](validation.md) for exercised cases.
+
+The next concrete Codex extension is mapped in [site-provided gateway configuration](restricted-codex.md#next-form-extension): custom-header credentials, the required policy/transport settings, a process-scoped CA path, and review of an existing native configuration. Continue using the working native setup until that extension ships.

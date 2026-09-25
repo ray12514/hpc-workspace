@@ -1,0 +1,30 @@
+# Outline only: merge with your locally approved configuration; do not overwrite it.
+# Replace the model, provider name, URL, and header name on the cluster.
+# Keep top-level settings above the [model_providers...] table.
+model = "REPLACE_WITH_APPROVED_MODEL"
+model_provider = "hpc-gateway"
+check_for_update_on_startup = false
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+model_reasoning_effort = "medium"
+
+# Uncomment only if the site requirement is to disable web search.
+# This does not disable hooks or webhooks.
+# web_search = "disabled"
+
+[model_providers.hpc-gateway]
+name = "REPLACE_WITH_GATEWAY_LABEL"
+base_url = "https://gateway.example.invalid/v1"
+wire_api = "responses"
+requires_openai_auth = false
+supports_websockets = false
+# Right side: environment VARIABLE NAME, not the API key itself.
+env_http_headers = { "REPLACE_WITH_APPROVED_HEADER" = "HPC_GATEWAY_KEY" }
+
+# Older false feature flags reported by the existing site configuration.
+# Codex 0.155.1 marks these removed; they do not enforce transport behavior.
+[features]
+responses_websockets = false
+responses_websockets_v2 = false
+
+# CA bundle: set CODEX_CA_CERTIFICATE in the launch environment, not this table.

@@ -56,6 +56,8 @@ Ctrl-B followed by `|` or `-` splits at the current directory. Ctrl-B then h/j/k
 
 Detach with Ctrl-B then d. Reattach with `ws session` on the same node and project. Layout saving remains separate from live process persistence: it cannot preserve a finished allocation or move a running process to another node. Release updates create separate tmux servers; start a fresh session to test a new release's locale/tool configuration.
 
+With round-robin login addresses, the next SSH connection may land on a different node. See [session locations](session-locations.md) for the new repository launcher lookup and how it reads existing 0.7.1 records. The actual node's approved SSH address must come from the site. The [Windows guide](windows-vscode-hpc.md) covers saved connections in VS Code using already-installed clients.
+
 Ctrl-C interrupts a foreground command. Ctrl-D at an empty Bash prompt, or `exit`, closes that pane's shell. In 0.6.1 and later, the pane closes with it; closing the final pane/window returns the client to its parent shell. Ending an interactive job in a pane returns to the pane's login-node shell rather than closing that shell.
 
 Earlier releases set `remain-on-exit on`, retaining a dead pane after its shell exited. This can look like a frozen terminal because there is no shell left to read ordinary input. Ctrl-B then d detaches even from that screen. Ctrl-B then x and confirmation closes the current pane; use it on the dead pane, not on work you want to retain. A fresh patch-release session uses `remain-on-exit off`. A personal `tmux.conf` override still takes precedence.
