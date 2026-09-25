@@ -2,15 +2,20 @@
 
 ## Configuration forms and runtime setup: 0.7.0-preview1
 
-Date: **2026-09-25**. The source adds Gum forms, named Codex/Claude gateways, private credential updates, and remembered native Apptainer setup. The Nix lock is unchanged; Gum and TOMLKit are added from that pinned package set.
+Date: **2026-09-25**. The source adds Gum forms, named Codex/Claude gateways, private credential updates, and remembered native Apptainer setup. The Nix lock is unchanged; Gum **2.0.1** and TOMLKit **0.15.0** are added from that pinned package set. The packaged agents remain Codex **0.155.1** and Claude Code **2.1.280**.
 
 - **Source:** 79 Linux unit tests run successfully; the wget fallback test is skipped because this fixture provides curl only. Coverage includes private backups, symlink preservation, duplicate-key rejection, concurrent edits, rollback after a partial write, separate gateways, key rotation, missing credentials, endpoint/credential binding, workspace-field preservation, and saved runtime/module invocation. All host modules parse using Python 3.6 syntax rules; an actual Python 3.6 interpreter was not exercised. Focused Ruff checks, ShellCheck for changed shell scripts, documentation links, and code fences pass.
 - **Real terminal and agents:** the offline, read-only Linux fixture drives Gum selection, masked input longer than 400 characters, cancellation, and a complete plain-prompt edit. Actual packaged Codex and Claude Code processes send requests to a loopback-only synthetic gateway using separate selected keys; inherited conflicting keys and Claude routing settings are not used. The fixture returns a synthetic authentication error, so this verifies request routing and header selection, not a successful model response or a real gateway's compatibility. Stored-key rotation leaves the other profile unchanged.
 - **Existing environment:** packaged tool/agent startup, locale preservation, offline help, YAML/CSV/log tools, job-environment cleanup, and the editor integration suite pass with an intentionally incompatible host SSL library present.
 
-Final SIF and transfer-bundle acceptance will be recorded after packaging. No target cluster, real gateway, real credential, PuTTY client, or live scheduler job was accessed. Cloud federation, enterprise saved gateway login, managed routing, child/background agent sessions, and generic YAML schemas are outside this first adapter's verified scope.
+- **Final SIF:** the complete integrated suite passes as a non-root user under Apptainer **1.3.6 and 1.5.3**, using `--unsquash` in the local Docker fixtures. Both exercise the actual forms and synthetic gateway requests, native client/library behavior, editor, locale fallback, tmux input/exit/reconnect, and optional Inspector import.
+- **Image provenance:** the release stage was applied to the already validated tool image after the builder exhausted its temporary storage. Its tool closure uses the same pinned Nix inputs. All **198** shipped source/configuration/skill assets and the Nix lock match source commit `d69c3bcaf5e0ce3daf8bf09e58cd905e2032cf0c`; the image labels and release manifest identify that commit. The SIF is **729,800,704 bytes** (696.0 MiB), with SHA-256 `60720dfa52d3fcbbab2b01044d932c862f65120df9f4ca3ea698a448b1b6ce4e`.
 
-## Current guides and practice workflow
+- **Transfer bundle:** the actual standalone installer discovers and saves its working runtime. A fresh environment with no Apptainer on PATH enters the SIF using that saved executable. Installation from a skills-only home, reinstallation, ordinary Bash login/terminal startup, an update inside the workspace, and custom site-loaded startup files all pass. Skills and personal configuration survive both installation flows.
+
+No target cluster, real gateway, real credential, PuTTY client, or live scheduler job was accessed. Cloud federation, enterprise saved gateway login, managed routing, child/background agent sessions, and generic YAML schemas are outside this first adapter's verified scope. Normal mounted-SIF execution remains a site-local check.
+
+## Guide refresh and practice workflow (0.6.1)
 
 Date: **2026-09-24**. The user guides now follow the repository's `./setup` workflow and the 0.6.1 thin environment. Earlier core-image instructions are retained in a clearly marked archive. The practice project contains synthetic files only.
 
