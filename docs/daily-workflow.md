@@ -1,131 +1,246 @@
-# Daily appearance and job submission
+# Make the workspace part of your day
 
-This page describes the released 0.4 behavior, including its existing host window and limited submission bridge. The [target development environment](workflow-options.md) must support ordinary system work from the same development shell, with centrally managed tools/dotfiles and automated setup. The current host-window instructions are not the target architecture.
+This is a practical guide to the **0.6.1 thin workspace**. Install once with [the repo's `./setup` command](thin-start.md), then use the same habits in PuTTY or a VS Code terminal. The [command reference](command-reference.md) is the shorter lookup sheet.
 
-[View the running Bash, tmux, and Neovim configuration](previews/README.md).
+- [Start your workspace](#start-your-workspace)
+- [Try a complete workflow](#try-a-complete-workflow)
+- [Move around and reuse commands](#move-around-and-reuse-commands)
+- [Find names, search contents, and choose a result](#find-names-search-contents-and-choose-a-result)
+- [Edit and review in Neovim](#edit-and-review-in-neovim)
+- [Check code and make project tasks repeatable](#check-code-and-make-project-tasks-repeatable)
+- [Submit jobs and inspect results](#submit-jobs-and-inspect-results)
+- [Save your work and return later](#save-your-work-and-return-later)
+- [PuTTY and VS Code appearance](#putty-and-vs-code-appearance)
 
-Release **0.4.0-preview1** makes [dotfiles an explicit part of the workspace](dotfiles.md). Shared defaults ship with the image; missing personal settings are created under `~/.config/hpc-workspace/` and existing preferences are preserved. It also enables fzf's Ctrl-R history selection, Ctrl-T path selection, Alt-C directory selection, and enhanced Tab completion.
+## Start your workspace
 
-Release **0.3.0-preview1** adds [optional Inspector profile import](inspector-integration.md). After `ws init`, omit `--site` from the examples below to use the saved settings. An Inspector profile is optional; `ws init --site ruth` (or `jean` / `blueback`) also saves the system default. Submission behavior and the optional host connection are unchanged by this release.
+From the normal login shell, go to your project and choose one entry method:
 
-Release **0.2.0-preview1** adds a shared Bash/tmux/Neovim appearance and native PBS/Slurm submission. Transfer both the new SIF and its matching source bundle using the [transfer guide](transfer.md). A running shell keeps its old image; exit and re-enter after selecting the update. Existing tmux sessions keep their original configuration and image until recreated. Keep the previous release for rollback.
-
-Reconnecting also retains the session's original `--host-jobs` choice. For an immediate fresh shell, use `ws enter --host-jobs` from the host window. To replace the full tmux session, save your files/layouts and finish interactive work, then use `Ctrl-b :` followed by `kill-session`. This closes that session's panes; re-run `ws session` to create it with the new image and options.
-
-## Start your day on a login host
-
-Load the site's Apptainer, scheduler-client, and (for sessions) tmux modules in the host shell. Select your verified SIF with `ws use`, then start from your project:
-
-```bash
-ws session --site ruth --project "$HOME/my-project" --host-jobs
-```
-
-Use `jean` or `blueback` on those systems. This opens editor, native host, and workspace-shell windows in host tmux. `Ctrl-b n` moves to the next window; `Ctrl-b d` detaches. Re-run the same command on the same login host to reconnect. The host window remains the place to request interactive allocations and use arbitrary native scheduler commands.
-
-For a single container shell without tmux:
+If this site supplies Apptainer through a module, load its normal runtime module first. Remembering that setup automatically is a [planned improvement](runtime-setup.md); it is not enabled in the current release.
 
 ```bash
-ws enter --site ruth --project "$HOME/my-project" --host-jobs
+cd /path/to/project
+ws session
 ```
 
-`--host-jobs` enables `ws submit` and `ws jobs` inside that login-host container. Without it, use those commands in the host window. The option cannot be started inside an allocation and does not connect a compute node back to the login host.
+`ws session` enters the workspace and opens three tmux windows: **1 workspace**, **2 editor**, **3 agents**. Press and release Ctrl-B, then press the window number. The agents window is an ordinary shell until you start an agent. The managed session keeps its container available when you detach.
 
-The prompt uses ordinary text and requires no icon font:
+For a single shell, use `ws enter` instead. You can run plain `tmux` inside it; that uses the packaged tools and defaults, but does not keep the container independently alive after its entering shell ends. Start managed `ws session` from the native login shell, not from inside `ws enter`. You do not need a site name, host tmux module, or `--host-jobs` for this workflow.
 
-```text
-ws:ruth login@login-host  ~/my-project [main]
-$
+Inside the workspace, `ws tools` lists the installed versions. `printf '%s\n' "$WS_RELEASE"` shows this shell's release. Your module environment and native commands remain available. In particular, `find` comes from the host, while `fd` is packaged in the workspace; `command -v find fd` shows their locations.
 
-ws:jean compute@compute-node job:12345  ~/my-project [main]
-exit:1 $
-```
+## Try a complete workflow
 
-The second example shows a previous command returning 1. A selected GPU passthrough mode appears as `gpu:cuda` or `gpu:rocm`; it does not claim that a toolkit has been installed or validated. Git branch lookup is cached for five seconds or until the directory changes and does not scan the working tree. The prompt never polls the scheduler. Set `WS_GIT_PROMPT=0` before entry to disable branch lookups.
-
-## Submit an existing native batch script
-
-Inside a shell started with `--host-jobs`:
+The repo includes a tiny [practice project](../examples/workflow/) with Python, a shell script, YAML, JSON, CSV, and a sample log. After installation, copy it from the repo checkout into a new directory in your home and start a session:
 
 ```bash
-ws submit --dry-run ./job.pbs
-ws submit ./job.pbs
-ws jobs
+practice_dir=$(mktemp -d "$HOME/ws-practice.XXXXXX")
+cp -R examples/workflow/. "$practice_dir/"
+cd "$practice_dir"
+ws session
 ```
 
-On Jean/Blueback, use your Slurm script. From the native host window, add the site explicitly:
+This keeps your edits separate from the repository. The sample contains no scheduler submission command. Its log and reports are synthetic fixtures, not output from a real job.
+
+1. In window 1, run `ll`, then `eza --tree --level=2 --icons=never .` to see the project.
+2. Run `fd --type f --extension py . src` to locate Python files. Run `rg -n 'tolerance' src config` to find the setting in file contents.
+3. Type `nvim `, including the trailing space, and press **Ctrl-T**. Type `solver`, choose the path, and press Enter. The path is inserted into the shell command. Press Enter again to open it.
+4. In Neovim, press Esc, then **Space f g**. Type `tolerance` and select a match to open its file at the matching line. **Space f b** switches between opened files.
+5. Try changing the solver's default tolerance from `1e-6` to `1e-7`: move to it, use normal editing, then Esc and `:w`. Use `:q` to return to the shell when ready. The sample YAML is a separate search example; this toy solver does not read it.
+6. Run `just --list`, `just check`, and `just run`. The first lists recipes, the second checks Python/shell style, and the third runs a tiny local calculation with host Python.
+7. Read results with `rg -n -i 'error|warning' logs`, `jq '.run' reports/run.json`, and `mlr --csv sort -n seconds reports/timings.csv`.
+8. Press **Ctrl-R**, type `just check`, and press Enter to put it back on the command line. Review it, then press Enter to run it. Detach with **Ctrl-B d**. Re-run `ws session` from this same directory on the same login node to return.
+
+Once those steps feel natural, use the same sequence in a real project: **locate → search → edit → check → review → submit**. The following sections build on that routine.
+
+## Move around and reuse commands
+
+`ll` uses eza with icons disabled. `..` moves to the parent directory and `cd -` returns to the previous directory. Use **Alt-C** to choose a subdirectory interactively; if the client intercepts Alt, press Esc and then c.
+
+Zoxide learns directories you visit with `cd`. After a few visits, `z project-name` jumps to a matching directory you know; `zi project-name` lets you choose among matches. This learned list differs from Alt-C, which searches directories beneath your current location. Neither is a cluster-wide filesystem index.
+
+At the Bash prompt:
+
+| Want to… | Use |
+| --- | --- |
+| Repeat or adapt a past command | Ctrl-R, type a fragment, Enter to select, edit, Enter to run |
+| Supply a filename without retyping it | Type the command and a space, then Ctrl-T |
+| Move across a long command | Ctrl-A to its beginning, Ctrl-E to its end |
+| Remove/reinsert text | Ctrl-U before cursor, Ctrl-K after cursor, Ctrl-W previous word, Ctrl-Y reinsert |
+| Stop the foreground command | Ctrl-C |
+| Clear the visible terminal | Ctrl-L |
+
+These are Control keys in the remote terminal, including on a Mac client. Command-R is not the workspace history binding. Personal Readline settings can override the defaults. History persists between workspace shells; another already-open shell does not automatically import every new entry. `history -n` reads entries appended since it last read the history file.
+
+## Find names, search contents, and choose a result
+
+Use **fd/find for paths**, **rg for text inside files**, **fzf to choose from candidates**, and **bat to preview**. You can pipe the output of a search into a chooser. These examples start at the project directory, keeping the search bounded.
+
+### Find files by name
 
 ```bash
-ws submit --site jean ./job.slurm
-ws jobs --site jean
+fd --type f --extension py . src       # Python paths under src
+fd --type f 'solver' .                 # Names containing solver (a regex)
+rg --files -g '*.sh'                   # Shell paths under this project
+find logs -type f -name '*.log' -mtime -2 -print
 ```
 
-No development container is added to the job. The script controls the job runtime. Keep account, queue/partition, resource, output, and dependency options in the native script. PBS and Slurm requests are not translated into one another. The generic [PBS](../examples/jobs/hello.pbs) and [Slurm](../examples/jobs/hello.slurm) examples print the job ID, hostname, and working directory; add your site's required directives locally before submitting them.
+The last command uses the site's `find` for a modification-time condition. Quote wildcard patterns so the search program receives them. `fd` and `rg` normally skip hidden and ignored files; `find` does not read `.gitignore`. For a deliberate wider search in this project, `fd --hidden --no-ignore --exclude .git 'solver' .` includes hidden and ignored entries. Avoid starting a recursive search at a whole archive or shared filesystem when a project subdirectory will do. [fd usage](https://github.com/sharkdp/fd#usage), [ripgrep guide](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
 
-The current directory is the submission directory. `--cwd /absolute/project/run` chooses another one, while the script argument is resolved relative to the caller's original directory. PBS jobs should explicitly `cd "$PBS_O_WORKDIR"`; the example Slurm script likewise uses `$SLURM_SUBMIT_DIR`. Output file handling remains the scheduler's responsibility. Script and working-directory paths passed from a container must resolve under its selected project or `--work` directory, at the same absolute paths on the host. Other mounts are not automatically submission roots.
-
-`--dry-run` validates paths and prints arguments plus environment **names**, without calling a scheduler or printing variable values. Actual submissions relay native stdout, stderr, and exit status, including the native job ID. Output is limited to 512 Ki characters per stream. There is no automatic retry. If a timeout or lost connection leaves the outcome uncertain, check the host queue before submitting again.
-
-Interactive/blocking submission modes, custom PBS directive prefixes, Slurm `--get-user-env`, and wrapper/alternate-export modes belong in the native host window. `ws` accepts batch scripts, not an arbitrary scheduler option tail. Cancellation and detailed scheduler administration also use the native host commands.
-
-## Deliberate environment handling
-
-The host starts its own `qsub` or `sbatch` with a selected host environment: identity/home/shell, host `PATH` and `LD_LIBRARY_PATH`, locale/time zone, known scheduler configuration pointers, `KRB5CCNAME`, and certificate paths. The exact list is `HOST_ENV` in [scheduler.py](../lib/scheduler.py). The PBS command uses `-V`; Slurm uses `--export=ALL`. Those switches export this selected environment. Slurm's command-line setting overrides a conflicting `#SBATCH --export` directive. The wrapper does not use `--export=NONE`, which can request implicit user-environment reconstruction. [Slurm sbatch](https://slurm.schedmd.com/sbatch.html), [OpenPBS qsub](https://github.com/openpbs/openpbs/blob/master/doc/man1/qsub.1B)
-
-Container tool paths, allocation device masks, and AI keys are not automatically copied into submissions. To deliberately pass a job input, export it and name it:
+### Choose a filename and preview it
 
 ```bash
-export RUN_CASE=case-17
-ws submit --env RUN_CASE ./job.slurm
+fd --type f --print0 . . |
+    fzf --read0 --preview 'bat --color=always --style=numbers --line-range=:160 -- {}'
 ```
 
-Repeat `--env NAME` as needed. Reserved path, runtime, and scheduler controls cannot be overridden this way. Explicitly selecting a non-reserved credential variable would export it, so choose only variables the job needs. A script's own exports, login-shell startup, and site hooks retain their usual behavior; this feature does not sanitize arbitrary job code.
+Type fragments of a filename, use Up/Down to select, Enter to print the chosen path, or Esc to cancel. The preview displays its first 160 lines. This command only selects a path; it does not open the editor. fzf's `{}` placeholder is the selected entry and is shell-escaped by fzf. The zero separators keep filenames containing spaces or newlines intact as candidates. [fzf preview behavior](https://github.com/junegunn/fzf#preview-window)
 
-Initialize the site's module system and load the required compiler/MPI in each job using that site's supported recipe. Do not assume every variable from your interactive module environment was captured. Programs compiled against the core's Ubuntu/glibc may require the container runtime; native scientific jobs should use compatible site builds. See [build/runtime compatibility](design-direction.md#build-compatibility-is-separate-from-submission).
+Yes, the same chooser works with `find`:
 
-For an additional native client setting, add its **name**, not its value, to the local profile in the source bundle on that cluster:
+```bash
+find . -path './.git' -prune -o -type f -print0 |
+    fzf --read0 --preview 'bat --color=always --style=numbers --line-range=:160 -- {}'
+```
 
-```json
-{
-  "scheduler_env": ["SITE_SCHEDULER_SETTING"]
+This excludes `.git` but still includes other hidden/ignored directories. Use a narrower starting directory, such as `src`, when appropriate.
+
+For a picker that **opens the selection**, this optional Bash helper carries the selected filename safely into Neovim:
+
+```bash
+fedit() {
+    local selected
+    if IFS= read -r -d '' selected < <(
+        fd --type f --print0 . . |
+            fzf --read0 --print0 \
+                --preview 'bat --color=always --style=numbers --line-range=:160 -- {}'
+    ); then
+        nvim -- "$selected"
+    fi
 }
 ```
 
-Combine this with the existing `binds` field if needed. Values are read from the host environment before entry. Load/change modules or settings before starting a fresh container; existing connections retain their captured environment.
+Paste the function into a workspace Bash shell, then run `fedit`. Canceling leaves the shell alone. To keep it, add it to your personal [workspace Bash configuration](dotfiles.md#small-personal-changes). **`fedit` is an example, not a preinstalled command.** The `--print0`, `read -d ''`, and quoted argument avoid splitting one filename into multiple editor arguments.
 
-## How the optional host connection works
+### Search contents, then decide what to open
 
-The parent `ws enter` process creates a private, node-local Unix socket in a mode-700 temporary directory and binds it at `/workspace-host`. It checks Linux peer credentials for the same UID, accepts only `submit` and `jobs`, validates the site and allowed paths, and removes the socket when the parent exits. It listens on no TCP port. At most four requests run concurrently; excess requests receive an error without being queued for later submission. This is convenience under your existing account permissions, not a security boundary against your own programs.
+```bash
+rg -n --smart-case 'tolerance' src config
+rg -n -F 'MPI_Init(' src                  # literal text in your actual C project
+rg -n -i 'error|warning' logs
+rg -l 'tolerance' src config             # filenames only
+```
 
-The host must support local Unix sockets and Linux `SO_PEERCRED`, and the site's Apptainer settings must permit the bind. If unavailable, native-host `ws submit --site SITE` still works without the connection. Scheduler clients, their dependencies, configuration, and authentication stay on the host. No cluster information is uploaded by this mechanism.
+`-n` adds line numbers, `-F` means literal text, `-i` ignores case, and `-l` lists files with a match. Smart-case ignores case for a lowercase query and respects case when the query contains uppercase letters. A no-match exit status from `rg` is normal.
+
+To choose among files containing a setting:
+
+```bash
+rg -l -0 'tolerance' src config |
+    fzf --read0 --preview 'bat --color=always --style=numbers --line-range=:160 -- {}'
+```
+
+To jump directly to a matching line, open Neovim and use **Space f g** instead of parsing `file:line:text` yourself. Use **Space f f** when you know the filename. Neither requires a language server.
+
+## Edit and review in Neovim
+
+Start Neovim from the project root so its pickers search the intended tree. Press Esc before the Space shortcuts. **Space ?** shows the configured key guide.
+
+For basic editing, `i` enters Insert mode, Esc returns to Normal mode, `:w` saves, and `:q` closes the current window. Use `/text` to search within a buffer, n/N for next/previous match, u to undo, and Ctrl-R to redo. Neovim's Ctrl-R is redo; Bash's Ctrl-R is history search.
+
+The daily editing loop is:
+
+1. **Space f f** to choose a file, or **Space f g** to find text across the project.
+2. **Space f b** to switch among open buffers. `:vsplit` and `:split` create editor splits; **Space w h/j/k/l** moves between them and adjacent tmux panes.
+3. With language assistance available, use **g d** for a definition, **g r r** for references, **Space f s** for document symbols, and **Space c d** for diagnostics.
+4. Use Ctrl-N/P to choose a completion and Ctrl-Y to accept. **Space c a** offers code actions; **Space c r** renames a symbol through the language server.
+5. Use **Space c f** for explicit formatting, then `:w` to save. Ordinary saves do not automatically format files.
+
+Treesitter supplies syntax highlighting for the bundled languages. It does not itself provide completion or understand your MPI headers. Python, Bash, and Fortran assistance is packaged; C/C++ assistance uses host `clangd` and your project's compilation database. Activate the intended project Python environment **before** opening Neovim. The [editor guide](editor-and-agents.md#neovim-defaults) describes the exact providers and large-file limits.
+
+In a real Git project, use **Space g p** to preview a changed hunk and **Space g s** to stage that hunk. Staging is a change to Git's index; it is not a commit. Then review from a shell:
+
+```bash
+git status --short
+git diff
+git diff --staged
+```
+
+Delta supplies the pager unless your Git configuration already chooses one. `lazygit` provides a visual alternative. `difft old.py new.py` compares two explicit versions structurally. The practice copy is not automatically a Git repository; Git review applies to your own repository unless you explicitly initialize the copy.
+
+For agent work, keep the editor in window 2 and run your configured `codex` or `claude` in window 3 from the same project. Save your editor changes before asking for edits. Unmodified buffers reload external changes on checks/focus; an unsaved buffer produces a conflict instead of silently losing your work. Review the resulting diff and run the same checks you use for manual changes. Running agents against the same shared worktree simultaneously can still create conflicting edits.
+
+## Check code and make project tasks repeatable
+
+Start with checks that report changes without applying them:
+
+```bash
+shellcheck jobs/check.sh
+shfmt -d jobs/check.sh
+ruff check src
+ruff format --check src
+```
+
+`shfmt -w` and `ruff format` rewrite files; choose them when you want to apply formatting. The practice [Justfile](../examples/workflow/Justfile) groups the checks behind `just check`. `just` runs project-defined recipes; it does not know how to build or submit an arbitrary project by itself. Put your existing build/test commands in a project recipe when you want one repeatable entry point, using the site's compilers and job scripts.
+
+For a Python project, after loading its intended site Python:
+
+```bash
+uv venv --python python3 .venv
+source .venv/bin/activate
+python --version
+```
+
+Install dependencies using that project's documented lockfile/mirror/offline procedure. The workspace's uv wrapper defaults to not downloading Python. The virtual environment is project-owned; it does not change the packaged tools.
+
+Optional tools are installed but need deliberate use:
+
+- `watchexec -w src -e py -- ruff check src` runs once immediately and again on relevant changes. Ctrl-C stops it. Keep watches narrow on shared storage.
+- `direnv` has no automatic Bash hook enabled by default. For a project whose `.envrc` you have reviewed, `direnv allow .` authorizes it and `direnv exec . COMMAND` uses that environment for one command. Add `eval "$(direnv hook bash)"` to your personal workspace Bash file only if you want automatic loading on directory changes.
+- `hyperfine --warmup 1 --runs 5 'python3 src/solver.py'` deliberately repeats this tiny calculation. Use allocated resources for real benchmarks and commands that make sense to run repeatedly.
+
+## Submit jobs and inspect results
+
+Use your existing native batch scripts and site procedure. The workspace does not invent resource flags or add its container to your batch jobs:
+
+```bash
+sbatch job.slurm       # Slurm: your real site script
+qsub job.pbs          # PBS: your real site script; choose the applicable command
+```
+
+The practice project has no submit-ready PBS/Slurm script. For jobs that export the submitting environment but will run outside this image, use `ws job-env --` before your usual client when needed to strip workspace-only paths. For example, `ws job-env -- sbatch job.slurm` retains the native command and arguments. Keep your normal module/setup commands in the job script.
+
+You can start an interactive job from a tmux pane. The client connection stays in that login-node pane; the scheduler starts a new shell on the compute node. There, run `ws enter` to use the workspace tools. Your login-node container does not move to the compute node. Follow the [interactive-job guide](editor-and-agents.md#interactive-jobs-and-tmux) for the environment prefix, site-specific resource options, and shared-file requirements.
+
+For output, choose the smallest useful view:
+
+```bash
+tail -n 80 logs/run.log
+rg -n -i 'error|warning' logs
+lnav logs/run.log
+jq '.run | {case, ranks, seconds}' reports/run.json
+yq '.solver.tolerance' config/run.yaml
+mlr --csv sort -n seconds reports/timings.csv
+```
+
+Use `tail -f /path/to/live.log` to follow a running log, then Ctrl-C to stop following. Use `htop` or `btop` for processes visible on the current node; use native `squeue`/`qstat` for the job queue. `df -h .` reports filesystem capacity; `du -sh ./results` or `ncdu -rr -x ./results` measures that directory by scanning it. `spf .` is the visual file browser; its help is `?`, and its plain-font defaults are already configured.
+
+## Save your work and return later
+
+Before leaving an editor, `:wall` writes all writable modified buffers. **Space w s** saves the editor layout; **Space w r** restores it. A normal Neovim exit saves the layout, and opening `nvim` with no file arguments interactively in the same directory restores it. A layout snapshot does not contain the text of unsaved buffers.
+
+Persistent undo helps with previously saved edits. Swap files can help recover unsaved edits after a crash: reopen the original file and follow Neovim's recovery prompt, or use `nvim -r path/to/file`. Recovery is limited to what reached the swap file. The [state paths and recovery notes](dotfiles.md#persistent-state) explain where those files live. Save before allocation expiry; neither swap nor tmux extends walltime.
+
+In tmux, **Ctrl-B d** detaches; `ws session` on the same node/project/release reconnects. **Ctrl-B Ctrl-S** saves a layout snapshot; **Ctrl-B Ctrl-R** restores one into an appropriate new session. Snapshots also save periodically and on detach, but automatic restore is disabled. The defaults restore layout/directories and shells, not running jobs or agent/editor processes, and do not capture pane contents. Live sessions, layout snapshots, and saved files are three different things.
+
+Close a shell pane with `exit` or Ctrl-D at an empty prompt. Closing the last pane/window ends the session and its keeper. When a compute allocation ends, its processes end; files on persistent shared storage remain, while node-local temporary data follows the site's cleanup policy.
+
+For an update, return to your repository checkout in the native shell and run `git pull --ff-only && ./setup`. Start a new `ws enter` or `ws session` afterward. Existing sessions keep their original image; updates preserve your personal preferences and saved state.
 
 ## PuTTY and VS Code appearance
 
-The image controls prompts and application colors. Set the client font and background on your Windows workstation. For a PuTTY saved session:
+The default prompt, editor, and terminal apps use ordinary fonts. You do not need Nerd Fonts. For a PuTTY saved session, choose a monospace font, UTF-8 translation, and ANSI/256-color support. A matching palette uses background **#282C34**, foreground **#ABB2BF**, and cursor **#61AFEF**. Keep a terminal type supported by the host; use `xterm-256color` only when `infocmp xterm-256color` succeeds. Font and palette settings belong to the client. [PuTTY appearance and color settings](https://the.earth.li/~sgtatham/putty/0.85/htmldoc/Chapter4.html#config-colours)
 
-1. In **Window > Appearance**, choose an installed monospace font such as Consolas, around 12–13 points.
-2. In **Window > Translation**, choose UTF-8.
-3. In **Window > Colours**, keep ANSI and 256-color support enabled. On versions offering it, keep 24-bit color support enabled.
-4. Set Default Background to **40, 44, 52** (`#282C34`), Default Foreground to **171, 178, 191** (`#ABB2BF`), and Cursor Colour to **97, 175, 239** (`#61AFEF`). Disable “Use system colours” if it overrides these choices.
-5. In **Connection > Data**, use `xterm-256color` only where the remote host has that terminfo entry (`infocmp xterm-256color` succeeds). Save the session. Keep the site's existing terminal setting if that entry is unavailable.
+For VS Code, the optional [terminal settings example](../examples/vscode-terminal.json) uses the same palette. Inspect and merge the keys you want into your existing settings; do not replace unrelated preferences.
 
-These settings follow the [PuTTY manual](https://the.earth.li/~sgtatham/putty/0.85/htmldoc/Chapter4.html#config-colours). The shell does not overwrite `TERM`. Host tmux chooses an installed `tmux-256color`, `screen-256color`, or `screen` entry for its panes.
-
-For VS Code, merge the optional [terminal settings snippet](../examples/vscode-terminal.json) into your existing user settings; merge the `workbench.colorCustomizations` object rather than replacing other customizations. It supplies the same palette without changing your shell or requiring extensions. [VS Code terminal appearance](https://code.visualstudio.com/docs/terminal/appearance)
-
-Color controls apply before starting the workspace/session:
-
-| Setting | Behavior |
-| --- | --- |
-| `WS_COLOR=auto` (default) | True color when `COLORTERM` advertises it; otherwise use terminal capabilities |
-| `WS_COLOR=256` | Use the 256-color Bash/editor palette |
-| `WS_COLOR=truecolor` | Opt into true color, including tmux passthrough, after confirming client support |
-| `WS_COLOR=never` or `NO_COLOR=1` | Plain Bash prompt and tmux styles; leave Neovim's default theme instead of the custom palette |
-| `TERM=dumb` or redirected shell output | Plain Bash prompt |
-
-The workspace flags configure the shipped Bash/tmux/Neovim settings; they are not a universal switch for every third-party program. Personal Bash, Neovim, and tmux overrides are loaded last from `~/.config/hpc-workspace/bashrc`, `nvim.lua`, and `tmux.conf`. Readline key choices live in `inputrc`; application settings use the writable `xdg/` subdirectory. The [dotfile guide](dotfiles.md) explains loading order and updates. Change tmux color settings before creating a fresh session or explicitly reload your personal file; reconnecting does not replace an existing server's configuration.
-
-## First local check after transferring this update
-
-Enter with the new image and launcher, verify the prompt, and edit a project file. On a login host, inspect `ws submit --dry-run` for a small site-approved script, then submit it once and check `ws jobs`. Compare its job ID and output using the native scheduler. Confirm the same workflow on each target locally; the automated fixtures use synthetic clients and cannot validate a site's scheduler configuration or authentication. Keep those local results on the clusters.
-
-For interactive compute work, request the allocation in the host window, then use `ws enter --site SITE --compute --project /path/to/project`. Login-host editor/session state survives the allocation ending. Saving tmux/editor layouts does not migrate live processes or allocations. GPU stacks, software-image payloads, and MPI integration are subsequent phases.
+Use `WS_COLOR=256 ws session` or `WS_COLOR=truecolor ws session` from the native shell when choosing a mode for a new session. `WS_COLOR=never ws enter` disables the shared color styling. These settings affect workspace defaults, not every application universally. Leave TERM alone inside tmux, where it describes tmux's terminal. The [dotfile guide](dotfiles.md) covers persistent preferences.

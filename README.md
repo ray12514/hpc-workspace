@@ -4,7 +4,7 @@ One centrally maintained development environment for Linux HPC systems. Build th
 
 **0.6.1-preview1 fixes tmux panes remaining on screen after shell exit and documents recovery when the host launcher is missing.** It retains the expanded CLI/AI toolkit, Neovim plugins and Treesitter, and locale support from 0.6.0. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
 
-[Install and use the preview](docs/thin-start.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1) · [Validation and limitations](docs/validation.md)
+[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.6.1-preview1)
 
 ## Get the current release
 
@@ -32,8 +32,11 @@ After installing the release, work from your project directory:
 
 ```bash
 ws enter          # one integrated development shell
-ws session        # the same environment in packaged tmux
+# Or, from the native shell:
+ws session        # enter the environment in managed, packaged tmux
 ```
+
+Start with the [daily workflow tutorial](docs/daily-workflow.md), including a copyable practice project. It walks through navigation, Ctrl-R/Ctrl-T, `find`/`fd` + `fzf` + `bat`, ripgrep, Neovim, Git review, project checks, job scripts, and saving your work. Keep the [command reference](docs/command-reference.md) alongside it for quick lookup.
 
 Use ordinary site commands such as `module`, `sbatch`, and `qsub` from that shell. Your existing native job scripts retain their usual role. Enter the workspace within an interactive allocation when you want its tools on the allocated node.
 

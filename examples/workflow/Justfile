@@ -1,0 +1,9 @@
+check:
+    bash -n jobs/check.sh
+    shellcheck jobs/check.sh
+    shfmt -d jobs/check.sh
+    ruff check src
+    ruff format --check src
+
+run:
+    bash jobs/check.sh

@@ -1,5 +1,15 @@
 # Workspace validation
 
+## Current guides and practice workflow
+
+Date: **2026-09-24**. The user guides now follow the repository's `./setup` workflow and the 0.6.1 thin environment. Earlier core-image instructions are retained in a clearly marked archive. The practice project contains synthetic files only.
+
+- A non-root, read-only Linux toolkit fixture with networking disabled passes the practice project's checks and run, file/content searches, data queries, log/storage commands, host-Python virtual environment, direnv example, and small benchmark. It uses the packaged tools and current shared configuration; this documentation change does not rebuild the SIF.
+- The exact `fedit` function from the guide preserves filenames containing spaces and newlines and does nothing on cancellation. Real packaged Neovim opens those filenames. The `find` and `rg` pipelines also preserve NUL-delimited filenames through fzf.
+- The shipped Bash Ctrl-R binding, navigation helpers, Neovim picker mappings, and editor session command are present. Documentation links, heading targets, code fences, and example JSON are checked locally; the practice scripts also pass ShellCheck, shfmt, and Ruff checks inside the fixture.
+
+No real scheduler job, AI API request, target cluster, or PuTTY client was exercised for this documentation update. Remembered Apptainer setup and terminal configuration forms are proposed designs, not features added by these checks.
+
 ## One-command release setup
 
 Date: **2026-09-24**. The repository now provides `./setup` to download, verify, and install the recommended release without an existing `ws`. This host-side addition delivers the unchanged, published **0.6.1-preview1** image and matching installer.

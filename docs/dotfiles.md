@@ -1,73 +1,77 @@
-# Workspace dotfiles
+# Personal workspace configuration
 
-Shared defaults are versioned in `image/config/` beside the image recipe. The **0.6 thin preview** carries them under `/workspace-tools/config` and uses the same personal `bashrc`, `inputrc`, `nvim.lua`, `tmux.conf`, and bat configuration locations described below. It applies settings to those tools without globally changing the host's XDG directories. The thin Neovim launcher loads the shared configuration and personal `nvim.lua` directly; `xdg/nvim/init.lua` remains the older core-image loader. Git uses its normal host configuration; the shell defaults to the Delta pager only when no pager was chosen already.
+This page describes the **0.6.1 thin workspace**. Shared defaults ship in the image; your preferences and state live in writable directories on the system. Updating with `./setup` changes the selected image and launcher while keeping those personal files. The [0.4 configuration guide](legacy/core-dotfiles.md) is retained separately.
 
-The thin release also seeds missing `xdg/superfile/config.toml`, `xdg/lazygit/config.yml`, `xdg/btop/btop.conf`, and `xdg/tealdeer/config.toml`. Their wrappers select these settings only for those applications. Shared Neovim plugins/parsers remain in the image and personal `nvim.lua` loads last. Packaged tmux runs inside the thin environment and reads personal `tmux.conf` after the image defaults. See the [current editor and tool guide](editor-and-agents.md).
+## Installation and shell startup
 
-The remaining image-path and global-XDG details on this page describe the retained **0.4 core release**, which uses `/opt/workspace/config`. See the [thin startup guide](thin-start.md) for the current workflow. No dotfile manager or startup download is required.
+`./setup` installs under `~/.local/share/hpc-workspace/runtime` by default. It adds a small managed PATH block to `.bashrc` and the active Bash login profile. That block makes `ws` available; it does not enter a container automatically. The installed `activate.sh` is the file it sources. Ordinary subsequent logins need only `ws enter` or `ws session`.
 
-## Personal configuration
+If the site loads another personal startup file, use `./setup --shell-startup /path/to/file`. `--prefix DIRECTORY` selects another runtime location; `--no-shell-hook` records that startup files should be left alone. Those preferences are retained by later setup at the same installation. See [setup](thin-start.md) for offline transfer and using an already-open terminal.
 
-On first container entry, missing starter files are created under `~/.config/hpc-workspace/`. Existing files and symlinks are preserved, including the Bash and Neovim overrides supported by earlier releases. Files are published atomically so two simultaneous first entries cannot replace one another's preferences. New files are private to the user.
+## Defaults and overrides
 
-```text
-~/.config/hpc-workspace/
-    bashrc                  personal Bash aliases and preferences
-    inputrc                 personal Readline settings and keybindings
-    nvim.lua                personal Neovim overrides
-    tmux.conf               personal workspace tmux overrides
-    xdg/
-        nvim/init.lua       loads defaults from the selected image
-        bat/config          personal bat options
-        git/config          personal workspace Git configuration
+Container entry creates missing starter files in **`~/.config/hpc-workspace`** and preserves existing files and symlinks. It does not overwrite an edited file with a newer template. The shared defaults themselves are selected from `/workspace-tools/config` in the current image.
+
+| Tool | Current loading behavior | Personal file |
+| --- | --- | --- |
+| Bash | Shared Bash settings, completion/fzf bindings, then personal settings | `~/.config/hpc-workspace/bashrc` |
+| Readline | Shared defaults plus a generated copy of personal settings, reapplied after fzf bindings | `~/.config/hpc-workspace/inputrc` |
+| Neovim | Shared config and bundled plugins, then personal Lua | `~/.config/hpc-workspace/nvim.lua` |
+| tmux | Shared defaults on its workspace server, then personal tmux config | `~/.config/hpc-workspace/tmux.conf` |
+| bat | Personal native bat options; shell chooses the shared theme when color is enabled | `~/.config/hpc-workspace/xdg/bat/config` |
+| Superfile | Its wrapper selects the workspace application config | `~/.config/hpc-workspace/xdg/superfile/config.toml` |
+| lazygit | Its wrapper selects the workspace application config | `~/.config/hpc-workspace/xdg/lazygit/config.yml` |
+| btop | Its wrapper selects the workspace application config | `~/.config/hpc-workspace/xdg/btop/btop.conf` |
+| tldr | Its wrapper selects configuration pointing at the bundled read-only help cache | `~/.config/hpc-workspace/xdg/tealdeer/config.toml` |
+| lnav | Its wrapper scopes application configuration to workspace `xdg`; no starter file is seeded | Application-created files below `~/.config/hpc-workspace/xdg` |
+| Git | Normal host/user/repository configuration; Delta is the fallback pager if none was chosen | Your existing Git configuration |
+
+The thin workspace does **not globally replace `XDG_CONFIG_HOME`**. Some application wrappers select their own configuration; ordinary host programs retain their normal settings. Neovim's wrapper selects a workspace state directory without changing configuration for the entire shell.
+
+The starter `xdg/nvim/init.lua` and `xdg/git/config` remain for compatibility with the old core image. The current thin Neovim wrapper directly loads `nvim.lua` after its shared config; it does not use that old init loader. Thin Git does not automatically read the old workspace `xdg/git/config`. Use your normal Git configuration for identity and preferences.
+
+Your host shell has already initialized its environment before `ws enter`. The workspace inherits it and loads its own Bash configuration; it does not rerun your host login files as its interactive rcfile. Workspace tmux uses its own config, not host `~/.tmux.conf`. Personal Neovim configuration belongs in the workspace `nvim.lua`, not the host's usual `init.lua`.
+
+## Small personal changes
+
+For navigation aliases or the optional `fedit` helper from the [daily guide](daily-workflow.md#choose-a-filename-and-preview-it), edit:
+
+```bash
+nvim "$HOME/.config/hpc-workspace/bashrc"
 ```
 
-This folder can also contain the existing local `config.json` used by Inspector import. It remains separate from the dotfile mechanism and is never overwritten by it. Keep site facts, credentials, histories, and local reports out of the public dotfile sources. Portable preferences can be transferred independently using the approved method.
+For example, add `alias cproject='cd "$HOME/my-project"'` using your real local project path. Start a fresh workspace shell to apply it. To override editor line numbers, add `vim.opt.relativenumber = false` to `nvim.lua` and restart Neovim.
 
-The container sets `XDG_CONFIG_HOME` to this writable `xdg` directory and `XDG_CONFIG_DIRS` to the image defaults. Programs can save personal settings without writing into the SIF. Per-application loading behavior is documented below; setting an XDG search path alone does not make every application merge configuration files. [XDG specification](https://specifications.freedesktop.org/basedir/latest/)
+Choose shared color behavior **before entry**, for example `WS_COLOR=256 ws session`. A persistent choice can live in the native Bash startup file your site loads, alongside the installer's PATH hook. The prompt and tmux choose their colors during initialization; setting the variable later in personal workspace Bash is too late to recolor those existing objects. `WS_GIT_PROMPT=0` in personal workspace Bash disables branch lookups on subsequent prompt updates.
 
-The launcher explicitly sets Apptainer's home destination to the same path it binds from your host environment. This also handles a host `HOME` that differs from the account database's default. [Apptainer home option](https://apptainer.org/docs/user/1.3/cli/apptainer_exec.html#options)
-
-## Loading order
-
-| Tool | Defaults and personal settings |
-| --- | --- |
-| Bash | Loads the image's `bashrc`, enhanced command completion, and the bundled fzf bindings. Reapplies personal Readline choices, then sources personal `bashrc` last. |
-| Readline | `INPUTRC` selects the personal `inputrc`; its starter file includes the image defaults before personal settings. Retain that include to receive future default updates. |
-| Neovim | The personal `xdg/nvim/init.lua` starter loads the current image's configuration; that configuration loads personal `nvim.lua` last. The image directory supplies the shared colorscheme. Keep the starter loader to receive default updates. |
-| tmux | `ws session` starts its dedicated host tmux server with the matching source bundle's defaults, then sources personal `tmux.conf` if present. It does not load or modify normal host `~/.tmux.conf`. |
-| Git | `GIT_CONFIG_SYSTEM` selects the image's editor/color defaults. Git then reads workspace `xdg/git/config`, normal `~/.gitconfig`, and repository configuration in its normal precedence order. Identity and credentials are not supplied by the image. |
-| bat | Reads its native configuration from workspace `xdg/bat/config`. The interactive shell supplies the existing shared theme; personal Bash settings can change `BAT_THEME`. |
-
-Normal host Bash, Readline, and Neovim startup files are not sourced or changed by container entry. Git's normal `~/.gitconfig` remains available for existing user identity and settings. Normal host `~/.config/git/config` is outside the workspace's XDG directory; deliberately include it from a personal Git config if needed. [Git configuration locations and ordering](https://git-scm.com/docs/git-config#FILES)
-
-Files for tools not yet installed, such as delta/eza/lazygit, will be added with their tested integrations. This release establishes configuration handling for the current toolset.
-
-## Everyday adjustments
-
-Edit personal `bashrc` for aliases or environment preferences, `nvim.lua` for editor options, and `tmux.conf` for session styling or shortcuts. The starter files contain small examples. Use `xdg/bat/config` for bat's native command-line options and `xdg/git/config` for workspace-specific Git preferences.
-
-Start a fresh workspace shell after Bash or Readline changes. Restart Neovim after editor changes. Tmux reads its configuration when its server is first created; reconnecting to an existing session does not load a newer image or configuration. To apply just a personal tmux edit, use the tmux command prompt (`Ctrl-b :`) and enter:
+After changing personal tmux settings, use Ctrl-B then `:` and enter:
 
 ```text
 source-file ~/.config/hpc-workspace/tmux.conf
 ```
 
-The initialized files are user-owned and never overwritten by entry. To recreate one starter file, move that particular file to a backup and enter again. Keep the rest of the directory, especially the local workspace `config.json`.
+That applies the personal file to this server. It does not replace the running image or reload a release's entire shared config. A newly created server uses the new release's defaults.
 
-## Shell integration fixed in this release
+## Persistent state
 
-The earlier image installed fzf, but its key-binding script was omitted by the base image's documentation exclusions. The build now retains the package's matching script and installs it as a runtime asset. Bash also explicitly initializes its installed completion framework.
+The usual state root is **`~/.local/state/hpc-workspace/local`**. Saved site labels, `XDG_STATE_HOME`, or `--state-dir` can change it. Inside the workspace, `printf '%s\n' "$WS_STATE_HOME"` shows the actual path.
 
-- **Ctrl-R:** choose a historical command and place it on the editable command line; selection does not execute it.
-- **Ctrl-T:** insert a selected file/directory path.
-- **Alt-C:** select a directory to enter.
-- **Tab:** complete supported command options and arguments, including Git commands.
+| State | Location / behavior |
+| --- | --- |
+| Bash history | `$WS_STATE_HOME/bash-history`; appended at prompts |
+| Neovim undo | `$WS_STATE_HOME/apps/nvim/undo`; supports undo across saved editing sessions |
+| Neovim swap | Normally `$WS_STATE_HOME/apps/nvim/swap`; `:set directory?` shows the effective value |
+| Neovim layouts | `$WS_STATE_HOME/apps/nvim/sessions`; selected by the editor's starting directory |
+| tmux snapshots | `$WS_STATE_HOME/tmux/<node>/<session>`; managed sessions are scoped to project and release |
+| Host session bookkeeping | `$WS_STATE_HOME/session-hosts`; used to reconnect to the running keeper |
+| zoxide and other application data | Their ordinary application-specific locations unless a wrapper overrides them; zoxide honors `_ZO_DATA_DIR` and otherwise its normal XDG data location |
 
-The source of the bindings remains the pinned distribution package; the broader newest-stable toolkit upgrade is tracked in the [toolkit roadmap](toolkit-roadmap.md). Perform file picking from the intended project directory. [Fzf integration for the packaged release](https://github.com/junegunn/fzf/blob/0.44.1/README.md#key-bindings-for-command-line)
+In Neovim, `:echo stdpath('state')` shows its state directory. `:wall` saves modified buffers; `:WorkspaceSave` saves layout and file references. Persistent undo is not a copy of all unsaved text. After an unexpected termination, use the swap recovery prompt or `nvim -r path/to/file`; recovery can only restore what was written to disk. Keep the state directory on persistent storage if you need it after an allocation ends.
 
-## Updates and persistent state
+Tmux snapshots restore arrangement, working directories, and shells. They do not migrate running processes, allocations, or unsaved editor buffers. A live detached login-node session is different: it keeps running while that node and its session survive. See the [daily save/return workflow](daily-workflow.md#save-your-work-and-return-later).
 
-New image releases supply new shared defaults. Starter include/loader files keep selecting the current image's defaults, while personal settings are retained. A self-contained personal configuration intentionally replaces that application's starter behavior. No automatic merge of edited preferences is performed.
+## Local system facts and updates
 
-Command history, editor undo and sessions, skill state, and caches retain their existing persistent locations under the workspace state directory. Cluster profiles, personal dotfiles, and application state have separate roles. The host launcher continues to own scheduler and mount configuration; dotfiles do not choose an MPI/GPU runtime or submit jobs.
+Inspector's optional `config.json` stores system facts and explicit overrides. Its default location is `${XDG_CONFIG_HOME:-$HOME/.config}/hpc-workspace/config.json`; `WS_CONFIG_DIR` changes that configuration location only. It does not relocate dotfiles, which remain under `~/.config/hpc-workspace`. See the [Inspector guide](inspector-integration.md).
+
+Shared defaults update with the image; personal overrides load afterward. Review a template before adopting new options into an already-edited personal file. To regenerate one starter, move just that file to a backup and enter again. Keep local system facts, histories, credentials, reports, and session state on the originating system.

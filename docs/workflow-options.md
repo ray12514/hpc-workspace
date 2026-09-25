@@ -1,6 +1,6 @@
 # One development environment across systems
 
-Updated 2026-09-23. **These requirements supersede the earlier proposal to divide everyday work between host and container windows.** The first implementation is available in the [0.5 thin preview](thin-start.md); the released 0.4 artifact remains available. Further toolkit and site-specific compatibility work continues.
+Updated 2026-09-24. These are the requirements for the current [0.6.1 thin workspace](thin-start.md), including centrally packaged CLI/AI tools, editor plugins, and the repo's `./setup` download/install command. They supersede the earlier proposal to divide everyday work between host and container windows. Use the [daily guide](daily-workflow.md) for current operations; site-specific compatibility work continues.
 
 ## User experience
 

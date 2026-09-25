@@ -1,0 +1,3 @@
+2026-09-24T09:00:00 INFO starting synthetic small case
+2026-09-24T09:00:01 WARNING iteration budget is intentionally small
+2026-09-24T09:00:02 ERROR synthetic failure for search practice

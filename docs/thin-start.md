@@ -2,6 +2,8 @@
 
 The **0.6.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
 
+This page covers installation and lifecycle. After setup, follow the [daily workflow tutorial](daily-workflow.md) or use the [command reference](command-reference.md). The [documentation index](README.md) separates current user guides from historical releases and design notes.
+
 ## Download and install in one command
 
 From your normal Linux login shell:
@@ -66,6 +68,8 @@ The startup blocks source this small activation file automatically; they do not 
 
 Use a host with Python 3.6+ and the site's Apptainer 1.3.6 or newer available through its normal setup. Nix is already in the image as prepared store contents; there is no host Nix installation, package compilation, or startup download.
 
+If Apptainer is provided by a module, the current launcher needs that module loaded before entering the workspace. `./setup` itself can install without it, but does not yet remember the runtime path or load the module automatically. The [runtime setup design](runtime-setup.md) describes the requested improvement and how it should handle modules that supply more than PATH.
+
 ### A site-specific startup file
 
 If your site loads personal Bash configuration from another location, choose that file during the one-time installation:
@@ -95,6 +99,8 @@ After the installer reports success, open a new Bash session and run `ws enter`.
 If installation fails, its local error needs resolving before activation will work. A missing default runtime directory by itself does not identify the cause of an earlier installation failure or locate a custom installation. Keep site diagnostics local.
 
 ## Everyday use
+
+Choose `ws enter` or `ws session` from the native shell; they are alternative entry methods, not two commands to run one after the other.
 
 Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace, editor, and agents windows that use the integrated environment. The agents window starts a shell; run `codex` or `claude` when ready. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
 

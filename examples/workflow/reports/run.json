@@ -1,0 +1,7 @@
+{
+  "run": {
+    "case": "small",
+    "ranks": 16,
+    "seconds": 1.25
+  }
+}

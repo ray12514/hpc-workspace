@@ -1,0 +1,5 @@
+solver:
+  tolerance: 1.0e-6
+  max_iterations: 24
+case: small
+ranks: 16

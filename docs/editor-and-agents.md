@@ -1,5 +1,7 @@
 # Editor, tools, agents, and interactive jobs
 
+This is the feature/reference guide for the current thin workspace. For a step-by-step routine and copyable search/edit recipes, start with [Daily workflow](daily-workflow.md); for a short lookup sheet, use the [command reference](command-reference.md).
+
 The 0.6 thin preview packages these defaults centrally. New shells use the selected release; personal files under `~/.config/hpc-workspace` are preserved. Run `ws tools` (or `ws tools --json`) inside the workspace for exact installed versions. The Nix lock and image manifests pin tools, plugins, parsers, and help pages together; this is a tested package snapshot, not a promise that every upstream project has the same release schedule.
 
 ## Daily toolkit
@@ -15,7 +17,7 @@ The 0.6 thin preview packages these defaults centrally. New shells use the selec
 | Offline examples | `tldr tar`, using pinned English common/Linux pages inside the image |
 | Editor and agents | Neovim, tmux, Codex, Claude Code; private agent/editor runtimes do not replace host Python, Node, or compilers |
 
-Use the site's module-selected compiler and scientific stack. `df`, `findmnt`, Git, SSH, scheduler clients, and other native programs continue to come from the host. No disk scan, benchmark, directory watch, agent session, or `.envrc` execution starts merely because you enter the workspace. Delta is the shell's Git pager only when you have not already chosen a pager.
+Use the site's module-selected compiler and scientific stack. `find`, `df`, `findmnt`, Git, SSH, scheduler clients, and other native programs continue to come from the host. No disk scan, benchmark, directory watch, agent session, or `.envrc` execution starts merely because you enter the workspace. Delta is the shell's Git pager only when you have not already chosen a pager.
 
 Use `df -h` for human-readable filesystem capacity and `findmnt` to inspect visible mounts. The launcher binds the host's accessible top-level filesystem trees when you enter. These commands report the container's mount view, which can differ from the host's mount table; permissions, site bind rules, and mounts created afterward still matter. A filesystem that appears only later may need a fresh `ws enter` or an explicit local bind.
 
@@ -23,7 +25,7 @@ Superfile, lazygit, btop, and tealdeer have personal configuration templates und
 
 On Superfile's first run, press any key to dismiss its welcome screen. Then `?` opens the key guide and `q` quits. Lazygit's first-run welcome uses Enter to continue into the repository view.
 
-## Neovim defaults to refine together
+## Neovim defaults
 
 Neovim loads the shared configuration, then `~/.config/hpc-workspace/nvim.lua`. The image includes fzf-lua, which-key, gitsigns, blink.cmp, conform, nvim-treesitter, and vim-tmux-navigator. Native package loading needs no runtime plugin manager. Completion uses Blink's Lua matcher; startup does not download a binary.
 
@@ -40,7 +42,7 @@ Precompiled parsers and matching queries cover C, C++, Fortran, Python, Bash, JS
 | Ctrl-N / Ctrl-P / Ctrl-Y / Ctrl-E | Next completion / previous / accept / dismiss |
 | g d / g r r | Definition / references |
 
-Formatting is manual, so saving an existing PBS/Slurm script does not silently reformat it. Gitsigns uses ordinary `+`, `~`, and `-` characters. Borders, labels, and completion kinds do not require Nerd Fonts. Set `WS_COLOR=256`, `WS_COLOR=truecolor`, or `WS_COLOR=never` in personal Bash settings as appropriate; PuTTY and VS Code can use the same key vocabulary.
+Formatting is manual, so saving an existing PBS/Slurm script does not silently reformat it. Gitsigns uses ordinary `+`, `~`, and `-` characters. Borders, labels, and completion kinds do not require Nerd Fonts. Choose `WS_COLOR=256`, `WS_COLOR=truecolor`, or `WS_COLOR=never` before entry, for example `WS_COLOR=256 ws session` in the native shell; PuTTY and VS Code can use the same key vocabulary. See [configuration loading order](dotfiles.md).
 
 Python support uses basedpyright plus Ruff, with diagnostics limited to open files. Bash uses bash-language-server and ShellCheck, with remote explainshell requests disabled. Fortran uses fortls with one initialization thread and its updater disabled by default. Project configuration can refine server behavior. C/C++ uses `clangd` if provided by the host and `clang-format` if available; neither supplies your site's headers or MPI configuration. Use a correct `compile_commands.json`. Heavy project indexing still belongs in an appropriate allocation.
 
@@ -48,7 +50,7 @@ An unmodified buffer reloads external agent edits on focus/buffer checks. Neovim
 
 ## tmux
 
-`ws session` starts **workspace**, **editor**, and **agents** windows. The agents window is a shell: run `codex` or `claude` there when ready. It uses the same project directory. Use Ctrl-B then the window number to switch.
+From the native login shell, `ws session` enters the workspace and starts **workspace**, **editor**, and **agents** windows. It is an alternative to `ws enter`, not a command to run inside it. The agents window is a shell: run `codex` or `claude` there when ready. It uses the same project directory. Use Ctrl-B then the window number to switch.
 
 Ctrl-B followed by `|` or `-` splits at the current directory. Ctrl-B then h/j/k/l selects a pane; capital H/J/K/L resizes it. Ctrl-B then `[` enters copy mode, with `v` to select and `y` to copy into tmux's buffer. The editor's Space-w navigation can cross its outer split boundary into tmux. Ordinary shell Ctrl-H/J/K/L behavior remains available. [vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator)
 

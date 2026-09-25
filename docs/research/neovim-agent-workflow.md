@@ -1,5 +1,7 @@
 # Neovim and coding-agent workflow
 
+Historical research snapshot: the 0.6 release subsequently implemented the initial plugin/parser and language-server bundle. Use the [current editor guide](../editor-and-agents.md) and [daily tutorial](../daily-workflow.md) for installed behavior; descriptions below are from the original review.
+
 Reviewed 2026-09-22. Proposal only: no tools, plugins, image, or cluster settings were changed. This note uses public upstream documentation and local repository files. The recommendations need integration testing in the selected image and terminal modes.
 
 ## Current configuration

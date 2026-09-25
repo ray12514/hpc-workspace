@@ -1,58 +1,61 @@
-# Tmux startup and bat errors
+# Workspace troubleshooting
 
-Updated 2026-09-23 for 0.4.0-preview1. The reported symptoms are an approximate tmux “Shell …” message followed by an inactive-looking session, and an unspecified bat SSL/library error. Neither exact failure has been reproduced locally. No runtime fix or cluster compatibility is claimed here.
+Current workflow: **0.6.1 thin image plus the repo's `./setup` command**. The [validation record](validation.md) identifies the local checks performed; the [0.4 diagnostic replay](legacy/core-troubleshooting.md) remains historical. Keep cluster-specific paths, profiles, environment dumps, and results on the cluster.
 
-Run these checks on the affected machine using its normal approved workflow. Keep command output and all site details there. If sharing is permitted, only the generic error wording and whether it happened in the native shell or `ws enter` are useful here; do not send profiles, environment dumps, paths, hostnames, or job data.
+## Missing ws or only a skills directory
 
-## What the local replay established
+From the repo checkout in the native login shell:
 
-A disposable Linux Docker fixture used the released 0.4 image, real host-launcher code, tmux 3.4, Bash, Neovim, and bat. It had no network, a read-only image/source mount, and disposable state. An explicit Apptainer stand-in dispatched to the real image entrypoint, so this checked session construction and application behavior, **not** the real Apptainer boundary or target cluster.
+```bash
+git pull --ff-only && ./setup
+```
 
-- `ws session --detach` created the editor, host, and workspace windows.
-- Commands sent through tmux wrote readiness markers from both Bash windows and Neovim.
-- Bat rendered a changed file in a synthetic Git repository and exited successfully.
-- A deliberate `exit 23` left the workspace pane visible with `pane_dead=1` and `pane_dead_status=23`.
+The setup command needs no old `ws`. It downloads and verifies the complete release and creates the runtime, launcher, and Bash PATH hook. Open a new Bash session afterward. A `~/.local/share/hpc-workspace/skills` directory is separate and does not establish that the runtime was installed.
 
-The last result follows the shipped `remain-on-exit on` setting in `image/config/tmux/tmux.conf`. An exited pane remains visible so its error can be read. This is verified behavior, not evidence that it caused the reported incident. Reconnecting to the same workspace session reuses its existing panes.
+For a first clone, custom startup path, nondefault prefix, or offline machine, use [setup and startup](thin-start.md). If installation reported an error, resolve that error locally before expecting activation to work.
 
-The image's `/usr/bin/batcat` dynamically depends on `libgit2.so.1.7`, `libssl.so.3`, and `libcrypto.so.3`; all resolved within the image in the clean local check. That does not establish which executable or libraries were selected during the reported failure.
+## Download stopped or update appears unchanged
 
-## Inspect a workspace pane without replacing the session
+Rerun `./setup`; verified downloads are reused and partial files can resume. A checksum mismatch prevents installation. A TLS/proxy error needs the site's approved network/certificate configuration; do not turn off certificate verification.
 
-In the affected pane, press **Ctrl-b**, then **:** to open tmux's command prompt. Enter:
+The repo's recommendation selects the version, so use `git pull --ff-only` before setup. A running shell or tmux server retains its original image. Inside it, `printf '%s\n' "$WS_RELEASE"` and `ws tools` show that session's version. Return to the native shell and start a new `ws enter` or `ws session` to use the selected release.
+
+## Tmux says the pane is dead or looks frozen after exit
+
+Releases before 0.6.1 retained an exited pane with `remain-on-exit on`. There was no shell left to read normal input. A fresh 0.6.1 server defaults to `off`: Ctrl-D at an empty prompt or `exit` closes the pane; closing the final pane/window returns to the parent shell. Ctrl-C interrupts a command without normally closing Bash.
+
+Ctrl-B then d detaches even from a retained dead pane. Ctrl-B then `:` opens tmux's command prompt; inspect locally with:
 
 ```text
 display-message "dead=#{pane_dead} exit=#{pane_dead_status} command=#{pane_current_command}"
 ```
 
-`dead=1` means the pane's command exited. Read its retained error locally. `dead=0` means a process still exists; it does not prove that the application is responsive. If the tmux command prompt responds, the server is processing input even if the pane's application is not.
+`dead=1` means the pane's process exited. Ctrl-B then x and its confirmation closes that pane; use it on a finished pane, not on work you want to keep. In an older server, `set -g remain-on-exit off` at the tmux command prompt changes future pane-exit behavior. A personal `tmux.conf` can still override the default. See [current tmux behavior](editor-and-agents.md#tmux).
 
-**Ctrl-b n** selects the next window; the workspace recipe includes a native `host` window. **Ctrl-b d** detaches while leaving the session intact. Avoid killing all tmux servers or deleting state as a diagnostic step.
+Use managed `ws session` from the native login shell when you want the session to outlive an entering shell. Plain tmux inside `ws enter` uses the shared settings but has no separate keeper. Neither method extends an allocation's lifetime.
 
-For a separate baseline check, return to an ordinary native shell on the approved login host, outside an allocation and outside tmux. Run:
+## bat reports an SSL or library error
 
-```bash
-tmux -V
-tmux -L "ws-startup-check-$$" -f /dev/null new-session -s check '/bin/bash --noprofile --norc'
-```
-
-This uses a separate socket and no workspace configuration. Type `exit` in that test shell when finished. Compare whether the same generic error occurs; this comparison alone is not a diagnosis. The workspace configuration has been tested with tmux 3.4; older or differently built host versions have not been validated by this replay.
-
-## Exercise bat outside tmux
-
-From the ordinary native shell, use the same image/site/project selection as the failing launch. With a previously saved image selection:
+In the failing shell, `command -V bat` identifies whether it is the packaged executable, a host program, or a personal alias. From a native shell with the release installed, try a small synthetic input:
 
 ```bash
 ws enter -- bat --version
 printf 'workspace bat check\n' | ws enter -- bat --paging=never --color=never
 ```
 
-If selection is not saved, add your usual `--image`, `--site`, and `--project` options before `--`. These commands need no network or private file input. Record locally whether failure occurs on startup, while reading input, or only with a particular project/file. A successful stdin check does not exercise every Git integration path.
+The thin release supplies private dependencies for its tools. Local tests include a deliberately incompatible host `libssl.so.3` and pass for packaged bat; they do not identify every possible site error. A missing library or undefined symbol is different from a TLS certificate-validation error. Keep the exact error and executable resolution locally. Avoid copying arbitrary host libraries into the image or globally replacing `LD_LIBRARY_PATH` based only on the word SSL.
 
-In the shell where the original command failed, `command -V bat` identifies whether `bat` resolves to an alias, function, or executable. Inspect that result locally; a native `bat` and the image's `bat` need not be the same program.
+## Locale warnings
 
-A message such as `libssl.so... cannot open shared object file`, `version ... not found`, or `undefined symbol` concerns loading libraries or symbols. A certificate-verification message concerns a different operation. The exact generic wording is needed to distinguish them. Do not copy arbitrary host SSL libraries into the image, disable certificate verification, or globally change library paths based only on the word “SSL”.
+The 0.6 image supplies a matching locale archive for its packaged tools, preserves available host locales, and falls back for unsupported values. Start a fresh release session first; an old tmux server retains its old environment. A personal startup file can also set an invalid locale after workspace initialization. The [locale notes](editor-and-agents.md#locale-warning) explain the tested case without changing host locale policy.
 
-## Next diagnostic boundary
+## Missing shortcut, icons, or editor assistance
 
-The missing evidence is the exact generic error and launch context. Once those are available, create a matching local failing case before changing runtime behavior. If site policy prevents sharing even that information, use this guide for local diagnosis and keep the results on the system. Neither the [Nix packaging proposal](design-direction.md) nor the [native tools alternative](research/native-tool-layer.md) establishes a fix for either report.
+- Try Ctrl-R at a **workspace Bash prompt**. In Neovim, Ctrl-R is redo. In a picker, Esc cancels. Personal `inputrc` settings can replace bindings; Alt-C can be sent as Esc then c.
+- Press Esc before Neovim's Space shortcuts. Use Space ? to inspect them. File/text picking works independently of language-server setup.
+- A symbol/definition lookup needs a suitable attached language server. C/C++ uses host clangd and the project's headers/compilation database. Activate your project Python environment before opening the editor.
+- Use the [PuTTY/VS Code appearance guide](daily-workflow.md#putty-and-vs-code-appearance). Ordinary fonts are supported; TERM should describe the real terminal. Changing colors in an already-running server does not restart its applications.
+
+## A host command or filesystem is unavailable
+
+Check the same command/path in the native shell first. Enter after loading the site's normal modules. `ws enter --dry-run` displays the local integration plan; `findmnt -T /path/to/project` identifies a path's mount from the current context. Mounts introduced after startup may need a fresh entry. Having paths bound does not prove every site authentication helper, MPI stack, or nested container engine works; use the site's normal local checks.

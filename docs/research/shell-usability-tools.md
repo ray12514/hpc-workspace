@@ -4,7 +4,7 @@ Reviewed 2026-09-22. This is a proposed shortlist, not an installation or releas
 
 ## Audited image: 0.3.0-preview1
 
-**Follow-up:** release 0.4.0-preview1 repairs the fzf key bindings and enhanced Tab completion described below and adds explicit [dotfile configuration](../dotfiles.md). The following audit remains a record of the earlier image. The additional tools remain proposed.
+**Follow-up:** release 0.4 repaired the bindings/completion gaps, and 0.6 subsequently packaged the common CLI expansion. Use the [daily guide](../daily-workflow.md), [command reference](../command-reference.md), and [current dotfiles](../dotfiles.md) for today's behavior. The following audit and proposed shortlist remain a historical record of the earlier image.
 
 The local `hpc-workspace:0.3.0-preview1` image was inspected in a disposable Docker container with a read-only filesystem and networking disabled. This confirms the built image's behavior, rather than only the intended package list in the [Dockerfile](../../image/Dockerfile).
 

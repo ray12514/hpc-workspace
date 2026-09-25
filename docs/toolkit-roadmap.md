@@ -8,7 +8,7 @@ Use the site's existing compilers through its normal module environment. Additio
 
 Use the same Bash shell, shortcuts, editor, and project commands on Ruth, Jean, and Blueback. Start in a project, find a file or previous command, edit with language assistance, ask a coding agent for a change, review the diff, run the project's checks, and submit the existing native job script. PuTTY and VS Code terminals receive the same useful behavior with ordinary fonts and a compatible color palette.
 
-The defaults should be discoverable. Add a short shortcut guide and a tool catalog showing what is installed, its version, and one useful example. File pickers and searches start in the project. Large scans, tests, and benchmarks are deliberate operations; compute-heavy work runs in an allocation.
+The [daily tutorial](daily-workflow.md), [command reference](command-reference.md), and `ws tools` now provide the walkthrough, shortcuts/examples, and installed versions. File pickers and searches start in the project. Large scans, tests, and benchmarks are deliberate operations; compute-heavy work runs in an allocation.
 
 Keep the container as the consistent shell and tools environment, with shared dotfiles for appearance and shortcuts and Nix-packaged tools inside the image. Build the tool set centrally and automate deployment, updates, and local integration. Preserve ordinary use of site filesystems, schedulers, modules, and supported software from that same shell. Host integration is implementation work; requiring a second shell or manually maintained setup on each cluster does not meet the target.
 
@@ -40,7 +40,7 @@ Keep one main editor configuration and a small, pinned plugin set. Package the p
 
 Run Neovim and Codex or Claude Code in neighboring tmux panes/windows, with a clearly identified execution context for tests and host operations. Validate editor/agent subprocesses across the chosen container/host integration. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
 
-The workspace already sets `VISUAL=nvim` and `EDITOR=nvim`. Codex documents **Ctrl-G** for composing a longer prompt in that editor and returning it to the CLI before sending. That is a useful initial integration, followed by an optional editor adapter if it adds value. The shortcut itself was not exercised during this research. [Official Codex CLI customization](https://learn.chatgpt.com/docs/cli-customization)
+The workspace sets `VISUAL=nvim` and `EDITOR=nvim`. The current integration is adjacent editor/agent windows, external-file checks, and a shared Git review workflow. Additional agent-specific editor adapters remain optional future work. Agent skill files are bundled, but their automatic activation in the thin runtime is still outstanding; see [skills](skills.md).
 
 ## Current versions with reproducible releases
 
@@ -66,29 +66,29 @@ Define a small integration convention before adding custom tools:
 
 Portable helpers can be included in the image. Host-dependent helpers need a tested host execution path or compatible container integration, with pinned packages and coherent tool-specific dependencies. During local development, explicitly select a checked-out tool; use pinned packages in releases. A larger dependency-heavy suite can later become a versioned toolbox image or software payload using the [runtime-layer design](design-direction.md). Small Python/shell helpers do not each need a separate container.
 
-`libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on site tools, connectivity, and authentication. Treat these as integration requirements for use from the development shell. The current workspace host connection supports **submit/jobs only** and cannot already run `libsweep`. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
+`libsweep` needs particular care about execution context: its scheduler inventory and SSH orchestration depend on site tools, connectivity, and authentication. The thin shell provides general host integration, but `libsweep` is not packaged or validated by this release. The older core submit/jobs bridge is not its execution path. Library-name/version agreement is diagnostic evidence, not a complete application/MPI ABI compatibility test.
 
 Two established HPC projects are worth evaluating before writing equivalent helpers: **hwloc** for inspecting CPU/NUMA/device topology, including its terminal-oriented `lstopo-no-graphics`, and **ReFrame** for repeatable system tests and benchmarks. Hwloc's output describes the resources visible in the execution environment; ReFrame needs deliberate site and test configuration and can submit jobs. Both belong to a later, explicitly invoked diagnostic/testing workflow. [hwloc documentation](https://www.open-mpi.org/projects/hwloc/), [ReFrame documentation](https://reframe-hpc.readthedocs.io/en/stable/)
 
-Useful future custom commands, all proposed except the existing doctor command:
+Existing discovery commands and possible extensions:
 
 | Interface | Purpose |
 | --- | --- |
-| `ws tools` | Discover installed tools, versions, execution context, examples, and shortcuts |
+| `ws tools` | Already lists installed versions, with `--json` output; examples and shortcuts are in the command reference |
 | Extend `ws doctor` | Explain the selected image, relevant saved settings, mounts, and explicitly requested runtime checks; the existing command runs on the host |
 | `ws env diff` | Compare selected local environment/profile snapshots before and after a module or configuration change; exclude credentials |
 | `ws binary-info` | Summarize ELF architecture, needed libraries, and embedded search paths using metadata inspection; distinguish container and host views |
 | `ws logs` | Find and open a job's output through native scheduler information, without translating or rewriting its submission script |
 
-These names are design examples, not commands the current release provides. Implement only when a repeated task justifies them, and compose existing tools wherever possible.
+`ws tools` and the current `ws doctor` exist. The new `ws env diff`, `ws binary-info`, and `ws logs` interfaces are proposals. Implement them only when a repeated task justifies them, and compose existing tools wherever possible.
 
 ## Delivery sequence
 
-1. Diagnose the reported tmux/bat errors using the [local guide](troubleshooting-startup.md). Keep the container workflow and personal overrides. Site commands working from the same development shell are an established requirement.
-2. Build the small Nix tool pilot, automated integration, and deployment/update path described in the [implementation plan](thin-container-plan.md). Validate real invocation, terminal input, paths, modules, editor subprocesses and ordinary scheduler behavior from that same shell, then perform site-local acceptance before extending the toolkit.
-3. Package Codex and Claude Code with their required runtimes, extend the compact Neovim configuration, and validate the editor/agent/review workflow with site compiler subprocesses in the intended execution contexts.
-4. Add reusable project recipes for linting, formatting, builds, and tests, using native scheduler scripts where required.
-5. Integrate `libsweep` as the first personal HPC tool and use that experience to settle the small packaging convention.
-6. Add further custom helpers and scientific runtime layers as concrete workflows require them.
+1. Delivered: pinned Nix tools, automated host integration, managed tmux, expanded agents/editor/CLI bundle, and the one-command download/install/update path. See [validation](validation.md) for the terminal, locale, library, and installation checks; site-specific acceptance remains local work.
+2. Use the [practice project](../examples/workflow/) and daily guide to refine the workflow. Add real project recipes using each project's existing build/tests and native scheduler scripts.
+3. Add [remembered Apptainer runtime setup](runtime-setup.md): use a recorded executable directly when sufficient, and automatically load a required site module only for workspace launch. Verify fresh-login and compute-node cases locally.
+4. Add optional [guided configuration](guided-configuration.md): package Gum for terminal prompts, reuse the existing configuration backend, then add versioned Codex, Claude Code, and project-file forms. Keep initial runtime setup usable before the image can run.
+5. Complete automatic skill activation for the thin runtime and validate it without replacing independently managed skills.
+6. Integrate `libsweep` as the first personal HPC tool, then add further helpers and scientific runtime layers as concrete workflows require them.
 
 This roadmap uses public sources and local development code only. The implemented foundation is documented separately; the remaining proposals do not change any cluster configuration.

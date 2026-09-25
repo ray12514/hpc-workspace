@@ -1,5 +1,7 @@
 # Workspace views
 
+**Historical screenshots:** the current thin release has workspace/editor/agents windows and additional tools. These older pictures illustrate the palette, not today's window layout or submission commands. Use the [current daily guide](../daily-workflow.md).
+
 These views capture Bash, tmux, and Neovim running in the **0.2.0-preview1** image. Captured terminal output is rendered with a monospace font and the suggested client palette. Fonts, cursor rendering, and window borders vary with PuTTY or VS Code settings; the [daily workflow guide](../daily-workflow.md#putty-and-vs-code-appearance) explains those settings.
 
 All project files, hostnames, job IDs, and queue results shown here are local demo data. The submission view uses synthetic native scheduler clients. No cluster was accessed and no real job was submitted for these views.
