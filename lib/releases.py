@@ -12,6 +12,8 @@ import shlex
 import shutil
 import tarfile
 import tempfile
+import subprocess
+import sys
 
 
 def digest(path):
@@ -228,7 +230,25 @@ def install(manifest_path, prefix=None, shell_hook=True, startup_files=None):
         if current.is_symlink() and current.resolve() != target:
             point(prefix / 'previous', os.readlink(str(current)))
         point(current, 'releases/' + release)
-    return {'release': release, 'prefix': str(prefix), 'launcher': str(prefix / 'bin/ws')}
+    result = {'release': release, 'prefix': str(prefix), 'launcher': str(prefix / 'bin/ws')}
+    # The matching installed source owns runtime discovery. The standalone
+    # installer keeps its standard-library-only contract and old bundles still work.
+    if (target / 'source/lib/runtime_setup.py').is_file():
+        if os.environ.get('WS_CONTAINER') == '1' and Path('/workspace-tools').is_dir():
+            result['runtime'] = 'Run ws runtime setup from the native host to validate this update.'
+        else:
+            try:
+                checked = subprocess.run([sys.executable, str(target / 'source/bin/ws'), 'runtime', 'setup',
+                                          '--image', str(target / 'image.sif'), '--automatic'],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         universal_newlines=True, timeout=270)
+                if checked.returncode:
+                    result['runtime'] = checked.stderr.strip() or 'Runtime setup needs local configuration.'
+                else:
+                    result['runtime'] = json.loads(checked.stdout).get('status', 'checked')
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                result['runtime'] = 'Runtime check did not complete; run ws runtime setup on the host.'
+    return result
 
 
 def rollback(prefix=None):
@@ -257,6 +277,8 @@ def main():
     try:
         result = install(args.manifest, args.prefix, not args.no_shell_hook, args.shell_startup)
         print('Installed {release}. Run {launcher} enter, or open a new Bash session and run ws enter.'.format(**result))
+        if result.get('runtime'):
+            print('Apptainer: ' + result['runtime'])
     except (OSError, ValueError, KeyError, tarfile.TarError) as exc:
         parser.exit(2, 'workspace install: ' + str(exc) + '\n')
 

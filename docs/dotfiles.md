@@ -1,6 +1,6 @@
 # Personal workspace configuration
 
-This page describes the **0.6.1 thin workspace**. Shared defaults ship in the image; your preferences and state live in writable directories on the system. Updating with `./setup` changes the selected image and launcher while keeping those personal files. The [0.4 configuration guide](legacy/core-dotfiles.md) is retained separately.
+This page describes the **0.7 thin workspace**. Shared defaults ship in the image; your preferences and state live in writable directories on the system. Updating with `./setup` changes the selected image and launcher while keeping those personal files. The [0.4 configuration guide](legacy/core-dotfiles.md) is retained separately.
 
 ## Installation and shell startup
 

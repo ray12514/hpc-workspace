@@ -1,6 +1,6 @@
 # Thin container with site integration
 
-Design date: 2026-09-23. Implementation status updated 2026-09-24: the **0.6.1 thin release** provides the tool/agent/editor expansion and managed sessions; the repo now supplies `./setup` for complete release downloads and installation. This document preserves the original implementation design and acceptance requirements, including steps now completed. See the [startup guide](thin-start.md), [daily workflow](daily-workflow.md), and [validation](validation.md) for current operation and tested scope.
+Design date: 2026-09-23. Implementation status updated 2026-09-25: the **0.7 thin release** provides the tool/agent/editor expansion, managed sessions, configuration forms, and remembered Apptainer setup; the repo supplies `./setup` for complete release downloads and installation. This document preserves the original implementation design and acceptance requirements, including steps now completed. See the [startup guide](thin-start.md), [daily workflow](daily-workflow.md), and [validation](validation.md) for current operation and tested scope.
 
 This is the implementation direction. The [daily-environment requirements](workflow-options.md) supersede the later host-window-first proposal. A single integrated development shell and automated maintenance across systems are acceptance requirements.
 

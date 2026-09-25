@@ -23,6 +23,7 @@ import configuration
 import integration
 import tool_environment
 import releases
+import runtime_setup
 from inspector import MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,14 +72,14 @@ def import_profile(source, args):
         contents = stream.read(MAX_BYTES + 1)
     if len(contents) > MAX_BYTES:
         raise WorkspaceError("Inspector profile exceeds the 4 MiB import limit")
-    runtime = shutil.which("apptainer")
-    if not runtime:
+    runtime = runtime_setup.command()
+    if not shutil.which(runtime[0]):
         raise WorkspaceError("Load Apptainer to import YAML. Ordinary startup uses the saved configuration without parsing YAML.")
     with tempfile.TemporaryDirectory(prefix="ws-profile-") as temporary:
         snapshot = Path(temporary) / "profile.yaml"
         snapshot.write_bytes(contents)
         snapshot.chmod(0o600)
-        command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
+        command = runtime + ["exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
                    "--bind", bind_spec(snapshot, "/tmp/ws-profile.yaml", "ro"), "--pwd", "/tmp",
                    image["path"], "/usr/bin/python3", "-I", "/opt/workspace/lib/inspector.py", "/tmp/ws-profile.yaml"]
         if image.get("layout") == integration.LAYOUT:
@@ -259,11 +260,11 @@ def container_plan(args, create_state=False, job_directory=None, environment_fil
         state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if image.get("layout") == integration.LAYOUT:
         return integration.plan(image, project, state, data, args, bind_spec, environment_file, create_state)
-    runtime = shutil.which("apptainer") or "apptainer"
+    runtime = runtime_setup.command()
     home_mount = bind_spec(Path.home(), str(Path.home()))
     # An explicit bind alone does not set HOME: Apptainer otherwise uses the
     # account database even when the launching shell selected another home.
-    command = [runtime, "exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
+    command = runtime + ["exec", "--cleanenv", "--no-eval", "--no-mount", "home,cwd,hostfs",
                "--home", home_mount.rsplit(":", 1)[0]]
     mounts = [home_mount, bind_spec(project)]
     # A dry-run describes the state bind without creating directories.
@@ -360,6 +361,69 @@ def job_env(args):
     if not command:
         raise WorkspaceError('Use ws job-env -- COMMAND [ARGUMENTS...]')
     return execute(command, tool_environment.job_environment(os.environ))
+
+
+def guided(args):
+    if not sys.stdin.isatty() or not sys.stderr.isatty():
+        raise WorkspaceError('Configuration forms need a terminal; run ws configure in your interactive shell')
+    if os.environ.get('WS_LAYOUT') != integration.LAYOUT or not Path('/workspace-tools/manifests/toml-path.txt').is_file():
+        # Use the selected image's private Python/Gum, keeping the host dependency-free.
+        forwarded = ['enter', '--', '/workspace-tools/libexec/python3', '-I', '/workspace-tools/lib/guided_configuration.py']
+        if args.target:
+            forwarded.append(args.target)
+        if args.name:
+            forwarded.append(args.name)
+        if args.plain:
+            forwarded.append('--plain')
+        return main(forwarded)
+    command = ['/workspace-tools/libexec/python3', '-I', '/workspace-tools/lib/guided_configuration.py']
+    if args.target:
+        command.append(args.target)
+    if args.name:
+        command.append(args.name)
+    if args.plain:
+        command.append('--plain')
+    return execute(command)
+
+
+def agent(args):
+    if args.name and (args.native or args.list):
+        raise WorkspaceError('Choose a named profile, --native, or --list')
+    if args.list:
+        import agent_profiles
+        data = agent_profiles.catalog().data
+        for name in sorted(data['profiles'][args.tool]):
+            print(name + (' (default)' if data['defaults'].get(args.tool) == name else ''))
+        return 0
+    if os.environ.get('WS_LAYOUT') != integration.LAYOUT or not Path('/workspace-tools/manifests/release.txt').is_file():
+        forwarded = ['enter', '--', '/workspace-tools/libexec/python3', '-I', '/workspace-tools/bin/ws', 'agent', args.tool]
+        if args.native:
+            forwarded.append('--native')
+        elif args.name:
+            forwarded.append(args.name)
+        return main(forwarded + ['--'] + args.command)
+    import agent_profiles
+    environment = dict(os.environ)
+    if args.native:
+        environment['WS_AGENT_PROFILE'] = 'none'
+    elif args.name:
+        agent_profiles.name_check(args.name)
+        environment['WS_AGENT_PROFILE'] = args.name
+    command = args.command[1:] if args.command[:1] == ['--'] else args.command
+    return execute(['/workspace-tools/bin/' + args.tool] + command, environment)
+
+
+def runtime_command(args):
+    if in_container():
+        raise WorkspaceError('Run ws runtime on the native host so its module setup can be tested')
+    if args.operation == 'status':
+        print(json.dumps(runtime_setup.selected_record() or {}, indent=2))
+        return 0
+    args.site = runtime_setup.key()
+    args.state_dir = None
+    image = selected_image(args)
+    print(json.dumps(runtime_setup.setup(image['path'], args.apptainer, args.module, args.module_init, args.automatic), indent=2))
+    return 0
 
 
 def toolkit(args):
@@ -653,7 +717,38 @@ def parser():
     startup = update.add_mutually_exclusive_group()
     startup.add_argument("--no-shell-hook", action="store_true")
     startup.add_argument("--shell-startup", action="append", metavar="FILE", help="Site-loaded Bash startup file; repeat for multiple files; remembered for updates")
+    forms = sub.add_parser('configure', help='Edit workspace or agent settings with a terminal form')
+    forms.set_defaults(handler=guided)
+    forms.add_argument('target', nargs='?', choices=('workspace', 'codex', 'claude'))
+    forms.add_argument('name', nargs='?', help='Named agent gateway profile')
+    forms.add_argument('--plain', action='store_true', help='Use basic prompts instead of Gum')
+    runtime = sub.add_parser('runtime', help='Remember and validate the local Apptainer setup')
+    runtime.set_defaults(handler=runtime_command)
+    runtime.add_argument('operation', choices=('setup', 'status'))
+    runtime.add_argument('--image', help='SIF to test; defaults to the installed selection')
+    runtime.add_argument('--apptainer', help='Explicit executable path')
+    runtime.add_argument('--module', help='Site module name, if extra setup is needed')
+    runtime.add_argument('--module-init', help='Site Bash module initialization file')
+    runtime.add_argument('--automatic', action='store_true', help=argparse.SUPPRESS)
+    agents = sub.add_parser('agent', help='Start an agent with a named gateway profile')
+    agents.set_defaults(handler=agent)
+    agents.add_argument('tool', choices=('codex', 'claude'))
+    agents.add_argument('--native', action='store_true', help='Use ordinary agent settings for this launch')
+    agents.add_argument('--list', action='store_true', help='List saved gateway profile names')
+    agents.add_argument('name', nargs='?')
+    agents.set_defaults(command=[])
     return result
+
+
+def parse_arguments(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    arguments = parser()
+    if argv[:1] == ['agent'] and '--' in argv:
+        separator = argv.index('--')
+        args = arguments.parse_args(argv[:separator])
+        args.command = argv[separator + 1:]
+        return args
+    return arguments.parse_args(argv)
 
 
 def main(argv=None):
@@ -664,12 +759,12 @@ def main(argv=None):
         os.environ.clear()
         os.environ.update(clean)
     arguments = parser()
-    args = arguments.parse_args(argv)
+    args = parse_arguments(argv)
     if not getattr(args, "handler", None):
         arguments.print_help()
         return 0
     try:
-        if args.action in ('job-env', 'tools'):
+        if args.action in ('job-env', 'tools', 'configure', 'agent', 'runtime'):
             return args.handler(args)
         if args.action == "update" or (args.action == "rollback" and os.environ.get("WS_INSTALL_ROOT")):
             return args.handler(args)
@@ -680,3 +775,6 @@ def main(argv=None):
     except (WorkspaceError, SchedulerError, OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError, tarfile.TarError) as exc:
         print("ws: " + str(exc), file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print('Cancelled.', file=sys.stderr)
+        return 130

@@ -1,6 +1,6 @@
 # Current workspace design and future scientific stacks
 
-Updated 2026-09-24 for the **0.6.1 thin release** and repo-based **`./setup`** workflow. This is the architecture overview; [daily use](daily-workflow.md) and [installation](thin-start.md) are documented separately.
+Updated 2026-09-25 for the **0.7 thin release** and repo-based **`./setup`** workflow. This is the architecture overview; [daily use](daily-workflow.md) and [installation](thin-start.md) are documented separately.
 
 ## One integrated development shell
 
@@ -28,7 +28,7 @@ Binding a compiler, driver, or MPI library path is not proof that a particular w
 | Jobs | Native scripts and clients; optional environment cleanup prefix | Live site validation; no scheduler policy translation planned |
 | Sessions | Managed login-node tmux with a container keeper; saved layouts and editor state | No live process migration or walltime extension |
 | Inspector | Import existing local YAML once, save facts, explicit refresh | Use facts for later validated scientific-stack integration |
-| Configuration | Saved local defaults, personal dotfiles, command-line setup | [Remember the runtime](runtime-setup.md) and add optional [terminal forms](guided-configuration.md) |
+| Configuration | Saved local defaults, personal dotfiles, [remembered runtime](runtime-setup.md), and [workspace/agent forms](agent-profiles.md) | Broader preferences and general file schemas in the [configuration roadmap](guided-configuration.md) |
 | GPU/MPI | Runtime GPU passthrough flags and host access; imported facts | No bundled scientific toolkit or validated distributed MPI/GPU profile |
 | Software payloads | Normal filesystem binds | No SquashFS stack selection/mount/activation interface yet |
 | Agent skills | Versioned skill copies in the image | Thin-runtime automatic activation is not wired up; see [skills](skills.md) |
@@ -43,4 +43,4 @@ GPU devices and kernel drivers remain host responsibilities. A user-space toolki
 
 Images provide repeatable package contents; they are not a sandbox against programs running with the user's permissions. Shared data remains live, and immutable images still need maintained releases. Scientific payloads require their own integrity and compatibility checks. Measure any filesystem-metadata or startup benefit locally rather than promising a universal speedup.
 
-The next useful steps are site-local acceptance of the daily workflow, remembered runtime setup, guided configuration, thin-runtime skill activation, project recipes, and selected personal HPC tools such as `libsweep`. The [toolkit roadmap](toolkit-roadmap.md) distinguishes those proposals from commands already available.
+The next useful steps are site-local acceptance of the daily workflow and configuration forms, thin-runtime skill activation, project recipes, and selected personal HPC tools such as `libsweep`. The [toolkit roadmap](toolkit-roadmap.md) distinguishes those proposals from commands already available.

@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 import platform
 import socket
-import shutil
 import tempfile
+import runtime_setup
 
 LAYOUT = 'thin-v1'
 RESERVED = {'nix', 'workspace-tools', 'workspace-state', 'workspace-bootstrap'}
@@ -74,7 +74,7 @@ def plan(image, project, state, data, args, bind_spec, environment_file=None, cr
             mounts.append({'source': str(source), 'destination': str(source), 'mode': 'rw'})
     # These paths are the only image-specific mounts; root and host OS paths are
     # never overmounted by arbitrary profile values.
-    command = [shutil.which('apptainer') or 'apptainer', 'exec', '--cleanenv', '--no-eval',
+    command = runtime_setup.command() + ['exec', '--cleanenv', '--no-eval',
                '--no-mount', 'home,cwd,hostfs,bind-paths', '--pwd', str(project)]
     for item in mounts:
         command += ['--bind', bind_spec(item['source'], item['destination'], item.get('mode', 'ro'))]

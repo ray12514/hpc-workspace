@@ -2,7 +2,7 @@
 
 This is the feature/reference guide for the current thin workspace. For a step-by-step routine and copyable search/edit recipes, start with [Daily workflow](daily-workflow.md); for a short lookup sheet, use the [command reference](command-reference.md).
 
-The 0.6 thin preview packages these defaults centrally. New shells use the selected release; personal files under `~/.config/hpc-workspace` are preserved. Run `ws tools` (or `ws tools --json`) inside the workspace for exact installed versions. The Nix lock and image manifests pin tools, plugins, parsers, and help pages together; this is a tested package snapshot, not a promise that every upstream project has the same release schedule.
+The thin preview packages these defaults centrally. New shells use the selected release; personal files under `~/.config/hpc-workspace` are preserved. Run `ws tools` (or `ws tools --json`) inside the workspace for exact installed versions. The Nix lock and image manifests pin tools, plugins, parsers, and help pages together; this is a tested package snapshot, not a promise that every upstream project has the same release schedule. In 0.7, `ws configure codex` and `ws configure claude` add [named gateway profiles and key rotation](agent-profiles.md).
 
 ## Daily toolkit
 

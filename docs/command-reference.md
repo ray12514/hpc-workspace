@@ -12,9 +12,16 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Native login shell, project directory | `ws session` | Start/reconnect to the managed tmux workspace |
 | Native shell | `ws enter --dry-run` | Inspect the local mount plan |
 | Inside workspace | `ws tools` / `ws tools --json` | Inspect packaged tool versions |
+| Native shell | `ws runtime setup` / `ws runtime status` | Check and remember Apptainer / display its saved invocation |
+| Inside workspace | `ws configure` | Choose a workspace or agent configuration form |
+| Inside workspace | `ws configure codex team-a` | Create/edit a named gateway, rotate its key, or choose a default |
+| Inside workspace | `ws agent codex team-a` | Launch the selected gateway profile; `claude` works the same way |
+| Inside workspace | `ws agent codex --list` / `ws agent codex --native` | List profiles / use ordinary agent settings for this launch |
 | Native shell | `ws rollback` | Select the previously installed release for new sessions |
 
 `ws session` already enters the workspace. If you used `ws enter` first, ordinary `tmux` works there, but has no independent container keeper. Return to the native shell to start a managed `ws session`.
+
+The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, and rotation. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
 
 ## Keyboard essentials
 

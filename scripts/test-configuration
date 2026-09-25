@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Real forms and agent routing in a disposable, offline Linux home.
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_fixture="${WS_TEST_IMAGE:-hpc-workspace-toolkit-fixture}"
+exec "$workspace_root/scripts/docker-public" run --pull=never --rm --read-only --network none \
+    --user 10001:10001 --env TERM=xterm-256color \
+    --tmpfs /tmp:exec,mode=1777 --tmpfs /home/workspace:exec,mode=0700,uid=10001,gid=10001 \
+    --mount "type=bind,src=$workspace_root/tests,dst=/src/tests,readonly" \
+    --mount "type=bind,src=$workspace_root/lib,dst=/workspace-tools/lib,readonly" \
+    --mount "type=bind,src=$workspace_root/scripts/thin-agent,dst=/workspace-tools/thin-agent,readonly" \
+    "$workspace_fixture" /workspace-tools/libexec/python3 -I /src/tests/configuration-behavior.py

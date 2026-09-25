@@ -11,7 +11,7 @@ import sys
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / 'lib'))
 from releases import digest
-release = sys.argv[1] if len(sys.argv) > 1 else '0.6.1-preview1'
+release = sys.argv[1] if len(sys.argv) > 1 else '0.7.0-preview1'
 if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', release):
     raise SystemExit('Invalid release name')
 if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root):

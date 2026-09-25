@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-workspace_release="${1:-0.6.1-preview1}"
+workspace_release="${1:-0.7.0-preview1}"
 workspace_output="${2:-$workspace_root/dist/hpc-workspace-thin-${workspace_release}-linux-amd64.sif}"
 mkdir -p "$(dirname -- "$workspace_output")"
 workspace_output=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$workspace_output")

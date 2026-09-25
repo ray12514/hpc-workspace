@@ -1,6 +1,6 @@
 # Make the workspace part of your day
 
-This is a practical guide to the **0.6.1 thin workspace**. Install once with [the repo's `./setup` command](thin-start.md), then use the same habits in PuTTY or a VS Code terminal. The [command reference](command-reference.md) is the shorter lookup sheet.
+This is a practical guide to the **0.7 thin workspace**. Install once with [the repo's `./setup` command](thin-start.md), then use the same habits in PuTTY or a VS Code terminal. The [command reference](command-reference.md) is the shorter lookup sheet.
 
 - [Start your workspace](#start-your-workspace)
 - [Try a complete workflow](#try-a-complete-workflow)
@@ -16,7 +16,7 @@ This is a practical guide to the **0.6.1 thin workspace**. Install once with [th
 
 From the normal login shell, go to your project and choose one entry method:
 
-If this site supplies Apptainer through a module, load its normal runtime module first. Remembering that setup automatically is a [planned improvement](runtime-setup.md); it is not enabled in the current release.
+If this site supplies Apptainer through a module, load its normal runtime module once before installation. The installer checks and [remembers the working runtime setup](runtime-setup.md). If it reports that setup remains necessary, run `ws runtime setup` in the native shell after loading that module.
 
 ```bash
 cd /path/to/project
@@ -244,3 +244,7 @@ The default prompt, editor, and terminal apps use ordinary fonts. You do not nee
 For VS Code, the optional [terminal settings example](../examples/vscode-terminal.json) uses the same palette. Inspect and merge the keys you want into your existing settings; do not replace unrelated preferences.
 
 Use `WS_COLOR=256 ws session` or `WS_COLOR=truecolor ws session` from the native shell when choosing a mode for a new session. `WS_COLOR=never ws enter` disables the shared color styling. These settings affect workspace defaults, not every application universally. Leave TERM alone inside tmux, where it describes tmux's terminal. The [dotfile guide](dotfiles.md) covers persistent preferences.
+
+## Configure an agent connection
+
+`ws configure codex` and `ws configure claude` open forms for named gateway profiles. Use `ws agent codex team-a` or `ws agent claude team-a` to select one. Key rotation and defaults are covered in the [configuration guide](agent-profiles.md).

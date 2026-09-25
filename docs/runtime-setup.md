@@ -1,36 +1,30 @@
-# Apptainer provided by a site module
+# Remembered Apptainer setup
 
-Status: **design for the next runtime setup improvement; not implemented in 0.6.1 or the current `./setup`.** No site module was accessed for this design. Runtime paths, module contents, and validation results belong only in local configuration on that system.
+Implemented in **0.7.0-preview1**. The native installer discovers and checks an available Apptainer during installation/update, then saves the working invocation locally. Daily launch checks the saved paths and applies any required module setup; it does not run version probes or a separate container self-test.
 
-## Current behavior
+On a module-based system, load its normal Apptainer module once before installation. Setup tests whether the absolute executable path can run the workspace image from a fresh environment. If so, later launches use that path directly. An administrator-maintained executable symlink is retained rather than replaced by its resolved version path.
 
-`./setup` can download and install the release without Apptainer. When starting the workspace, the launcher currently resolves `apptainer` from PATH. On a system where the runtime is module-provided, load the site's normal Apptainer module before `ws enter`, `ws session`, or an Inspector import needing the image reader. Use the module name actually supplied by the site.
+If the executable needs more setup, discovery uses an unambiguous loaded Apptainer/Singularity module name and an available initialization file. It loads that module in a child Bash process and checks real image execution. Only the module name, initialization path, executable path, image path, and validation time are saved. It does not copy libraries or retain the whole module environment.
 
-The workspace does not yet remember that executable path or automatically load its module. A working session does not establish that the same command will be available after the next login.
+If automatic discovery needs help, run this from the **native host shell**:
 
-## Desired behavior
+```bash
+ws runtime setup
+ws runtime status
+```
 
-During initial installation/runtime setup and explicit updates, discover Apptainer's absolute command path and record it privately with the relevant local system/runtime configuration. Preserve an administrator-maintained command symlink when appropriate, rather than unnecessarily fixing the path to its current target. If installation happens before the runtime is available, perform this once when the runtime is first configured.
+Explicit local choices are available:
 
-Do module inspection and a real workspace-image execution check at those setup/update points. Daily launch reuses the saved configuration with only a cheap path-exists/executable guard on the current node. It should not rerun discovery, version probes, or a separate container self-test on every login or entry. Applying required module settings at launch is separate from discovering and validating them.
+```bash
+ws runtime setup --apptainer /path/to/apptainer --module apptainer/site-version --module-init /path/to/modules/init/bash
+```
 
-There are two cases:
+Use actual site paths and module names. `--image FILE.sif` selects another image for validation. This command does not install a runtime or cluster module.
 
-| Module behavior | What to retain | Later workspace launch |
-| --- | --- | --- |
-| Only adds a usable executable directory | Absolute executable path and validation metadata | Invoke that path directly without a module load |
-| Supplies required environment, helpers, or configuration | Executable plus the approved module name/initialization method | Load the module automatically for the runtime invocation only |
+An installation can finish before Apptainer is available. It reports that runtime setup remains necessary; load the module and run `ws runtime setup` once. An update started inside the workspace defers host validation to that command in the native shell. A failed check preserves prior runtime settings and reports the next step.
 
-Prefer evaluating the site's module when it is needed over freezing a copy of its full environment. Module changes can include library/helper paths and runtime settings, and administrators can update them. The workspace should not copy Apptainer's libraries, save unrelated compiler/MPI state, or retain credentials just to remember how to start a container.
+Launches prefer an explicit `WS_APPTAINER` executable, then a different Apptainer currently selected on PATH, then the saved invocation. When PATH names the recorded executable, its saved module recipe still applies. Module loading is scoped to the child runtime and does not change the parent login shell. Missing executable or initialization paths produce an actionable error.
 
-No module evaluation is needed at ordinary login. Any required loading belongs to the workspace launch, scoped to its runtime process rather than permanently changing the user's parent shell. A caller's explicitly selected available runtime should have a clear precedence over an old cached discovery. Missing/changed installations should trigger rediscovery or an actionable local message; never silently keep using a vanished version.
+Runtime records live in `runtime.json` under the normal workspace configuration directory. Inspector system labels scope records; the initial `local` record can be reused after the first import. If different clusters share a home but need distinct settings, use their existing local `WS_CONFIG_DIR` setup. A shared home does not establish identical runtimes on every node.
 
-## Verification before calling it supported
-
-Inspect the actual module locally and test a fresh shell without the module already loaded. A successful `apptainer version` check is useful but insufficient: test execution of the selected workspace image too, because helpers, configuration, mounts, and privilege modes can matter only at exec time.
-
-Cover normal PATH installs, a module that only changes PATH, a module requiring extra setup, a changed/removed version, fresh login, and compute-node startup. A shared home does not imply identical runtimes across different clusters; local configuration must stay scoped to the appropriate system and executable availability must be checked on the current node.
-
-This belongs in automated runtime initialization alongside [setup](thin-start.md), not in a repeated manual step in the [daily workflow](daily-workflow.md). Until implemented and verified, current instructions continue to use the site's normal module setup.
-
-An optional [configuration form](guided-configuration.md) can expose the saved choices later. Initial setup must still work through ordinary host prompts or command-line options before Apptainer can launch the image; a form tool packaged only inside the SIF cannot bootstrap its own runtime.
+Public tests use synthetic modules and local Apptainer fixtures. Unusual module initialization, node differences, privilege modes, and normal SIF mounting still need site-local verification. Runtime paths and metadata belong on their originating system.

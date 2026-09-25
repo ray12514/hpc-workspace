@@ -40,6 +40,7 @@
         htop = pkgs.htop;
         shellcheck = pkgs.shellcheck;
         shfmt = pkgs.shfmt;
+        gum = pkgs.gum;
       };
       editorTools = {
         bash-language-server = pkgs.bash-language-server;
@@ -132,6 +133,7 @@
         printf '%s\n' '${helpRevision}' > $out/manifests/tldr-revision.txt
         printf '%s\n' '${builtins.toJSON (map packageInfo plugins)}' > $out/manifests/plugins.json
         printf '%s\n' '${pkgs.python3Packages.pyyaml}/${pkgs.python3.sitePackages}' > $out/manifests/yaml-path.txt
+        printf '%s\n' '${pkgs.python3Packages.tomlkit}/${pkgs.python3.sitePackages}' > $out/manifests/toml-path.txt
         printf '%s\n' '${builtins.toJSON versions}' > $out/manifests/tools.json
         printf '%s\n' '${pkgs.python3}' > $out/manifests/python-prefix.txt
       '';

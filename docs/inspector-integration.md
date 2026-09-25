@@ -1,6 +1,6 @@
 # Use existing Cluster Inspector output
 
-Current workflow: **0.6.1 thin workspace**, installed with [the repo's `./setup`](thin-start.md). Inspector is optional configuration input. The workspace does not run Inspector or probe a cluster on entry. Without a profile, `ws enter`, packaged tools, automatic filesystem integration, and ordinary native scheduler commands still work.
+Current workflow: **0.7 thin workspace**, installed with [the repo's `./setup`](thin-start.md). Inspector is optional configuration input. The workspace does not run Inspector or probe a cluster on entry. Without a profile, `ws enter`, packaged tools, automatic filesystem integration, and ordinary native scheduler commands still work.
 
 ## Import once
 

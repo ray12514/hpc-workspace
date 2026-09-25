@@ -1,6 +1,6 @@
 # Workspace troubleshooting
 
-Current workflow: **0.6.1 thin image plus the repo's `./setup` command**. The [validation record](validation.md) identifies the local checks performed; the [0.4 diagnostic replay](legacy/core-troubleshooting.md) remains historical. Keep cluster-specific paths, profiles, environment dumps, and results on the cluster.
+Current workflow: **0.7 thin image plus the repo's `./setup` command**. The [validation record](validation.md) identifies the local checks performed; the [0.4 diagnostic replay](legacy/core-troubleshooting.md) remains historical. Keep cluster-specific paths, profiles, environment dumps, and results on the cluster. For a saved Apptainer path/module that is no longer available, use [runtime setup](runtime-setup.md) from the native shell.
 
 ## Missing ws or only a skills directory
 

@@ -3,10 +3,15 @@
 import os
 from pathlib import Path
 import sys
+import tempfile
+import subprocess
+import json
+import signal
 
 root = Path('/workspace-tools')
 sys.path.insert(0, str(root / 'lib'))
 from tool_environment import apply_overrides
+from agent_profiles import launch_profile
 
 name = Path(sys.argv[0]).name
 environment = dict(os.environ)
@@ -23,4 +28,38 @@ if name == 'claude':
 args = [str(root / 'libexec' / name)]
 if name == 'codex':
     args += ['-c', 'check_for_update_on_startup=false']
-os.execve(args[0], args + sys.argv[1:], environment)
+try:
+    # Help and account-management commands keep their ordinary native behavior.
+    arguments = sys.argv[1:]
+    informational = any(item in ('--help', '-h', '--version', '-V', '-v') for item in arguments)
+    account = arguments[:1] in (['login'], ['logout'], ['auth'])
+    if informational or account:
+        overlay = None
+    else:
+        arguments, environment, overlay = launch_profile(name, arguments, environment)
+    if overlay is None:
+        os.execve(args[0], args + arguments, environment)
+    # Claude settings.env overrides the inherited environment. Supply the selected
+    # credential in a private per-process overlay, never as a JSON argv value.
+    with tempfile.TemporaryDirectory(prefix='ws-agent-') as temporary:
+        path = Path(temporary) / 'settings.json'
+        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(overlay, stream)
+        child = subprocess.Popen(args + ['--settings', str(path)] + arguments, env=environment)
+        def forward(signum, frame):
+            if child.poll() is None:
+                child.send_signal(signum)
+        signal.signal(signal.SIGTERM, forward)
+        signal.signal(signal.SIGHUP, forward)
+        while True:
+            try:
+                result = child.wait()
+                break
+            except KeyboardInterrupt:
+                # The terminal delivers SIGINT to the agent in this process group.
+                continue
+        sys.exit(result if result >= 0 else 128 - result)
+except (ValueError, OSError, TypeError, KeyError) as exc:
+    print('workspace agent: ' + str(exc), file=sys.stderr)
+    sys.exit(2)

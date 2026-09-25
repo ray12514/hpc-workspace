@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-24. The [0.5 thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. The 0.6 preview implements the common CLI expansion, Codex and Claude Code, and the first editor plugin/parser bundle. See [current behavior and shortcuts](editor-and-agents.md). Personal HPC helpers and a deeper editor-agent adapter remain future work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
+Updated 2026-09-25. The [thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. The 0.6 preview added the common CLI expansion, Codex and Claude Code, and the first editor plugin/parser bundle. The 0.7 preview adds remembered Apptainer setup and Gum forms for workspace settings and named agent gateways. See [current editor behavior and shortcuts](editor-and-agents.md) and the [gateway guide](agent-profiles.md). Personal HPC helpers and a deeper editor-agent adapter remain future work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
 
 Use the site's existing compilers through its normal module environment. Additional compiler installations are outside the default toolkit; include one only for a concrete workflow that requires a specific version unavailable from the site. Editor language servers and agent runtimes remain separate packaging decisions and must preserve access to the selected site compiler.
 
@@ -24,6 +24,7 @@ The common additions below are packaged in the 0.6 preview. Host compilers/build
 | Project tasks | Make, CMake, Ninja | Just for named project recipes; watchexec for explicitly started, narrowly scoped watches |
 | Python projects | Python, pip, venv | uv for project environments/lockfiles and Ruff for checking/formatting |
 | Configuration and tabular data | jq | Mike Farah's yq for YAML and Miller for CSV/TSV reports |
+| Guided configuration (0.7) | Saved local workspace settings | Gum forms for extra binds, scheduler defaults, and Codex/Claude gateway profiles with key rotation |
 | Logs and storage | less, htop, rsync | lnav for logs and ncdu for deliberate disk-usage inspection |
 | Visual file operations | Neovim's file browser | Optional Superfile configured without Nerd Fonts |
 | Per-project setup | Explicit shell/project settings | Optional direnv, enabled only for a project whose environment file the user has approved |
@@ -86,8 +87,8 @@ Existing discovery commands and possible extensions:
 
 1. Delivered: pinned Nix tools, automated host integration, managed tmux, expanded agents/editor/CLI bundle, and the one-command download/install/update path. See [validation](validation.md) for the terminal, locale, library, and installation checks; site-specific acceptance remains local work.
 2. Use the [practice project](../examples/workflow/) and daily guide to refine the workflow. Add real project recipes using each project's existing build/tests and native scheduler scripts.
-3. Add [remembered Apptainer runtime setup](runtime-setup.md): use a recorded executable directly when sufficient, and automatically load a required site module only for workspace launch. Verify fresh-login and compute-node cases locally.
-4. Add optional [guided configuration](guided-configuration.md): package Gum for terminal prompts, reuse the existing configuration backend, then add versioned Codex, Claude Code, and project-file forms. Keep initial runtime setup usable before the image can run.
+3. Delivered in 0.7: [remembered Apptainer runtime setup](runtime-setup.md), using a recorded executable directly when sufficient and a saved module recipe when required. Verify each site's fresh-login and compute-node cases locally.
+4. Delivered in 0.7: optional [Gum configuration forms](agent-profiles.md) for workspace settings and named Codex/Claude gateways. Broader agent preferences and general project-file schemas remain in the [configuration roadmap](guided-configuration.md). Initial runtime setup remains usable before the image can run.
 5. Complete automatic skill activation for the thin runtime and validate it without replacing independently managed skills.
 6. Integrate `libsweep` as the first personal HPC tool, then add further helpers and scientific runtime layers as concrete workflows require them.
 

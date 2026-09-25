@@ -1,5 +1,15 @@
 # Workspace validation
 
+## Configuration forms and runtime setup: 0.7.0-preview1
+
+Date: **2026-09-25**. The source adds Gum forms, named Codex/Claude gateways, private credential updates, and remembered native Apptainer setup. The Nix lock is unchanged; Gum and TOMLKit are added from that pinned package set.
+
+- **Source:** 79 Linux unit tests run successfully; the wget fallback test is skipped because this fixture provides curl only. Coverage includes private backups, symlink preservation, duplicate-key rejection, concurrent edits, rollback after a partial write, separate gateways, key rotation, missing credentials, endpoint/credential binding, workspace-field preservation, and saved runtime/module invocation. All host modules parse using Python 3.6 syntax rules; an actual Python 3.6 interpreter was not exercised. Focused Ruff checks, ShellCheck for changed shell scripts, documentation links, and code fences pass.
+- **Real terminal and agents:** the offline, read-only Linux fixture drives Gum selection, masked input longer than 400 characters, cancellation, and a complete plain-prompt edit. Actual packaged Codex and Claude Code processes send requests to a loopback-only synthetic gateway using separate selected keys; inherited conflicting keys and Claude routing settings are not used. The fixture returns a synthetic authentication error, so this verifies request routing and header selection, not a successful model response or a real gateway's compatibility. Stored-key rotation leaves the other profile unchanged.
+- **Existing environment:** packaged tool/agent startup, locale preservation, offline help, YAML/CSV/log tools, job-environment cleanup, and the editor integration suite pass with an intentionally incompatible host SSL library present.
+
+Final SIF and transfer-bundle acceptance will be recorded after packaging. No target cluster, real gateway, real credential, PuTTY client, or live scheduler job was accessed. Cloud federation, enterprise saved gateway login, managed routing, child/background agent sessions, and generic YAML schemas are outside this first adapter's verified scope.
+
 ## Current guides and practice workflow
 
 Date: **2026-09-24**. The user guides now follow the repository's `./setup` workflow and the 0.6.1 thin environment. Earlier core-image instructions are retained in a clearly marked archive. The practice project contains synthetic files only.

@@ -93,6 +93,8 @@ printf 'integration-passed\n'
 
     toolkit = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-toolkit.py')
     print(toolkit.stdout, end='', flush=True)
+    configured = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/configuration-behavior.py')
+    print(configured.stdout, end='', flush=True)
     original_environment = env.copy()
     env.update(LC_ALL='locale_that_does_not_exist.UTF-8', LC_CTYPE='UTF-8')
     fallback = ws('enter', *common, '--', 'bash', '--noprofile', '--norc', '-c',

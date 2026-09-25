@@ -1,6 +1,6 @@
 # Terminal forms for workspace configuration
 
-Research date: 24 September 2026. **Status: research and proposed integration; not shipped.** The current release is [0.6.1-preview1](../releases/0.6.1-preview1.md). Its [Nix tool list](../../image/nix/flake.nix) does not package Huh, Gum, or a configuration-form command. This review installed nothing and changed no personal configuration.
+Research date: 24 September 2026. This review examined the then-current [0.6.1-preview1](../releases/0.6.1-preview1.md), which did not package a form tool. **Implementation update, 25 September:** Gum and selected workspace/agent forms are included in [0.7.0-preview1](../releases/0.7.0-preview1.md); Huh and general schema-driven forms remain proposals. The research below records the original evaluation and changed no personal configuration.
 
 **Start with Gum and the existing Python configuration backend; use Huh if a richer maintained form editor becomes warranted.** Huh is the closest match to the remembered Go form library. The name “Tremor” alone does not establish which project was intended. The [integration plan](../guided-configuration.md) starts with a small set of supported settings.
 

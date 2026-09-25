@@ -50,6 +50,21 @@ with tempfile.TemporaryDirectory(prefix='thin-install-') as temporary:
     assert (prefix / 'current').resolve().name == release['release']
     assert (prefix / 'activate.sh').is_file() and (prefix / 'bin/ws').is_file()
     assert (skills / 'SKILL.md').read_text() == 'Existing local skill; preserve it.\n'
+    remembered = json.loads((personal / 'runtime.json').read_text())['runtimes']['local']
+    assert remembered['path'] == str(native / 'apptainer')
+    # A new login without the module's PATH must use the validated absolute path.
+    env['PATH'] = os.environ['PATH']
+    # Hide the fixture host's global Apptainer as well, without hiding Bash/Python.
+    empty_path = root / 'fresh-path'
+    empty_path.mkdir()
+    for name in ('python3', 'bash', 'env'):
+        (empty_path / name).symlink_to(shutil.which(name))
+    env['PATH'] = str(empty_path)
+    status = json.loads(run([str(prefix / 'bin/ws'), 'runtime', 'status']))
+    assert status['path'] == remembered['path']
+    entered = run([str(prefix / 'bin/ws'), 'enter', '--', '/workspace-tools/bin/gum', '--version'])
+    assert entered.strip()
+    env['PATH'] = str(native) + ':' + os.environ['PATH']
     first = (home / '.bashrc').read_text()
     first_login = (home / '.bash_profile').read_text()
     run([sys.executable, str(installer), str(manifest)])
