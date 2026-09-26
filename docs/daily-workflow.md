@@ -233,6 +233,8 @@ Persistent undo helps with previously saved edits. Swap files can help recover u
 
 In tmux, **Ctrl-B d** detaches; `ws session` on the same node/project/release reconnects. **Ctrl-B Ctrl-S** saves a layout snapshot; **Ctrl-B Ctrl-R** restores one into an appropriate new session. Snapshots also save periodically and on detach, but automatic restore is disabled. The defaults restore layout/directories and shells, not running jobs or agent/editor processes, and do not capture pane contents. Live sessions, layout snapshots, and saved files are three different things.
 
+Snapshots are scoped to the originating node; a new session on another login node does not automatically find the old layout. Keep a server holding an interactive job alive while resolving reconnect or Kerberos problems. See [cross-node recovery limits](session-locations.md#starting-on-another-node-instead).
+
 Close a shell pane with `exit` or Ctrl-D at an empty prompt. Closing the last pane/window ends the session and its keeper. When a compute allocation ends, its processes end; files on persistent shared storage remain, while node-local temporary data follows the site's cleanup policy.
 
 For an update, return to your repository checkout in the native shell and run `git pull --ff-only && ./setup`. Start a new `ws enter` or `ws session` afterward. Existing sessions keep their original image; updates preserve your personal preferences and saved state.
