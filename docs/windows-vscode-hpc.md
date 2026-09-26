@@ -1,25 +1,19 @@
-# Windows: connect to the workspace from VS Code
+# Windows: connect from VS Code without extensions
 
-Start with **VS Code's integrated terminal and an SSH client already supplied by the approved kit**. That gives you a terminal for the same remote Bash, tmux, Neovim, and workspace tools. Full VS Code remote editing is a separate option, with extra prerequisites.
+Use **VS Code's built-in terminal and an SSH client already supplied by the approved kit**. That gives you a terminal for the same remote Bash, tmux, Neovim, and workspace tools. This workflow uses built-in terminal profiles, settings, and optional tasks. It requires no VS Code extensions or VS Code Server on the cluster. [VS Code terminal profiles](https://code.visualstudio.com/docs/terminal/profiles)
 
-Known installed: VS Code, PuTTY, and the approved Kerberos/PKI kit. Remote - SSH, Plink, and an OpenSSH-compatible client have not yet been confirmed. Nothing in this guide requires downloading a Windows package, changing execution policy, or installing an extension without approval.
+VS Code, PuTTY, and the approved Kerberos/PKI tools are already installed. **Installing VS Code extensions is not allowed for this setup.** Use the existing approved executables; no Windows package downloads or execution-policy changes are part of these instructions.
 
-## Check existing tools once
+## Locate the existing client once
 
-In a VS Code PowerShell terminal:
+Open **Terminal → New Terminal** in VS Code and choose PowerShell. If you need to locate the kit's executables:
 
 ```powershell
-Get-Command code, ssh, plink, putty, kinit, klist -All -ErrorAction SilentlyContinue |
+Get-Command ssh, plink, putty, kinit, klist -All -ErrorAction SilentlyContinue |
     Select-Object Name, Source
 ```
 
 This checks PATH, not every installation directory. For missing entries, inspect the existing PuTTY shortcut's **Target** and the approved kit's folder/documentation. Do not assume Plink was installed just because PuTTY is present.
-
-Open Extensions with **Ctrl-Shift-X**, filter with `@installed`, and look for **Remote - SSH** by Microsoft. If the `code` command is available, an alternative check is:
-
-```powershell
-code --list-extensions | Select-String '^ms-vscode-remote.remote-ssh$'
-```
 
 Obtain or renew your Kerberos ticket using the same approved PKINIT/CAC/YubiKey procedure that works with PuTTY. Use that kit's credential manager or `klist`; a different Windows `klist.exe` can inspect a different credential cache. Preserve the kit's required environment and run VS Code as the same Windows user. If the kit requires launching applications through a supplied shortcut/environment, use that entry point. The exact local command belongs in your private connection notes. HPCMP's [public access overview](https://www.centers.hpc.mil/users/index.html) points users to its Kerberos kit and site instructions.
 
@@ -57,25 +51,14 @@ Open the folder in VS Code and allow automatic tasks for **that folder** when pr
 
 Keep keys, PINs, and ticket acquisition out of these settings. The connection can start automatically; ticket renewal still follows the kit's procedure. Save one folder/profile per connection if useful. Avoid putting an unconditional SSH command in your general PowerShell profile, where unrelated terminals and tasks would trigger it.
 
-This folder and VS Code's Explorer are local Windows files. Remote work stays in the SSH terminal; use the workspace's Neovim there.
+## Edit files and use the workspace
 
-## Full remote editing, when the prerequisites exist
+VS Code displays the remote terminal, while Bash and all commands entered after SSH connects run on the cluster. Run `ws session`, then use Neovim, fzf, ripgrep, Codex, and the other workspace tools there as usual. Your normal kit authentication and site permissions still apply.
 
-Remote - SSH needs the Microsoft extension, an **OpenSSH-compatible** client, and permission to run its VS Code Server on the Linux host. It installs/updates that server and may install remote extensions. With downloads prohibited, proceed only when the necessary components are already available or can be staged through the site's approved process. **PuTTY/Plink is not a supported Remote - SSH transport.** [Microsoft Remote - SSH requirements and limitations](https://code.visualstudio.com/docs/remote/ssh)
-
-If those conditions are met:
-
-1. Prove the approved OpenSSH-compatible client can connect from PowerShell using the kit's authentication. PuTTY saved sessions are not OpenSSH config entries; transfer the relevant local connection settings deliberately.
-2. Set `remote.SSH.path` to that executable in VS Code. Use **Remote-SSH: Open SSH Configuration File** to choose a writable personal config, or specify it with `remote.SSH.configFile`.
-3. Add local aliases for your approved endpoints, username, and any kit-required authentication settings. For a resumable connection, prefer the approved endpoint for a specific login node.
-4. Use **Remote-SSH: Connect to Host**, select the alias, and open a remote project folder. Then run `ws session` in the remote terminal.
-
-Keep Bash startup suitable for noninteractive SSH. The normal workspace PATH hook is fine; do not automatically replace every SSH shell with `ws enter` or tmux. The VS Code Server/editor runs on the host; entering the workspace in one terminal does not put the server or extensions inside the SIF.
-
-Round-robin routing matters here too: Remote - SSH can make multiple connections, and different destination nodes can break the server/tunnel connection. Use a site-supported consistent route. See [Microsoft's guidance on dynamically assigned hosts and startup scripts](https://code.visualstudio.com/docs/remote/troubleshooting#connecting-to-systems-that-dynamically-assign-machines-per-connection).
+VS Code's Explorer and graphical editor remain local to Windows in this workflow. Opening an SSH terminal does not make them browse remote files. Edit remote files with `nvim` inside the workspace. The local connection folder contains only your terminal/task settings; remote projects do not need to be copied to Windows.
 
 ## Return to a saved workspace
 
 After reconnecting, check the actual node before starting another session. The new repository launcher offers `./bin/ws sessions` to look up recorded locations, including older 0.7.1 records when their metadata is present. It does not SSH to nodes or migrate tmux. Reconnect through the approved address for the recorded node, then select the same project and release. See [session locations and availability](session-locations.md).
 
-An SSH terminal is a Linux shell; Remote - SSH adds remote file editing. Neither is a full Linux graphical desktop. If a desktop is needed, use the site's browser-based Open OnDemand desktop service when available and approved, or an already-approved remote desktop client. Keep compute-heavy work inside the site's normal allocation procedure.
+An SSH terminal gives you a Linux shell, not a full graphical desktop. If a desktop is needed, use the site's browser-based Open OnDemand desktop service when available and approved, or an already-approved remote desktop client. Keep compute-heavy work inside the site's normal allocation procedure.
