@@ -93,6 +93,8 @@ printf 'integration-passed\n'
 
     toolkit = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-toolkit.py')
     print(toolkit.stdout, end='', flush=True)
+    routing = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-tmux-routing.py')
+    print(routing.stdout, end='', flush=True)
     configured = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/configuration-behavior.py')
     print(configured.stdout, end='', flush=True)
     original_environment = env.copy()
@@ -117,13 +119,25 @@ printf 'integration-passed\n'
     name = re.search(r'Workspace session (ws-[a-z0-9-]+)', session.stdout).group(1)
     again = ws('session', *common, '--detach')
     assert name in again.stdout
+    locations = json.loads(ws('sessions', '--state-dir', str(state), '--json').stdout)
+    assert not locations['warnings'], locations
+    current = next(row for row in locations['sessions'] if row['session'] == name)
+    assert current['status'] == 'local-ready' and current['hostname'] == os.uname().nodename, current
+    assert current['project'] == str(project) and current['image'] == image, current
+    assert current['recorded_at'] and current['release'], current
+    assert Path(current['record']).stat().st_mode & 0o777 == 0o600
+    packaged_locations = ws('enter', *common, '--', 'ws', 'sessions', '--state-dir', str(state), '--json')
+    assert json.loads(packaged_locations.stdout) == locations
     ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-tmux.py', name)
     deadline = time.monotonic() + 15
     records = list((state / 'session-hosts').glob('*/*.json'))
     while time.monotonic() < deadline and any(process_identity(json.loads(p.read_text())['pid']) for p in records):
         time.sleep(.1)
     assert all(process_identity(json.loads(p.read_text())['pid']) is None for p in records), 'Session keeper did not stop'
+    ended = json.loads(ws('sessions', '--state-dir', str(state), '--json').stdout)
+    assert next(row for row in ended['sessions'] if row['session'] == name)['status'] == 'local-ended'
     print('PASS: packaged tmux windows accept input; terminal apps, editor picker/navigation, reconnect, Ctrl-R and Ctrl-C work.', flush=True)
+    print('PASS: host and packaged launchers report the same private node/project record and detect the local keeper ending.', flush=True)
     ws('init', '--profile', '/src/tests/fixtures/inspector-slurm.yaml', '--image', image)
     saved = json.loads((home / '.config/hpc-workspace/config.json').read_text())
     assert saved['inspector']['facts']['system']['name'] == 'example-linux'

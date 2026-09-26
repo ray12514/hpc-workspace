@@ -48,6 +48,12 @@ display-message "dead=#{pane_dead} exit=#{pane_dead_status} command=#{pane_curre
 
 Use managed `ws session` from the native login shell when you want the session to outlive an entering shell. Plain tmux inside `ws enter` uses the shared settings but has no separate keeper. Neither method extends an allocation's lifetime.
 
+## Tmux commands report the wrong server or layout saving is missing
+
+The wrapper through 0.7.1 adds a release-default socket even inside a managed project session. Bare `tmux` commands and layout helpers can therefore contact another server or report a missing socket. **0.7.2** preserves the current session's socket unless you explicitly select another one.
+
+Update and start a fresh `ws session` to get the corrected wrapper and helper initialization. Keep existing job sessions alive until their work is finished. For a command in an older session, use **Ctrl-B :** to address that server directly, or specify its socket explicitly from its pane: `tmux -S "${TMUX%%,*}" COMMAND`. The [release notes](releases/0.7.2-preview1.md) describe the fix and remaining limits.
+
 ## bat reports an SSL or library error
 
 In the failing shell, `command -V bat` identifies whether it is the packaged executable, a host program, or a personal alias. From a native shell with the release installed, try a small synthetic input:

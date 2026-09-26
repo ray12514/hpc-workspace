@@ -4,12 +4,11 @@ A managed tmux workspace stays on the **actual login node** where it started. A 
 
 ## Find the node
 
-**Availability:** `sessions` and the richer location records are in the repository launcher, after 0.7.1-preview1. They are not in the published 0.7.1 runtime/SIF. From an updated repository checkout in the native login shell:
+**Availability:** `sessions` and the richer location records ship in **0.7.2-preview1**. From the native login shell after updating:
 
 ```bash
-git pull --ff-only
-./bin/ws sessions
-./bin/ws sessions --json
+ws sessions
+ws sessions --json
 ```
 
 This command needs host Python 3.6+, but does not start Apptainer, load modules, contact other nodes, or require an image selection. It reads the configured site's shared state directory. Use the same `--site` or `--state-dir` override as the original session if you supplied one.
@@ -92,6 +91,6 @@ Our tmux defaults restore arrangement/directories and shells, with process repla
 
 For interactive work, loss of the submitting terminal/client can end the allocation. For example, Slurm documents that `salloc` releases its allocation on SIGHUP. A still-running job may have a site-supported attach procedure, but a new tmux server does not supply one. Slurm's `sattach` targets an existing job step and has PTY restrictions; it is not a general migration or allocation-recovery command. PBS behavior likewise depends on the site's interactive procedure. [Slurm salloc signals](https://slurm.schedmd.com/salloc.html#SECTION_SIGNALS), [Slurm sattach](https://slurm.schedmd.com/sattach.html)
 
-Until using the updated launcher, `hostname` inside the workspace and the node in tmux's status bar provide the immediate reminder. You can use the repository lookup against the existing 0.7.1 installation without rebuilding its SIF. To record full metadata with that image, use the repository's `bin/ws session` with your existing `--image` and `--project` paths. Running `./setup` still installs the published recommended runtime, not unshipped repository changes.
+`hostname` inside the workspace and the node in tmux's status bar provide an immediate reminder. If still using 0.7.1, you can run `./bin/ws sessions` from an updated checkout to inspect its existing records without rebuilding that SIF. To record full metadata with an older image, use the repository's `bin/ws session` with your existing `--image` and `--project` paths. The normal update command, `git pull --ff-only && ./setup`, installs the recommended matching image and runtime together.
 
 See [Windows connections](windows-vscode-hpc.md), [tmux and interactive jobs](editor-and-agents.md#interactive-jobs-and-tmux), and [persistent state](dotfiles.md#persistent-state).

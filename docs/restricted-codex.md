@@ -1,6 +1,6 @@
 # Codex with a site-provided gateway configuration
 
-Keep the native configuration that already works on your system. **The 0.7.1 workspace form does not yet support your custom authentication header.** Its Codex adapter uses bearer authentication and rejects custom header overrides. Editing a form-managed `ws-NAME.config.toml` is therefore not a workaround for this setup.
+Keep the native configuration that already works on your system. **The 0.7 workspace form does not yet support your custom authentication header.** Its Codex adapter uses bearer authentication and rejects custom header overrides. Editing a form-managed `ws-NAME.config.toml` is therefore not a workaround for this setup.
 
 Inside the workspace, use:
 
@@ -56,7 +56,7 @@ First confirm the version with `codex --version`. Then test a small approved, no
 
 ## Next form extension
 
-This is a **plan**, not additional 0.7.1 form functionality:
+This is a **plan**, not functionality added by the 0.7.1/0.7.2 patches:
 
 1. Add an explicit **custom header** authentication mode with an exact header name and a stored-key or environment-variable source. Keep rotation and endpoint/credential binding; never show the key in a preview.
 2. Add the required policy, model, transport, and CA controls with the values above visible. Preserve site settings and unrelated TOML instead of resetting them during a provider edit. Scope the CA choice to the launched process.

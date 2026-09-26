@@ -56,7 +56,7 @@ Ctrl-B followed by `|` or `-` splits at the current directory. Ctrl-B then h/j/k
 
 Detach with Ctrl-B then d. Reattach with `ws session` on the same node and project. Layout saving remains separate from live process persistence: it cannot preserve a finished allocation or move a running process to another node. Release updates create separate tmux servers; start a fresh session to test a new release's locale/tool configuration.
 
-With round-robin login addresses, the next SSH connection may land on a different node. See [session locations](session-locations.md) for the new repository launcher lookup and how it reads existing 0.7.1 records. The actual node's approved SSH address must come from the site. The [Windows guide](windows-vscode-hpc.md) covers saved connections in VS Code using already-installed clients.
+With round-robin login addresses, the next SSH connection may land on a different node. See [session locations](session-locations.md) for `ws sessions` (0.7.2+) and how it reads older records. The actual node's approved SSH address must come from the site. The [Windows guide](windows-vscode-hpc.md) covers saved connections in VS Code using already-installed clients.
 
 Check usable Kerberos credentials separately from SSH login success. A hop may require delegation, and old tmux panes can retain an expired cache reference even when a fresh login works. See [Kerberos and tmux reconnect checks](session-locations.md#kerberos-across-an-ssh-hop). Preserve the original server when it holds an interactive job; restarting tmux on another node cannot recover that connection.
 

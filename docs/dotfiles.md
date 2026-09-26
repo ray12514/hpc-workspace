@@ -63,7 +63,7 @@ The usual state root is **`~/.local/state/hpc-workspace/local`**. Saved site lab
 | Neovim swap | Normally `$WS_STATE_HOME/apps/nvim/swap`; `:set directory?` shows the effective value |
 | Neovim layouts | `$WS_STATE_HOME/apps/nvim/sessions`; selected by the editor's starting directory |
 | tmux snapshots | `$WS_STATE_HOME/tmux/<node>/<session>`; managed sessions are scoped to project and release |
-| Host session bookkeeping | `$WS_STATE_HOME/session-hosts`; used to reconnect to the running keeper. The updated repository launcher adds readable node/project/release metadata and a [location lookup](session-locations.md) |
+| Host session bookkeeping | `$WS_STATE_HOME/session-hosts`; used to reconnect to the running keeper. Version 0.7.2 adds readable node/project/release metadata and a [location lookup](session-locations.md) |
 | zoxide and other application data | Their ordinary application-specific locations unless a wrapper overrides them; zoxide honors `_ZO_DATA_DIR` and otherwise its normal XDG data location |
 
 In Neovim, `:echo stdpath('state')` shows its state directory. `:wall` saves modified buffers; `:WorkspaceSave` saves layout and file references. Persistent undo is not a copy of all unsaved text. After an unexpected termination, use the swap recovery prompt or `nvim -r path/to/file`; recovery can only restore what was written to disk. Keep the state directory on persistent storage if you need it after an allocation ends.

@@ -1,5 +1,14 @@
 # Workspace validation
 
+## Managed tmux selection: 0.7.2-preview1 source checks
+
+Date: **2026-09-25**. The shipped 0.7.1 wrapper reproduced a wrong-server failure inside a managed pane: it supplied its release-default socket even though `TMUX` identified the active project server. The underlying tmux binary reached the correct server in the same pane. The wrapper now preserves that implicit selection while keeping explicit `-L` and `-S` overrides.
+
+- The new regression fails with the original wrapper and passes with the fix. It runs a managed server alongside a separate default server, checks implicit and explicit clients, invokes the actual layout-save helper from a managed pane, and checks that the snapshot contains the project's three windows without the decoy session. The save binding must also initialize on the managed server.
+- The existing real tmux/editor interaction suite passes. The Linux unit suite runs **87 tests: 84 pass and 3 skip** because the fixture lacks wget and the importable YAML parser. Host modules parse with Python 3.6 syntax rules; focused Ruff, documentation links, and code fences pass.
+
+Final SIF, installation, and publication results will be recorded after artifact validation. Tool versions and the Nix lock remain unchanged. No private cluster or credential is involved in these checks.
+
 ## Session locations and connection guides: repository update
 
 Date: **2026-09-25**. This source update adds `bin/ws sessions`, readable node/project/release records for managed thin sessions, a Windows/VS Code connection guide, and a restricted native Codex configuration outline. It does **not** publish a replacement for 0.7.1-preview1 or extend its gateway form.

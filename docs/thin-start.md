@@ -1,6 +1,6 @@
 # Install the integrated development environment
 
-The **0.7.1-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
+The **0.7.2-preview1** thin release implements the first working foundation: one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. Site-local facts and results stay on the system. It now includes the expanded productivity toolkit, Codex and Claude Code, and a preconfigured Neovim plugin/parser bundle.
 
 This page covers installation and lifecycle. After setup, follow the [daily workflow tutorial](daily-workflow.md) or use the [command reference](command-reference.md). The [documentation index](README.md) separates current user guides from historical releases and design notes.
 
@@ -32,22 +32,22 @@ Transfer the checkout **including `dist/downloads`** through your normal approve
 
 ### Manual bundle transfer (optional)
 
-If you prefer managing release files yourself, download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.1-preview1), together with their checksum files, and transfer them through the usual approved route:
+If you prefer managing release files yourself, download these four assets from the [preview release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.2-preview1), together with their checksum files, and transfer them through the usual approved route:
 
-- `hpc-workspace-thin-0.7.1-preview1-linux-amd64.sif`
-- `hpc-workspace-source-0.7.1-preview1.tar.gz`
-- `install-workspace-0.7.1-preview1.py`
-- `release-0.7.1-preview1.json`
+- `hpc-workspace-thin-0.7.2-preview1-linux-amd64.sif`
+- `hpc-workspace-source-0.7.2-preview1.tar.gz`
+- `install-workspace-0.7.2-preview1.py`
+- `release-0.7.2-preview1.json`
 
 Keep the four files in the same directory. After verifying the downloaded checksums, run the same command on each system:
 
 ```bash
-python3 install-workspace-0.7.1-preview1.py release-0.7.1-preview1.json
+python3 install-workspace-0.7.2-preview1.py release-0.7.2-preview1.json
 ```
 
 The installer verifies the SIF and source checksums, installs a versioned copy under `~/.local/share/hpc-workspace/runtime`, and selects it atomically. It adds a managed PATH block to `.bashrc` and the active Bash login profile, preserving the existing contents and symlinks. It follows Bash's priority order (`.bash_profile`, `.bash_login`, `.profile`) and creates `.bash_profile` only when no readable login profile exists. Repeating installation is safe. `--prefix DIRECTORY` selects another persistent location; `--no-shell-hook` leaves shell startup files alone.
 
-When the installed launcher is available, transfer the new bundle and run `ws update /path/to/release-0.7.1-preview1.json`. The command exists in 0.5.0 and later; 0.5.1 and later also retain saved startup-file choices. When `ws` is missing or comes from an older source checkout, use the new standalone installer directly as shown above.
+When the installed launcher is available, transfer the new bundle and run `ws update /path/to/release-0.7.2-preview1.json`. The command exists in 0.5.0 and later; 0.5.1 and later also retain saved startup-file choices. When `ws` is missing or comes from an older source checkout, use the new standalone installer directly as shown above.
 
 After this one-time setup, log in normally, change to your project, and run:
 

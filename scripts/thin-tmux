@@ -8,7 +8,9 @@ state.mkdir(parents=True, exist_ok=True, mode=0o700)
 os.environ.setdefault('WS_SESSION_STATE', str(state))
 args = sys.argv[1:]
 options = []
-if '-L' not in args and '-S' not in args:
+# Inside a pane or a server hook, TMUX identifies the active server. Supplying
+# our outside-shell default here would redirect helpers to another workspace.
+if not os.environ.get('TMUX') and '-L' not in args and '-S' not in args:
     options += ['-L', 'ws-' + hashlib.sha256(os.environ['WS_RELEASE'].encode()).hexdigest()[:8]]
 if '-f' not in args:
     options += ['-f', '/workspace-tools/config/tmux/tmux.conf']

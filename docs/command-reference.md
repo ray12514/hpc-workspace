@@ -10,6 +10,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Repo checkout on transfer machine | `./setup --download-only` | Prepare the same files for offline transfer |
 | Native login shell, project directory | `ws enter` | Enter the integrated Bash shell |
 | Native login shell, project directory | `ws session` | Start/reconnect to the managed tmux workspace |
+| Native login shell | `ws sessions` / `ws sessions --json` | List recorded session nodes/projects/images (0.7.2+) |
 | Native shell | `ws enter --dry-run` | Inspect the local mount plan |
 | Inside workspace | `ws tools` / `ws tools --json` | Inspect packaged tool versions |
 | Native shell | `ws runtime setup` / `ws runtime status` | Check and remember Apptainer / display its saved invocation |
@@ -21,7 +22,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 
 `ws session` already enters the workspace. If you used `ws enter` first, ordinary `tmux` works there, but has no independent container keeper. Return to the native shell to start a managed `ws session`.
 
-The updated **repository launcher** also has `./bin/ws sessions` and `./bin/ws sessions --json` for [recorded session locations](session-locations.md). These are not yet in the published 0.7.1 runtime. Use the lookup from the native shell after a round-robin login to find the original node.
+Use `ws sessions` from the native shell after a round-robin login to find [recorded session locations](session-locations.md). If still on 0.7.1, the updated repository's `./bin/ws sessions` can inspect its older records.
 
 The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, and rotation. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
 

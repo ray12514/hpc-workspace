@@ -59,7 +59,7 @@ VS Code's Explorer and graphical editor remain local to Windows in this workflow
 
 ## Return to a saved workspace
 
-After reconnecting, check the actual node before starting another session. The new repository launcher offers `./bin/ws sessions` to look up recorded locations, including older 0.7.1 records when their metadata is present. It does not SSH to nodes or migrate tmux. Reconnect through the approved address for the recorded node, then select the same project and release. See [session locations and availability](session-locations.md).
+After reconnecting, check the actual node before starting another session. In 0.7.2+, `ws sessions` looks up recorded locations, including older 0.7.1 records when their metadata is present. The updated repository's `./bin/ws sessions` also works before installing that release. It does not SSH to nodes or migrate tmux. Reconnect through the approved address for the recorded node, then select the same project and release. See [session locations and availability](session-locations.md).
 
 An SSH hop from one login node to another may authenticate without providing usable Kerberos tickets on the destination. Prefer a fresh connection from Windows to the recorded node when the site supports it, using the same approved kit. If a hop is required, follow the site's delegation procedure and verify tickets before attaching. Keep a session holding an interactive job alive while resolving access. The [Kerberos reconnect notes](session-locations.md#kerberos-across-an-ssh-hop) distinguish missing delegation from an old tmux pane retaining an outdated cache.
 
