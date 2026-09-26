@@ -80,17 +80,38 @@ class SessionLocationTests(unittest.TestCase):
         self.assertEqual(len(report['warnings']), 1)
 
     def test_empty_lookup_needs_no_image_runtime_or_state_creation(self):
-        output = io.StringIO()
-        with patch.dict(os.environ, {'HOME': self.temporary.name}, clear=True), \
-                contextlib.redirect_stdout(output), patch('workspace.selected_image') as image:
-            status = workspace.main(['sessions', '--state-dir', str(self.state), '--json'])
-        self.assertEqual(status, 0)
-        self.assertEqual(json.loads(output.getvalue())['sessions'], [])
-        image.assert_not_called()
-        self.assertFalse(self.state.exists())
+        for marker in ({}, {'WS_CONTAINER': '1'}, {'APPTAINER_CONTAINER': '/fake/image.sif'}):
+            with self.subTest(marker=marker):
+                output = io.StringIO()
+                with patch.dict(os.environ, dict(HOME=self.temporary.name, **marker), clear=True), \
+                        contextlib.redirect_stdout(output), patch('workspace.selected_image') as image:
+                    status = workspace.main(['sessions', '--state-dir', str(self.state), '--json'])
+                self.assertEqual(status, 0)
+                self.assertEqual(json.loads(output.getvalue())['sessions'], [])
+                image.assert_not_called()
+                self.assertFalse(self.state.exists())
 
     def test_display_cannot_emit_terminal_controls_from_metadata(self):
         self.assertEqual(session_records.display('project\n\x1b[31m'), 'project\\n\\u001b[31m')
+
+    def test_inside_lookup_defaults_to_current_workspace_state_with_explicit_overrides(self):
+        self.record('login-one')
+        environment = dict(HOME=self.temporary.name, WS_CONTAINER='1', WS_SITE='local',
+                           WS_STATE_HOME=str(self.state))
+        other = Path(self.temporary.name) / 'other-state'
+        cases = (([], self.state, 1), (['--state-dir', str(other)], other, 0),
+                 (['--site', 'other'], Path(self.temporary.name) / '.local/state/hpc-workspace/other', 0))
+        for flags, expected, count in cases:
+            with self.subTest(flags=flags), patch.dict(os.environ, environment, clear=True):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    status = workspace.main(['sessions', '--json'] + flags)
+                self.assertEqual(status, 0)
+                report = json.loads(output.getvalue())
+                self.assertEqual(report['state_dir'], str(expected.resolve()))
+                self.assertEqual(len(report['sessions']), count)
+                if expected != self.state:
+                    self.assertFalse(expected.exists())
 
     def test_new_session_records_location_and_reuses_keeper(self):
         project = Path(self.temporary.name) / 'my project'

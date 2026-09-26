@@ -126,7 +126,7 @@ printf 'integration-passed\n'
     assert current['project'] == str(project) and current['image'] == image, current
     assert current['recorded_at'] and current['release'], current
     assert Path(current['record']).stat().st_mode & 0o777 == 0o600
-    packaged_locations = ws('enter', *common, '--', 'ws', 'sessions', '--state-dir', str(state), '--json')
+    packaged_locations = ws('enter', *common, '--', 'ws', 'sessions', '--json')
     assert json.loads(packaged_locations.stdout) == locations
     ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-tmux.py', name)
     deadline = time.monotonic() + 15

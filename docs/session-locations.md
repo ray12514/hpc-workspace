@@ -4,7 +4,7 @@ A managed tmux workspace stays on the **actual login node** where it started. A 
 
 ## Find the node
 
-**Availability:** `sessions` and the richer location records ship in **0.7.2-preview1**. From the native login shell after updating:
+**Availability:** `sessions` and the richer location records ship in **0.7.2-preview1**. From the native login shell or an updated workspace:
 
 ```bash
 ws sessions
@@ -12,6 +12,8 @@ ws sessions --json
 ```
 
 This command needs host Python 3.6+, but does not start Apptainer, load modules, contact other nodes, or require an image selection. It reads the configured site's shared state directory. Use the same `--site` or `--state-dir` override as the original session if you supplied one.
+
+Inside the workspace, the lookup defaults to that shell's current state directory, including a custom location supplied at entry. Explicit `--site` or `--state-dir` options override that default.
 
 Example output, with fictional node and project names:
 

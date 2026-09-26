@@ -615,7 +615,10 @@ def thin_session(args, image):
 
 
 def sessions(args):
-    report = session_records.locations(state_path(args))
+    state = state_path(args)
+    if in_container() and not args.state_dir and not args.explicit_site and os.environ.get('WS_STATE_HOME'):
+        state = Path(os.environ['WS_STATE_HOME']).expanduser().resolve()
+    report = session_records.locations(state)
     if args.json:
         print(json.dumps(report, indent=2))
         return 0
@@ -800,7 +803,7 @@ def main(argv=None):
             return args.handler(args)
         if args.action == "update" or (args.action == "rollback" and os.environ.get("WS_INSTALL_ROOT")):
             return args.handler(args)
-        if in_container() and args.action not in ("jobs", "submit", "doctor"):
+        if in_container() and args.action not in ("jobs", "submit", "doctor", "sessions"):
             raise WorkspaceError("Run 'ws " + args.action + "' on the host. Inside the workspace use submit or jobs.")
         prepare(args)
         return args.handler(args)
