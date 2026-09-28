@@ -27,4 +27,6 @@ env_http_headers = { "REPLACE_WITH_APPROVED_HEADER" = "HPC_GATEWAY_KEY" }
 responses_websockets = false
 responses_websockets_v2 = false
 
-# CA bundle: set CODEX_CA_CERTIFICATE in the launch environment, not this table.
+# CA bundle: export CODEX_CA_CERTIFICATE before launching Codex, not in this table
+# or [shell_environment_policy.set] (which only affects commands Codex launches).
+# For persistence, put that export in ~/.config/hpc-workspace/bashrc.

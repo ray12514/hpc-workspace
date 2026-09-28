@@ -100,9 +100,21 @@ If installation fails, its local error needs resolving before activation will wo
 
 ## Everyday use
 
-Choose `ws enter` or `ws session` from the native shell; they are alternative entry methods, not two commands to run one after the other.
+In the current 0.7 releases, choose `ws enter` or `ws session` from the native shell. The launcher currently rejects `ws session` inside an existing workspace; this is a launcher limitation, not a restriction on using tmux inside a container.
 
 Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace, editor, and agents windows that use the integrated environment. The agents window starts a shell; run `codex` or `claude` when ready. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
+
+| Command | Current behavior |
+| --- | --- |
+| `ws enter` from the native shell | Open a foreground workspace shell. |
+| `ws session` from the native shell | Start or attach the project's managed tmux session, with its container kept available while the tmux server runs. |
+| `tmux` inside `ws enter` | Start ordinary packaged tmux with the workspace defaults; the launcher has not added an independent container keeper. |
+| `ws session` inside `ws enter` | Currently rejected. Supporting this requires arranging the managed lifetime, not starting another container inside this one. |
+| `ws sessions` | List recorded session locations; supported both outside and inside the workspace in 0.7.2. It does not attach. |
+
+The lifetime distinction matters even if a detached tmux process still appears alive. With Apptainer's extracted-SIF execution, ending the entering command can remove the extracted tool files; this was reproduced during development. The managed keeper prevents that cleanup until tmux ends. Simply removing the inside-workspace guard would not provide the same guarantee.
+
+For managed tmux in today's release, start with `ws session` directly from your project's native shell. It already enters the workspace. Detach with **Ctrl-B d**, and run the same command on the same node, project, and release to reconnect. If you already used `ws enter`, finish any foreground-shell work before exiting back to the native shell and starting `ws session`. See [session locations](session-locations.md) for round-robin login addresses and reconnection limits.
 
 Use the site's ordinary commands from that shell:
 

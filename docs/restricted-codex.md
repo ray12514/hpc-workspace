@@ -52,6 +52,33 @@ Use a normal interactive shell with tracing disabled. The variable is available 
 
 `CODEX_CA_CERTIFICATE` selects a PEM CA bundle; Codex falls back to `SSL_CERT_FILE` when it is absent. Set the path before launch. A persistent, non-secret path can go in your personal workspace Bash settings if appropriate. The certificate must be readable on both login and compute nodes. See [OpenAI authentication and custom CA bundles](https://learn.chatgpt.com/docs/auth#custom-ca-bundles).
 
+### Keep the CA setting across workspace shells
+
+Inside the workspace, open your personal Bash settings:
+
+```bash
+nvim ~/.config/hpc-workspace/bashrc
+```
+
+Add this line with your actual, locally approved PEM bundle path:
+
+```bash
+export CODEX_CA_CERTIFICATE='/replace/with/local/approved-ca-bundle.pem'
+```
+
+The path is configuration, not an API key. The bundle stays on the system and must be accessible through the workspace's mounts. These personal settings survive workspace updates and load in new workspace Bash shells, including new tmux panes. To apply the edit to the current pane, then launch a new client:
+
+```bash
+source ~/.config/hpc-workspace/bashrc
+ws agent codex --native
+```
+
+A running Codex process does not receive later exports; exit that client normally before relaunching it. Other existing panes keep their own environments until they source the file or start a new shell.
+
+The ordinary Codex file is `${CODEX_HOME:-$HOME/.codex}/config.toml`, but its `[shell_environment_policy.set]` table controls **commands launched by Codex**, not Codex's own HTTPS connection. A CA export placed only in that table cannot establish the client's initial connection. The TOML `otel.*.tls.ca-certificate` fields configure telemetry exporters, not the model provider. See the [shell environment policy](https://learn.chatgpt.com/docs/config-file/config-advanced#shell-environment-policy) and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+An offline HTTPS test of the packaged **Codex 0.155.1** confirmed that either `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE` in the launch environment establishes trust. `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS`, tested individually, did not establish trust for Codex's own model request. Other tools or commands an agent launches may still need their own certificate settings; this is not a reason to remove working site settings. The test used a synthetic CA, not a private gateway; see [validation](validation.md#codex-ca-diagnosis-and-session-entry-clarification).
+
 First confirm the version with `codex --version`. Then test a small approved, non-sensitive request locally on a login node and again after entering a workspace on a compute node. A version check or valid TOML alone does not establish gateway connectivity. Local security policy, proxy settings, certificates, and outbound access still govern those requests.
 
 ## Next form extension

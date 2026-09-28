@@ -1,5 +1,29 @@
 # Workspace validation
 
+## Codex CA diagnosis and session entry clarification
+
+Date: **2026-09-28**. This is a documentation update; the recommended image and launcher are unchanged.
+
+The actual packaged **Codex 0.155.1** in `hpc-workspace-thin:0.7.2-preview1` was launched through its normal wrapper against a loopback HTTPS server. Each case used an isolated home, synthetic credentials, a fresh environment, and the same disposable root CA plus a separately signed server certificate. Docker networking was disabled. The server returned a synthetic authentication error after receiving the request; this checks TLS trust, not a successful model response.
+
+| Certificate setting at launch | Model HTTPS request reaches the server |
+| --- | --- |
+| No trusted fixture CA | No; unknown CA alert, reproduced twice |
+| `CODEX_CA_CERTIFICATE` only in TOML's `[shell_environment_policy.set]` | No; unknown CA alert |
+| Exported `CODEX_CA_CERTIFICATE` | Yes |
+| Exported `SSL_CERT_FILE` | Yes |
+| Exported `CURL_CA_BUNDLE` alone | No; unknown CA alert |
+| Exported `REQUESTS_CA_BUNDLE` alone | No; unknown CA alert |
+| Exported `NODE_EXTRA_CA_CERTS` alone | No; unknown CA alert |
+
+The launch wrapper preserves an explicit Codex CA choice. The guide now gives the persistent personal Bash setting, explains TOML's child-process scope, and distinguishes new shells from existing tmux panes and running clients. The user's exact TOML and certificate chain were not inspected, so this establishes packaged behavior rather than the exact field used at the site.
+
+A minimal launcher reproduction also confirms that `ws session --detach` inside a workspace returns the host-only error before trying to start tmux. The entry guide now explains the existing keeper and the previously reproduced extracted-SIF cleanup problem. Starting managed sessions from inside `ws enter` remains a proposed launcher improvement, not a behavior change in this documentation update. Any implementation must keep the container available after both tmux detachment and exit of the original foreground shell, reuse an existing managed session, and preserve the original shell's work.
+
+Changed Markdown passes code-fence and local link/anchor checks; its 28 Bash examples pass syntax checks. The native Codex TOML example parses to the same settings as before; only explanatory comments changed.
+
+No cluster, private configuration, certificate, API key, or live job was accessed. The synthetic diagnostic files are confined to ignored `build/codex-ca-diagnosis/`; no trust settings were changed on the workstation.
+
 ## Session selection and lookup: 0.7.2-preview1
 
 Date: **2026-09-25**. The shipped 0.7.1 wrapper reproduced a wrong-server failure inside a managed pane: it supplied its release-default socket even though `TMUX` identified the active project server. The underlying tmux binary reached the correct server in the same pane. The wrapper now preserves that implicit selection while keeping explicit `-L` and `-S` overrides.
