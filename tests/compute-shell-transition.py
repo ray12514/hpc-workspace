@@ -85,6 +85,13 @@ try:
         send('/workspace-tools/thin-entry /workspace-tools/libexec/python3 -I ' +
              shlex.quote(script) + ' --compute-workspace')
         expect('COMPUTE_ENTRY_AND_CODEX_VERSION_OK\r\n')
+        send('/workspace-tools/thin-entry /workspace-tools/thin-shell')
+        expect('job:fixture-only')
+        send('test "$WS_CONTEXT" = compute && test "$WS_CONTAINER" = 1 && '
+             "printf 'NORMAL_COMPUTE_SHELL_OK\\n'")
+        expect('NORMAL_COMPUTE_SHELL_OK\r\n')
+        send('exit')
+        expect('STEP_READY> ')
         send('exit 7')
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
@@ -96,7 +103,7 @@ try:
             time.sleep(.1)
         assert child is None, 'Launcher did not propagate the compute shell exit'
         print('PASS: real PTY persists across commands; job environment is restored; '
-              'synthetic compute context and packaged Codex --version work; exit status propagates.')
+              'normal compute prompt and packaged Codex --version work; exit status propagates.')
         print('NOT TESTED: real Slurm, separate compute host, CSE group/mounts, gateway API, build speed.')
 finally:
     if master is not None:

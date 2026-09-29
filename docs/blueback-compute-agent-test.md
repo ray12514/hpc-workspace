@@ -5,11 +5,17 @@ running. The commands below leave its locks, overlays and packages alone.
 Use branch **`codex/session-reconnect`** of **ray12514/hpc-workspace** for this
 guide; no workspace/image update is required for `ws job-env` or direct entry.
 
-Blueback's public documentation identifies **Slurm**, with account, partition,
-QOS and time/resource options. It recommends allocated compute resources for
-heavy interactive work. Project access determines the values you can use; fill
-in the three scheduler placeholders below from your approved settings. Public
-queue examples are not proof of your project's access. Sources checked
+**Option B passed on Blueback (operator report, 2026-09-29):** compute workspace
+entry and a Codex API response succeeded. Continue with the
+[stop-and-resume handoff](blueback-compute-handoff.md) when moving the actual
+build. Route A's remote-control sequence still needs its own site test.
+
+Blueback's public documentation identifies **Slurm**. The successful site test
+used **`--constraint`**, so the commands below use the operator's account,
+constraint and QOS, with the site's default partition. A constraint selects
+node features; it is not another spelling of partition. Keep your tested
+selection, adding an explicit partition only if your site procedure needs one.
+Sources checked
 2026-09-29: [Blueback Slurm guide](https://centers.hpc.mil/users/docs/navy/bluebackSlurmGuide.html)
 and [Blueback user guide](https://centers.hpc.mil/users/docs/navy/bluebackUserGuide.html).
 
@@ -32,18 +38,50 @@ existing CSE workspace path, on storage accessible from compute nodes.
 
 ```bash
 export CSE_PROBE_ACCOUNT='EDIT_ACCOUNT'
-export CSE_PROBE_PARTITION='EDIT_PARTITION'
+export CSE_PROBE_CONSTRAINT='EDIT_CONSTRAINT'
 export CSE_PROBE_QOS='EDIT_QOS'
 export CSE_PROBE_WORKSPACE='/EDIT/absolute/path/to/existing/CSE/workspace'
 export CSE_PROBE_LOGIN_HOST="$(hostname)"
 ```
 
-For route B, supply the **same working credential variable and CA path** as your
-current Codex setup before allocation/entry, through your existing private
-mechanism. Keep secrets out of this block and the repository. If you currently
-export them only inside the login workspace, start the allocation from that
-shell. `ws job-env` retains those exports; it is not a credential scrubber.
-The certificate and saved configuration must be readable on the compute node.
+For route B, supply the **same working credential variable and CA path** before
+allocation/entry. Use your existing private credential helper, or this Bash
+block. It asks for the variable name from the working TOML (`env_key` or
+`env_http_headers`), a readable PEM path, and the key with hidden input. It
+exports the key and both CA variables without writing a key to a file or shell
+history. An existing nonempty key in that shell is reused. Tracing stays off.
+
+```bash
+set +x
+cse_export_codex_access() {
+  local cse_key_name cse_ca_path
+  IFS= read -r -p 'Exact API-key variable name from your working config: ' cse_key_name || return 2
+  case "$cse_key_name" in
+    ''|[0-9]*|*[!A-Za-z0-9_]*|HOME|PATH|SHELL|USER|LOGNAME|CODEX_HOME|CODEX_CA_CERTIFICATE|SSL_CERT_FILE|CSE_CODEX_KEY_NAME|cse_key_name|cse_ca_path|LD_*|BASH*|ENV|IFS|APPTAINER*|SINGULARITY*)
+      printf 'Use the existing dedicated API-key variable name.\n' >&2; return 2 ;;
+  esac
+  IFS= read -r -p 'Absolute path to your approved PEM CA bundle: ' cse_ca_path || return 2
+  case "$cse_ca_path" in /*) ;; *) printf 'Use an absolute CA path.\n' >&2; return 2 ;; esac
+  test -f "$cse_ca_path" && test -r "$cse_ca_path" || { printf 'CA bundle is not a readable file.\n' >&2; return 2; }
+  if [[ -z ${!cse_key_name:-} ]]; then
+    IFS= read -r -s -p 'API key (hidden): ' "$cse_key_name" || return 2
+    printf '\n'
+  fi
+  [[ -n ${!cse_key_name:-} ]] || { printf 'The key is empty.\n' >&2; return 2; }
+  export "$cse_key_name"
+  export CSE_CODEX_KEY_NAME="$cse_key_name"
+  export CODEX_CA_CERTIFICATE="$cse_ca_path"
+  export SSL_CERT_FILE="$cse_ca_path"
+  printf 'API-key variable exported; both CA variables set. Values were not printed.\n'
+}
+cse_export_codex_access
+```
+
+Continue after the success message. The certificate and saved configuration
+must be readable on compute. `ws job-env` retains these exports; it is not a
+credential scrubber. Existing proxy or additional tool-specific CA exports
+remain in place. To verify again after entry without exposing the key, a
+successful Codex response is the end-to-end check.
 
 Exports made in another PuTTY window do not update a running agent. For route A,
 include the completed exports in the same shell-tool invocation as step 2.
@@ -57,7 +95,7 @@ test allocation, not a resource recommendation for Dakota.
 ```bash
 (
   set -eu
-  for cse_probe_name in CSE_PROBE_ACCOUNT CSE_PROBE_PARTITION CSE_PROBE_QOS CSE_PROBE_WORKSPACE; do
+  for cse_probe_name in CSE_PROBE_ACCOUNT CSE_PROBE_CONSTRAINT CSE_PROBE_QOS CSE_PROBE_WORKSPACE; do
     cse_probe_value=${!cse_probe_name:-}
     case "$cse_probe_value" in
       ''|*EDIT*) printf 'Fill in %s first.\n' "$cse_probe_name" >&2; exit 2 ;;
@@ -82,7 +120,7 @@ test allocation, not a resource recommendation for Dakota.
   for cse_probe_command in ws salloc srun; do command -v "$cse_probe_command"; done
   ws job-env -- salloc \
     --account="$CSE_PROBE_ACCOUNT" \
-    --partition="$CSE_PROBE_PARTITION" --qos="$CSE_PROBE_QOS" \
+    --constraint="$CSE_PROBE_CONSTRAINT" --qos="$CSE_PROBE_QOS" \
     --nodes=1 --ntasks=1 --cpus-per-task=2 --time=00:10:00 \
     --job-name=ws-agent-probe \
     srun --nodes=1 --ntasks=1 --cpus-per-task=2 --pty /bin/bash -l
@@ -146,7 +184,7 @@ In that same compute shell:
 
 ```bash
 cd "$CSE_PROBE_WORKSPACE" &&
-./cse-agent-workspace -- /bin/bash --noprofile --norc -i
+./cse-agent-workspace -- /workspace-tools/thin-shell
 ```
 
 The wrapper's **`-- COMMAND`** form calls `ws enter` and selects the recorded
@@ -154,11 +192,17 @@ CSE primary group. No-argument `cse-agent-workspace` calls `ws session`, whose
 persistent server is deliberately restricted to login nodes. Use direct entry
 here. The launcher, SIF, project, home and Apptainer runtime must be available
 on this compute node; a login-only `/tmp` installation is insufficient.
+`thin-shell` loads the normal workspace Bash configuration and its
+`compute@HOST job:ID` prompt. The earlier `/bin/bash --noprofile --norc -i`
+test deliberately skipped that configuration, which explains its plain prompt.
+If still inside that plain workspace shell, run `exec /workspace-tools/thin-shell`
+to replace it while retaining the exported environment.
 
 Inside the resulting compute workspace:
 
 ```bash
 (
+  set +x
   set -eu
   test "${WS_CONTEXT:-}" = compute && test "${WS_CONTAINER:-}" = 1 && test -n "${SLURM_JOB_ID:-}" || {
     printf 'STOP: expected a workspace inside a Slurm compute allocation.\n' >&2; exit 2;
@@ -166,6 +210,13 @@ Inside the resulting compute workspace:
   printf 'Workspace host=%s job=%s context=%s\n' \
     "$(hostname)" "$SLURM_JOB_ID" "$WS_CONTEXT"
   id
+  if [[ -n ${CSE_CODEX_KEY_NAME:-} ]]; then
+    [[ -n ${!CSE_CODEX_KEY_NAME:-} ]] || { printf 'STOP: API-key export is missing.\n' >&2; exit 2; }
+    test -r "${CODEX_CA_CERTIFICATE:-}" && test -r "${SSL_CERT_FILE:-}" || {
+      printf 'STOP: exported CA paths are not readable on compute.\n' >&2; exit 2;
+    }
+    printf 'CREDENTIAL_EXPORTS_OK (key present, CA paths readable)\n'
+  fi
   ws agent codex --native -- --version
   printf 'COMPUTE_WORKSPACE_OK\n'
 )
@@ -218,22 +269,9 @@ Record the test's host, job ID, resource request, CSE group, entry result and
 whether A/B passed. Keep errors and paths in the existing site-local build
 notes. A successful smoke test qualifies the route, not Dakota performance.
 
-After the existing writer finishes or a deliberate stop is complete, use one
-appropriately sized allocation and the original workspace. Read its
-`BUILD-CONTEXT.yaml` for the exact platform environment and its `BUILD-AGENT.md`
-for overlay/recovery policy. That handoff currently says `login`; when the
-operator selects this compute route, use the `compute` context consistently:
-
-```bash
-./cse-build compute resume --environment 'COMPILER/LANE'
-```
-
-Replace `COMPILER/LANE` with the selected existing environment. This reuses its
-current lock and matching installed hashes. Current `resume` has no jobs flag;
-the generated Spack configuration supplies parallelism. Verify that setting
-fits the allocation before a real resume. Exporting a different `BUILD_JOBS`
-is not a reliable override and does not change a running build. Preserve the
-existing overlay impact checks and completed shared/GCC locks.
+Use the [complete stop-and-resume handoff](blueback-compute-handoff.md). It covers
+the old session, a full-node request, normal prompt, credential exports and
+resuming the original conversation and selected CSE environment.
 
 ## Validation boundary
 

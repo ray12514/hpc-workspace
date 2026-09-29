@@ -1,5 +1,28 @@
 # Workspace validation
 
+## Blueback compute handoff
+
+On 2026-09-29 the operator reported that option B passed on Blueback: the
+workspace checks completed on a compute node and Codex received an API response
+there. The successful allocation selected `--constraint` in place of the
+guide's earlier explicit partition. This is operator-reported acceptance, not
+a scheduler/API test run from this development host. Remote control by a login
+agent (A), full build completion and sustained performance are not established
+by that response.
+
+The [handoff guide](blueback-compute-handoff.md) now records the targeted old
+session shutdown, the operator's 192-CPU whole-node request, credential setup,
+normal workspace prompt and explicit selection of the original Codex history.
+The [test guide](blueback-compute-agent-test.md) uses the tested constraint and
+provides hidden-input key/CA exports.
+
+The offline PTY fixture passes after exercising `/workspace-tools/thin-shell`
+and its compute/job prompt. The revised guides' 19 Bash blocks parse; relative
+links/anchors resolve; unset scheduler placeholders stop before submission.
+A synthetic key and CA path reach a child process through the documented
+credential block without printing the key. No private credential was used or
+stored. These changes publish documentation and tests, not a new runtime image.
+
 ## Compute-agent shell test
 
 The [Blueback compute-agent guide](blueback-compute-agent-test.md) provides two

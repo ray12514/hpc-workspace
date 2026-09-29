@@ -8,6 +8,8 @@ The diagnostic is already on GitHub in **ray12514/hpc-workspace**, branch
 **Already collected the report?** Start with [CPU limits and filesystem
 waits](#cpu-limits-and-filesystem-waits). To test Codex controlling an allocation
 or running inside one, use [the complete compute-agent test](docs/blueback-compute-agent-test.md).
+**The compute test passed?** Use [the complete stop-and-resume handoff](docs/blueback-compute-handoff.md)
+to move the existing CCE build and resume the original Codex conversation.
 
 ## 1. Open the right terminal
 
