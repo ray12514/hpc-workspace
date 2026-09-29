@@ -1,5 +1,46 @@
 # Workspace validation
 
+## Compute-agent shell test
+
+The [Blueback compute-agent guide](blueback-compute-agent-test.md) provides two
+site acceptance routes: a login agent retaining a compute-shell PTY, and an
+agent launched directly in a compute workspace. It uses existing `ws job-env`
+and direct entry; this documentation does not change the runtime or publish a
+new image.
+
+Local checks on 2026-09-29:
+
+- The three `test_tool_environment.py` tests pass, including literal arguments,
+  restored native/module settings, removed image paths/tmux markers and exit
+  status propagation.
+- `tests/compute-shell-transition.py` passes in the existing Linux toolkit
+  fixture, run without network as an unprivileged user with a read-only root.
+  It starts a real PTY through `ws job-env`, checks the environment in a
+  simulated scheduler step, and retains the same shell PID, directory and
+  variable over two commands. Real thin entry then reports `compute` from the
+  synthetic allocation variable, and packaged `ws agent codex --native --
+  --version` succeeds. The original shell's exit status reaches the caller.
+
+Reproduce the offline transition check with an already-built local fixture:
+
+```bash
+docker run --pull=never --rm --read-only --network none \
+  --user 10001:10001 --env TERM=xterm-256color \
+  --env PYTHONDONTWRITEBYTECODE=1 \
+  --tmpfs /tmp:exec,mode=1777 \
+  --tmpfs /home/workspace:exec,mode=0700,uid=10001,gid=10001 \
+  --mount "type=bind,src=$PWD,dst=/src,readonly" \
+  --mount "type=bind,src=$PWD/lib,dst=/workspace-tools/lib,readonly" \
+  hpc-workspace-toolkit-fixture:latest \
+  /workspace-tools/libexec/python3 -I /src/tests/compute-shell-transition.py
+```
+
+This is a local fixture command, not a Blueback command. Run it from the repo
+root. No real scheduler, second node, CSE group setup, cluster filesystem or
+API request is exercised. It does not establish Blueback placement, gateway
+connectivity, improved build speed or resolution of the reported FUSE waits.
+The public guide contains no private diagnostic report or credentials.
+
 ## Host diagnostics for a blocked attachment
 
 Date: **2026-09-29**. `scripts/diagnose-session` is standalone source on
