@@ -1,5 +1,32 @@
 # Workspace validation
 
+## Host diagnostics for a blocked attachment
+
+Date: **2026-09-29**. `scripts/diagnose-session` is standalone source on
+`codex/session-reconnect`; no published image or installed launcher changes.
+
+Eight focused tests pass for blocked client/worker-thread capture, preservation
+of unreadable-stack errors, v1/v2 ancestor CPU limits, escaped mount paths, PID
+reuse, secret omission, private report creation, and a timeout that leaves an
+unrelated process running. The launcher and module parse with Python 3.6 syntax
+rules; an actual Python 3.6 interpreter was not used.
+
+[`tests/session-diagnostics-linux.py`](../tests/session-diagnostics-linux.py)
+passes in the offline `hpc-workspace-test-native:1.5.3` fixture as UID 1000, with
+a read-only root, writable `/tmp`, a 512 MiB limit and a one-CPU quota. A controlled
+`posix_spawn`/FIFO wait produces a real **D** task; the diagnostic observes it
+alongside a sleeping server-shaped process and two CPU workers. It records the
+kernel wait channel, reports denied stack access, detects increasing CPU
+throttling, omits a synthetic secret in process arguments/environment, and leaves
+all fixture processes running until the test cleans them up. This checks actual
+Linux observation and process preservation; the fixture processes are named for
+their roles and are not real tmux or CCE builds.
+
+That controlled vfork wait is **not a reproduction of Blueback's cause**. No
+Lustre/FUSE service stall, live build, remote node, or private credentials were
+accessed. The new command collects the evidence needed to distinguish the
+reported intermittent tmux D/R transitions from CPU throttling or other waits.
+
 ## Existing-session reconnect and targeted stop
 
 Date: **2026-09-29**. Source branch `codex/session-reconnect`; the published 0.7.2-preview1 image is unchanged.

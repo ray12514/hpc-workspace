@@ -36,6 +36,12 @@ Choose the existing gateway and **Edit connection** to review its endpoint and m
 
 ## Tmux says the pane is dead or looks frozen after exit
 
+If a native `top`/`ps` shows a tmux process in **D**, start with the
+[host-only diagnostic](session-locations.md#diagnose-a-stalled-attachment-from-the-host).
+D is an uninterruptible kernel wait, often I/O; it does not mean detached. An idle
+tmux server in S can be normal while a separate attaching client is blocked.
+Do not stop the server or its filesystem daemon merely to recover a viewer.
+
 Releases before 0.6.1 retained an exited pane with `remain-on-exit on`. There was no shell left to read normal input. A fresh 0.6.1 server defaults to `off`: Ctrl-D at an empty prompt or `exit` closes the pane; closing the final pane/window returns to the parent shell. Ctrl-C interrupts a command without normally closing Bash.
 
 Ctrl-B then d detaches even from a retained dead pane. Ctrl-B then `:` opens tmux's command prompt; inspect locally with:

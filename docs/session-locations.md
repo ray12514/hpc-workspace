@@ -91,6 +91,74 @@ Attach never starts a replacement keeper or tmux server. Missing, ended, startin
 
 Stop requires explicit selection and validates the local keeper identity. It targets only that managed tmux socket, then waits for its keeper to exit. It closes agents and local builds in those panes; unsaved work is not a checkpoint. It does not cancel scheduler jobs, signal all Apptainer processes, or remove lock files. An ended keeper is reported without sending a stop, but does not prove there are no orphaned processes. A still-starting workspace needs diagnosis from its displayed log; this command does not force-kill an unverified startup. Kernel I/O waits or blocked mounts can prevent shutdown.
 
+## Diagnose a stalled attachment from the host
+
+**Availability:** `scripts/diagnose-session` is standalone source on
+`codex/session-reconnect`; it needs native Linux Python 3.6+, but no workspace
+installation, image update, or activation. Run it from a second native SSH shell
+on the same actual login node and under the same user as the existing session.
+It does not start Apptainer, invoke tmux, select a different group, read workspace
+configuration, or signal existing processes.
+
+Copy this complete block in that native shell, from any directory:
+
+```bash
+ws_diag_source=$(mktemp -d /tmp/ws-diagnostics.XXXXXX) &&
+GIT_TERMINAL_PROMPT=0 git clone --quiet --depth 1 --single-branch \
+  --branch codex/session-reconnect \
+  https://github.com/ray12514/hpc-workspace.git "$ws_diag_source" &&
+python3 "$ws_diag_source/scripts/diagnose-session" \
+  --output "$ws_diag_source/report.json"
+```
+
+This downloads a separate diagnostic checkout; it does not pull/merge into an
+existing checkout or activate its launcher. Nothing is pushed from the cluster.
+For an offline node, transfer this source checkout through the approved route,
+then run `python3 /path/to/checkout/scripts/diagnose-session --output /tmp/ws-report.json`.
+The output path must be new. If Git cannot access the public repository, preserve
+its error rather than changing credentials or disabling certificate checks.
+
+The command normally takes about six seconds plus metadata collection. It prints
+a compact summary and saves a mode-0600 JSON report. The report contains process
+names/IDs, paths, namespaces, kernel wait channels/stacks when readable, selected
+mount types, visible FUSE queue counters, CPU affinity and cgroup limits/counters.
+It samples only the current user's processes and does not read command arguments,
+environment variables, agent configuration, logs, or open-file contents. Paths
+and hostnames still belong to the site: keep the detailed report there and share
+only the relevant summary when asking for help. Kernel restrictions can hide wait
+channels, stacks or counters; an unavailable value is not evidence of no wait.
+
+The sampler runs as its own diagnostic child with a 30-second deadline. On timeout
+only that child is signaled, and the controller reports any complete samples.
+An uninterruptible diagnostic read can outlive the deadline; the controller reports
+that diagnostic PID and returns rather than waiting indefinitely. Do not repeatedly
+launch probes in that case. Interpreter startup and writing the output file are
+outside that deadline; use the native interpreter and the `/tmp` location above.
+
+Interpret the observations separately:
+
+- **D** is an uninterruptible kernel wait, often I/O. It does not mean detached or
+  establish a tmux application lock. `request_wait_answer`/FUSE stack frames point
+  toward a FUSE request; Lustre/`ll_*`/`ptlrpc_*` frames point toward that filesystem
+  path. Generic page/lock waits need the stack and mount context.
+- A sleeping tmux **server** can be normal while an attaching **client** is in D.
+  The table includes parent IDs and executable names to distinguish them.
+- A `squashfuse_ll` process falling out of a CPU-sorted `top` view need not have
+  exited. The report tracks PID plus process start identity across samples.
+- A nonzero FUSE `waiting` counter includes in-flight requests; it alone does not
+  prove a deadlock. Repeated waits, blocked-task stacks and daemon activity provide
+  context. The helper never writes FUSE controls or unmounts anything.
+- `throttled_delta` measures new CPU throttling during the sample window, including
+  visible ancestor groups. A quiet node can still enforce a per-user/session CPU
+  limit. Missing counters or a short sample without throttling do not rule out
+  other limits or intermittent waits.
+
+Sources: [Linux process states](https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html),
+[FUSE request counters](https://www.kernel.org/doc/html/latest/filesystems/fuse/fuse.html),
+[CPU bandwidth control](https://www.kernel.org/doc/html/latest/scheduler/sched-bwc.html).
+These are diagnostic distinctions, not a confirmed explanation of the Blueback
+attachment/build stall. Preserve the running workspace while collecting evidence.
+
 ## Switch between two running workspaces
 
 Start A with `ws session --project /project/A`, then start work inside its tmux shell. Press **Ctrl-B**, then **d** to detach to the native shell. Start B with `ws session --project /project/B`; detach the same way, then use `ws sessions` and `ws attach --session NAME` to return to A. Stop B with its own recorded name while A continues.
