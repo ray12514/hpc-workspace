@@ -1,5 +1,45 @@
 # Workspace validation
 
+## Native cleanup without reattachment
+
+On 2026-09-29 the operator explicitly requested stopping their processes on the
+old login node because workspace reattachment is unavailable. The
+[handoff guide](blueback-compute-handoff.md) now uses the standalone
+[`scripts/stop-own-node-processes`](../scripts/stop-own-node-processes) helper
+from a fresh native SSH shell. This replaces the handoff's earlier `ws stop`
+step, which depended on container entry. It does not change the installed image.
+
+[`tests/native-stop-linux.py`](../tests/native-stop-linux.py) passes in an
+offline disposable Linux container with its own PID namespace. A root fixture
+supervisor creates two synthetic users; the cleanup itself runs unprivileged
+as UID 1000 from a real interactive Bash PTY. Preview leaves workloads alive.
+TERM stops ordinary tasks, an old shell and a nondumpable task; KILL stops a
+task that ignores TERM. The current Bash, its caller, and UID 1001's workload
+survive, and the same Bash accepts another command after cleanup. Root and
+tmux-environment invocations are refused.
+
+Narrow simulated checks confirm that changed PID identities/owners, protected
+ancestors and zombies are not signalled. An inspection failure prevents stop
+signals; a persistent `D` survivor returns `CLEANUP INCOMPLETE` after TERM/KILL.
+That simulated survivor is not a reproduction of a blocked kernel task on
+Blueback. No cluster process was inspected or stopped from this development
+host, and no permanently blocked FUSE task was reproduced.
+
+Reproduce from the repo root with the existing local fixture image. Do not add
+host PID sharing or run this fixture directly on a cluster:
+
+```bash
+docker run --pull=never --rm --read-only --network none --user 0:0 \
+  --env PYTHONDONTWRITEBYTECODE=1 --tmpfs /tmp:exec,mode=1777 \
+  --mount "type=bind,src=$PWD,dst=/src,readonly" \
+  --entrypoint python3 hpc-workspace-test-native:1.5.3 \
+  /src/tests/native-stop-linux.py
+```
+
+The helper parses with Python 3.6 syntax rules; an actual Python 3.6 interpreter
+was not used. The two current compute guides contain 15 Bash blocks, all of
+which parse without executing them; relative guide links and anchors resolve.
+
 ## Blueback compute handoff
 
 On 2026-09-29 the operator reported that option B passed on Blueback: the
@@ -10,15 +50,15 @@ a scheduler/API test run from this development host. Remote control by a login
 agent (A), full build completion and sustained performance are not established
 by that response.
 
-The [handoff guide](blueback-compute-handoff.md) now records the targeted old
-session shutdown, the operator's 192-CPU whole-node request, credential setup,
+The [handoff guide](blueback-compute-handoff.md) records native old-node cleanup,
+the operator's 192-CPU whole-node request, credential setup,
 normal workspace prompt and explicit selection of the original Codex history.
 The [test guide](blueback-compute-agent-test.md) uses the tested constraint and
 provides hidden-input key/CA exports.
 
 The offline PTY fixture passes after exercising `/workspace-tools/thin-shell`
-and its compute/job prompt. The revised guides' 19 Bash blocks parse; relative
-links/anchors resolve; unset scheduler placeholders stop before submission.
+and its compute/job prompt. At that revision, 19 Bash blocks parsed, relative
+links/anchors resolved and unset scheduler placeholders stopped before submission.
 A synthetic key and CA path reach a child process through the documented
 credential block without printing the key. No private credential was used or
 stored. These changes publish documentation and tests, not a new runtime image.

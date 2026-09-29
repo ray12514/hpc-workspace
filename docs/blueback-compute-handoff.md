@@ -6,76 +6,70 @@ The normal login-node workspace can hold the allocation's terminal connection.
 This keeps the build and agent tools on compute while preserving a detachable
 terminal on login.
 
-This procedure deliberately stops the old build session. Packages already
-installed and saved files remain; an interrupted package may repeat work.
-Codex conversation recovery is separate from resuming a Spack build. The old
-conversation must have no active writer before the compute client resumes it.
+This procedure deliberately stops your old processes on the login node.
+Packages already installed and saved files remain; an interrupted package may
+repeat work. Codex can resume the conversation history that was saved, but
+that is not a running-process snapshot or a guarantee of package checkpoints.
+The old conversation must have no active writer before the compute client
+resumes it.
 
-## 1. Stop the old workspace on its original login node
+## 1. Stop your old processes from a fresh native SSH connection
 
-Open a native PuTTY/Bash connection to the recorded login node. This block gets
-the source controls from GitHub without updating the installed image or merging
-an existing checkout. It lists sessions; it does not stop anything yet.
+**No reattachment, container entry or working tmux server is required.** Open a
+fresh native PuTTY/Bash connection to the **old login node**. Run this outside
+any workspace, tmux session or compute allocation, as your ordinary account.
+Check `hostname` first so the cleanup runs on the intended node.
+
+This is the broad cleanup requested by the operator: it stops processes owned
+by your UID on that node, including old shells, agents, builds, containers and
+other sessions. It preserves this command and the ancestors of this fresh SSH
+connection. Other PuTTY windows may close. Stopping an interactive scheduler
+client can also end its allocation; perform this before starting the replacement
+build allocation. Other users' processes are outside its scope. Never use sudo.
+
+Copy this whole block into that fresh native shell:
 
 ```bash
-ws_reconnect_source=$(mktemp -d "$HOME/hpc-workspace-reconnect.XXXXXX") &&
+ws_stop_source=$(mktemp -d /tmp/cse-native-stop.XXXXXX) &&
 GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/false \
 git -c credential.helper= clone --depth 1 --single-branch \
   --branch codex/session-reconnect \
-  https://github.com/ray12514/hpc-workspace.git "$ws_reconnect_source" &&
-ws_reconnect_prefix=$(python3 - "$ws_reconnect_source/lib" <<'PY'
-import sys
-sys.path.insert(0, sys.argv[1])
-from bootstrap import install_prefix
-print(install_prefix())
-PY
-) &&
-export WS_INSTALL_ROOT="$ws_reconnect_prefix" &&
-export PATH="$ws_reconnect_source/bin:$PATH" &&
-hash -r &&
-ws sessions
+  https://github.com/ray12514/hpc-workspace.git "$ws_stop_source" &&
+python3 "$ws_stop_source/scripts/stop-own-node-processes" --stop
 ```
 
-Select the exact old CSE workspace name and original project path from that
-output. Use the same `--site` or `--state-dir` override if the original session
-used one. Inspect your process IDs before stopping, so leftovers are identifiable:
+The standalone helper uses native Python 3.6+ and `/proc`. It sends TERM, allows
+ten seconds for exit, then sends KILL to remaining matching processes and checks
+again. It rechecks process ownership/start time before signalling and does not
+read credentials, enter Apptainer, contact tmux or remove any lock files.
+It refuses root, an active workspace/tmux environment or a scheduler allocation.
+If inspection is incomplete before the first signal, it stops without signalling.
+To preview only, omit `--stop`.
 
-```bash
-ps -u "$(id -u)" -o pid,ppid,stat,comm
-```
+Continue after **`CLEANUP_OK`**. You can then log out and make a fresh login, or
+continue from the preserved native shell. A `Z` process has already exited;
+its parent still needs to reap it.
 
-Fill in both values, then run:
-
-```bash
-CSE_OLD_WS_SESSION='EDIT_FULL_ws_SESSION_NAME'
-CSE_OLD_WORKSPACE='/EDIT/original/CSE/workspace/path'
-(
-  case "$CSE_OLD_WS_SESSION:$CSE_OLD_WORKSPACE" in
-    *EDIT*) printf 'Fill in the old session name and workspace path first.\n' >&2; exit 2 ;;
-  esac
-  ws stop --session "$CSE_OLD_WS_SESSION" --project "$CSE_OLD_WORKSPACE" --timeout 30 &&
-  ws sessions &&
-  ps -u "$(id -u)" -o pid,ppid,stat,comm
-)
-```
-
-This closes only that managed tmux server and its panes, including its Codex
-and local build commands. It also interrupts any interactive allocation client
-held in those panes, so do this **before** starting the replacement allocation.
-
-Continue when the selected workspace has stopped and its old Codex/build
-processes have exited. A stopped keeper alone is not proof that every child
-exited. If the command times out, or old build/Codex PIDs remain (particularly
-in `D`), retain that output and stop the handoff here. A kernel-blocked process
-may require site support; repeatedly entering containers or deleting lock files
-does not release it. Do not replace this selection with a user-wide kill.
+**`CLEANUP INCOMPLETE`** lists remaining PIDs/states. A task in `D` can remain
+until its kernel wait clears even after KILL was sent; new PIDs can also be
+restarted user services. Keep that output for site support and verify the old
+writers are gone before resuming. Successful signal delivery alone is not proof
+of process exit. See Linux's [signal semantics](https://man7.org/linux/man-pages/man2/kill.2.html)
+and [process states](https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html).
 
 ## 2. Open a fresh login workspace to hold the allocation
 
-After step 1 succeeds, from that native login shell:
+After step 1 succeeds, set the original workspace path in the native login
+shell you are using now. This also works after logging out and back in:
 
 ```bash
-cd "$CSE_OLD_WORKSPACE" && ./cse-agent-workspace
+CSE_OLD_WORKSPACE='/EDIT/original/CSE/workspace/path'
+(
+  case "$CSE_OLD_WORKSPACE" in
+    ''|*EDIT*) printf 'Fill in the original workspace path first.\n' >&2; exit 2 ;;
+  esac
+  cd "$CSE_OLD_WORKSPACE" && ./cse-agent-workspace
+)
 ```
 
 This starts a new managed login tmux session. Its shell will hold the Slurm

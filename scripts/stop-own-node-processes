@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""Stop this user's processes on this node, preserving this native SSH chain.
+
+Standalone Linux/Python 3.6+ helper. Default is a preview; --stop sends TERM,
+then KILL to survivors. No container, tmux client, process argv or environment
+inspection, workspace configuration, or lock-file deletion is involved.
+"""
+import argparse
+import errno
+import os
+from pathlib import Path
+import signal
+import socket
+import sys
+import time
+
+
+def process(pid):
+    base = Path('/proc') / str(pid)
+    status = (base / 'status').read_text(errors='replace')
+    uid = next(int(line.split()[1]) for line in status.splitlines() if line.startswith('Uid:'))
+    raw = (base / 'stat').read_text(errors='replace')
+    before, after = raw.rsplit(')', 1)
+    fields = after.split()
+    return {'pid': pid, 'uid': uid, 'name': before.split('(', 1)[1],
+            'state': fields[0], 'ppid': int(fields[1]), 'start': fields[19]}
+
+
+def ancestors():
+    result = {}
+    pid = os.getpid()
+    while pid:
+        if pid in result:
+            raise RuntimeError('Cannot establish a stable calling process chain; no signals sent.')
+        row = process(pid)
+        result[pid] = row
+        pid = row['ppid']
+    return result
+
+
+def targets(uid, protected):
+    found, errors = [], []
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit() or int(entry.name) in protected:
+            continue
+        try:
+            if entry.stat().st_uid != uid:
+                # Nondumpable user tasks can have root-owned /proc directories.
+                # A signal-0 permission probe does not send a signal. We still
+                # require this user's real UID below before selecting a task.
+                try:
+                    os.kill(int(entry.name), 0)
+                except PermissionError:
+                    continue
+            row = process(int(entry.name))
+            if row['uid'] == uid and row['state'] not in ('Z', 'X'):
+                found.append(row)
+        except OSError as error:
+            if error.errno not in (errno.ENOENT, errno.ESRCH):
+                # An unreadable task cannot be positively classified as ours.
+                errors.append('{}: {}'.format(entry.name, error.strerror))
+        except (ValueError, IndexError, StopIteration):
+            errors.append('{}: unreadable process identity'.format(entry.name))
+    return sorted(found, key=lambda row: row['pid']), errors
+
+
+def deliver(rows, sig, uid, protected):
+    errors = []
+    for original in rows:
+        pid = original['pid']
+        if pid in protected or pid <= 1:
+            continue
+        try:
+            current = process(pid)
+            # Check ownership and start time again immediately before signalling.
+            if current['uid'] != uid or current['start'] != original['start']:
+                continue
+            if current['state'] not in ('Z', 'X'):
+                os.kill(pid, sig)
+        except OSError as error:
+            if error.errno not in (errno.ENOENT, errno.ESRCH):
+                errors.append('{}: {}'.format(pid, error.strerror))
+    return errors
+
+
+def wait_remaining(uid, protected, seconds):
+    deadline = time.monotonic() + seconds
+    while True:
+        rows, errors = targets(uid, protected)
+        if not rows or time.monotonic() >= deadline:
+            return rows, errors
+        time.sleep(.2)
+
+
+def show(rows):
+    for row in rows[:40]:
+        name = row['name'].encode('unicode_escape').decode('ascii')
+        print('  PID={pid} PPID={ppid} STATE={state} NAME={name}'.format(
+            name=name, **{key: row[key] for key in ('pid', 'ppid', 'state')}))
+    if len(rows) > 40:
+        print('  ... {} more'.format(len(rows) - 40))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--stop', action='store_true', help='Stop other processes owned by your UID on this node')
+    parser.add_argument('--grace-seconds', type=int, choices=range(1, 61), default=10, metavar='1..60')
+    args = parser.parse_args()
+    if not sys.platform.startswith('linux') or os.getuid() == 0 or os.getuid() != os.geteuid():
+        parser.error('Run as your ordinary non-root account in a native Linux SSH shell; never use sudo.')
+    if any(os.environ.get(key) for key in (
+            'WS_CONTAINER', 'TMUX', 'STY', 'APPTAINER_CONTAINER', 'SINGULARITY_CONTAINER',
+            'SLURM_JOB_ID', 'PBS_JOBID')):
+        parser.error('Use a fresh native SSH shell on the old login node, outside tmux/container/allocation.')
+    protected = ancestors()
+    if any('tmux' in row['name'].lower() or row['name'] == 'screen' for row in protected.values()):
+        parser.error('This shell is inside a session to be stopped. Open a fresh native SSH connection.')
+    uid = os.getuid()
+    rows, errors = targets(uid, protected)
+    print('Node={} UID={} other live processes={}'.format(socket.gethostname(), uid, len(rows)), flush=True)
+    print('Preserving this command and its SSH/shell ancestor PIDs: ' +
+          ','.join(str(pid) for pid in sorted(protected)), flush=True)
+    if errors:
+        print('Cannot completely inspect this node; no signals sent:\n' + '\n'.join(errors[:10]), file=sys.stderr)
+        return 2
+    if not args.stop:
+        show(rows)
+        print('Preview only. Add --stop to stop these processes on this node.')
+        return 0
+    print('Sending TERM; allowing {} seconds before KILL for survivors.'.format(args.grace_seconds), flush=True)
+    errors = deliver(rows, signal.SIGTERM, uid, protected)
+    remaining, inspect_errors = wait_remaining(uid, protected, args.grace_seconds)
+    errors += inspect_errors
+    if remaining:
+        print('Sending KILL to {} remaining processes.'.format(len(remaining)), flush=True)
+        errors += deliver(remaining, signal.SIGKILL, uid, protected)
+        remaining, inspect_errors = wait_remaining(uid, protected, 3)
+        errors += inspect_errors
+    if remaining or errors:
+        print('CLEANUP INCOMPLETE: do not resume the old build yet.', flush=True)
+        show(remaining)
+        if errors:
+            print('\n'.join(sorted(set(errors))[:10]), file=sys.stderr)
+        print('D-state tasks can remain until their kernel wait clears. New PIDs may be restarted services. '
+              'Keep this output for site support; lock-file deletion does not end a process.')
+        return 3
+    print('CLEANUP_OK: no other live processes owned by your UID were found on this node. '
+          'Exited zombies, if any, await their parent reaping them.', flush=True)
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, RuntimeError, ValueError, IndexError, StopIteration) as error:
+        print('Cleanup could not be confirmed: ' + str(error), file=sys.stderr)
+        sys.exit(2)
