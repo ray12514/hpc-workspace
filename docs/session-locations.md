@@ -100,19 +100,13 @@ on the same actual login node and under the same user as the existing session.
 It does not start Apptainer, invoke tmux, select a different group, read workspace
 configuration, or signal existing processes.
 
-Copy this complete block in that native shell, from any directory:
-
-```bash
-ws_diag_source=$(mktemp -d /tmp/ws-diagnostics.XXXXXX) &&
-GIT_TERMINAL_PROMPT=0 git clone --quiet --depth 1 --single-branch \
-  --branch codex/session-reconnect \
-  https://github.com/ray12514/hpc-workspace.git "$ws_diag_source" &&
-python3 "$ws_diag_source/scripts/diagnose-session" \
-  --output "$ws_diag_source/report.json"
-```
-
-This downloads a separate diagnostic checkout; it does not pull/merge into an
-existing checkout or activate its launcher. Nothing is pushed from the cluster.
+**Use [START-HERE-DIAGNOSTICS.md](../START-HERE-DIAGNOSTICS.md) for the complete
+copy/paste procedure**, including selecting the correct branch, running the
+diagnostic, saving its summary, and knowing what to send back. It is linked at
+the top of the repository README so the whole procedure is available on GitHub
+when working from another machine. It downloads a separate diagnostic checkout;
+it does not pull/merge into an existing checkout or activate its launcher.
+Nothing is pushed from the cluster.
 For an offline node, transfer this source checkout through the approved route,
 then run `python3 /path/to/checkout/scripts/diagnose-session --output /tmp/ws-report.json`.
 The output path must be new. If Git cannot access the public repository, preserve
@@ -122,8 +116,8 @@ The command normally takes about six seconds plus metadata collection. It prints
 a compact summary and saves a mode-0600 JSON report. The report contains process
 names/IDs, paths, namespaces, kernel wait channels/stacks when readable, selected
 mount types, visible FUSE queue counters, CPU affinity and cgroup limits/counters.
-It samples only the current user's processes and does not read command arguments,
-environment variables, agent configuration, logs, or open-file contents. Paths
+It samples only the current user's processes and does not collect command arguments,
+environment variable values, agent configuration, logs, or open-file contents. Paths
 and hostnames still belong to the site: keep the detailed report there and share
 only the relevant summary when asking for help. Kernel restrictions can hide wait
 channels, stacks or counters; an unavailable value is not evidence of no wait.

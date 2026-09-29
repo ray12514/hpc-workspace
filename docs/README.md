@@ -4,6 +4,7 @@ These user guides describe the **0.7 thin workspace** and the repository's **`./
 
 | What you want to do | Read this |
 | --- | --- |
+| Diagnose the current Blueback workspace attachment/build stall | [START HERE: complete commands and what to send back](../START-HERE-DIAGNOSTICS.md) |
 | Install, update, transfer offline, or repair a missing `ws` | [Setup and startup](thin-start.md) |
 | Learn a complete working routine, with a practice project | [Daily workflow](daily-workflow.md) |
 | Look up a command or shortcut quickly | [Command reference](command-reference.md) |

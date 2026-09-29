@@ -1,5 +1,7 @@
 # HPC workspace
 
+**Workspace will not reattach on Blueback? [START HERE: complete diagnostic instructions and commands](START-HERE-DIAGNOSTICS.md).**
+
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
 This source branch adds explicit existing-session reconnect and targeted stop controls. See the [activation and switching guide](docs/session-locations.md#reconnect-and-stop-controls-in-the-source-launcher). These changes work with the existing image but are not yet in the published release below.
