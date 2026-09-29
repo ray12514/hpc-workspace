@@ -116,6 +116,8 @@ The lifetime distinction matters even if a detached tmux process still appears a
 
 For managed tmux in today's release, start with `ws session` directly from your project's native shell. It already enters the workspace. Detach with **Ctrl-B d**, and run the same command on the same node, project, and release to reconnect. If you already used `ws enter`, finish any foreground-shell work before exiting back to the native shell and starting `ws session`. See [session locations](session-locations.md) for round-robin login addresses and reconnection limits.
 
+The [source reconnect launcher](session-locations.md#reconnect-and-stop-controls-in-the-source-launcher) adds explicit `ws attach` and `ws stop` controls for existing managed workspaces. These work with the original image but are not yet in the published 0.7.2 bundle. Its guide includes activation commands and switching between two running projects.
+
 Use the site's ordinary commands from that shell:
 
 ```bash

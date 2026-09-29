@@ -46,9 +46,64 @@ The first two are observations of the keeper, not a health check of every progra
 
 1. Use the site's approved way to reach the **recorded login node with usable credentials**. When supported, open a fresh connection from Windows directly to that node using the same approved kit and authentication settings. A short `hostname` is not necessarily a Windows-resolvable SSH address. If a hop through another login node is required, check the Kerberos considerations below first.
 2. Check `hostname` and your ticket status in the new SSH shell before attaching. Successful SSH authentication alone does not prove that the destination has tickets for other services.
-3. Change to the original project and run `ws session` with the same image/release and state location. An update selects a different release and therefore a different managed tmux server. Use the recorded image with `--image` if returning to an older release.
+3. With the source controls below, run `ws attach --session NAME` to select the recorded project and image. With the published 0.7.2 launcher, run `ws session` with the same project, image/release, and state location. An update selects a different release and therefore a different managed tmux server; use the recorded image with `--image` when returning to an older release.
 
 The lookup does not change SSH routing, renew Kerberos tickets, or move processes. If the session ended, start a new one and recover saved files/editor layouts normally. Keep workspace state on storage shared by the relevant login nodes; a node-local state directory cannot provide discovery from another node.
+
+## Reconnect and stop controls in the source launcher
+
+**Availability:** `attach`, `stop`, and the immediate startup-lock diagnostic are on `codex/session-reconnect`, not in the published 0.7.2-preview1 bundle. These source changes work with the existing thin image. `./setup` still installs the published bundle, not these changes.
+
+From a native Bash shell with the installed `ws` already on PATH, this block downloads a separate checkout and activates its launcher **for this shell only**, preserving the current image selection and custom installation location. It does not edit startup files or merge into an existing checkout. The public HTTPS clone cannot prompt for credentials.
+
+```bash
+ws_reconnect_source=$(mktemp -d "$HOME/hpc-workspace-reconnect.XXXXXX") &&
+GIT_TERMINAL_PROMPT=0 git clone --depth 1 --single-branch \
+  --branch codex/session-reconnect \
+  https://github.com/ray12514/hpc-workspace.git "$ws_reconnect_source" &&
+ws_reconnect_prefix=$(python3 - "$ws_reconnect_source/lib" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from bootstrap import install_prefix
+print(install_prefix())
+PY
+) &&
+export WS_INSTALL_ROOT="$ws_reconnect_prefix" &&
+export PATH="$ws_reconnect_source/bin:$PATH" &&
+hash -r &&
+ws sessions
+```
+
+For offline use, transfer the complete checkout through the site's normal route. Do not copy only `bin/ws` over the installed launcher. On later logins, use the saved checkout's `bin/ws attach` or `stop` directly; these controls obtain the image from the selected record.
+
+| Action, from the native shell on the recorded node | Command |
+| --- | --- |
+| List managed workspaces | `ws sessions` |
+| Reconnect to an existing workspace only | `ws attach --session NAME` |
+| Select by project, when exactly one live release matches | `ws attach --project /original/project` |
+| Check the server without attaching | `ws attach --session NAME --check` |
+| Detach old clients while preserving pane programs | `ws attach --session NAME --detach-others` |
+| Close the selected workspace's tmux server and all its panes | `ws stop --session NAME` |
+
+Replace `NAME` with the full recorded `ws-...` name. Repeat the original `--site`/`--state-dir` override if used. Attach uses the recorded project and image even after a release update. Without a selector it works only when exactly one live workspace is recorded on this node. Older records without a project need both `--session NAME` and the original `--project PATH`.
+
+Attach never starts a replacement keeper or tmux server. Missing, ended, starting, ambiguous, and remote workspaces produce diagnostics. The first progress message precedes runtime entry; the second confirms entry reached the helper inside the image. Tmux probes time out after ten seconds. `--check` and `stop` also limit their runtime subprocess to 60 seconds by default (`--timeout SECONDS` adjusts this). Planning and filesystem reads can themselves wait on the filesystem; interactive attachment has no whole-session timeout.
+
+Stop requires explicit selection and validates the local keeper identity. It targets only that managed tmux socket, then waits for its keeper to exit. It closes agents and local builds in those panes; unsaved work is not a checkpoint. It does not cancel scheduler jobs, signal all Apptainer processes, or remove lock files. An ended keeper is reported without sending a stop, but does not prove there are no orphaned processes. A still-starting workspace needs diagnosis from its displayed log; this command does not force-kill an unverified startup. Kernel I/O waits or blocked mounts can prevent shutdown.
+
+## Switch between two running workspaces
+
+Start A with `ws session --project /project/A`, then start work inside its tmux shell. Press **Ctrl-B**, then **d** to detach to the native shell. Start B with `ws session --project /project/B`; detach the same way, then use `ws sessions` and `ws attach --session NAME` to return to A. Stop B with its own recorded name while A continues.
+
+Use **detach** to leave work running. `exit` closes the current shell/pane; closing the final pane ends the server. `ws enter` opens a separate foreground container. For managed sessions, use `ws session` directly from the native shell. `attach` and `stop` are native-shell operations: detach before switching workspaces. A keeper plus attach clients can produce several Apptainer processes for one managed workspace, so process counts alone do not count workspaces.
+
+## Bubblewrap errors inside Codex
+
+The thin agent wrapper adds `/workspace-tools/agent-bin` to the end of Codex's PATH; that directory includes `bwrap`. A host `bwrap` earlier on PATH can take precedence. Codex uses Bubblewrap and seccomp for its Linux command sandbox, so a `bwrap` error during an agent tool call can originate in that inner sandbox. Workspace container entry uses Apptainer. [Official OpenAI sandbox documentation](https://learn.chatgpt.com/docs/agent-approvals-security)
+
+The partial report of an “old root” unmount error does not establish its cause. Record the exact error and `codex --version`. A plain workspace imports substantial host userspace and data; it is not a reason to disable Codex's sandbox as a reconnect workaround.
+
+The [local validation](validation.md#separate-codex-sandbox-observation) reproduced a different Bubblewrap bind-mount error inside nested Apptainer, both with and without tmux. Direct toolkit-container sandbox execution passed. That observation has not been confirmed on Blueback.
 
 ## Kerberos across an SSH hop
 

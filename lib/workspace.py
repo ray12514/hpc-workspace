@@ -25,6 +25,7 @@ import tool_environment
 import releases
 import runtime_setup
 import session_records
+import session_control
 from inspector import MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -322,11 +323,32 @@ def print_plan(command, environment=None):
     print(json.dumps(data, indent=2))
 
 
-def execute(command, environment=None):
+def execute(command, environment=None, timeout=None):
     search_path = (environment if environment is not None else os.environ).get('PATH', os.defpath)
     if not shutil.which(command[0], path=search_path):
         raise WorkspaceError("Command unavailable: {}. Load the site's module first.".format(command[0]))
-    return subprocess.call(command, env=environment)
+    if timeout is None:
+        return subprocess.call(command, env=environment)
+    process = subprocess.Popen(command, env=environment)
+    try:
+        return process.wait(timeout=timeout)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt) as exc:
+        # Only the control entry we just launched; never signal by process name,
+        # another keeper's PID, or a process recorded on a different node.
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass  # A kernel I/O wait may outlast even SIGKILL.
+        if isinstance(exc, KeyboardInterrupt):
+            raise
+        raise WorkspaceError('Workspace control exceeded {} seconds; termination was requested for '
+                             'its entry process (PID {}). The stop/check outcome is unconfirmed. '
+                             'Use ws sessions and the last displayed stage to diagnose it.'.format(timeout, process.pid))
 
 
 def enter(args):
@@ -341,7 +363,7 @@ def enter(args):
     if selected_image(args).get("layout") == integration.LAYOUT:
         with integration.snapshot(args, state_path(args)) as snapshot:
             command, environment = container_plan(args, create_state=True, environment_file=snapshot)
-            return execute(command, environment)
+            return execute(command, environment, timeout=getattr(args, 'control_timeout', None))
     if args.host_jobs:
         roots = [args.project] + ([args.work] if args.work else [])
         scheduler = Scheduler(require_scheduler(current_profile(args)), os.environ, roots=roots)
@@ -582,9 +604,7 @@ def thin_session(args, image):
               'use ws sessions to find an earlier session before starting another here.'.format(
                   ', '.join(session_records.display(host) for host in other_hosts)), file=sys.stderr)
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor = os.open(str(folder / (name + ".lock")), os.O_WRONLY | os.O_CREAT, 0o600)
-    with os.fdopen(descriptor, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with session_control.session_lock(folder / (name + '.lock')):
         prior = load_json(record) if record.exists() else {}
         running = session_records.keeper_running(prior)
         if running and prior.get("image") != image["path"]:
@@ -609,8 +629,54 @@ def thin_session(args, image):
     print("Workspace session {} on {} ({})".format(name, socket.gethostname(), image["release"]), flush=True)
     if args.detach:
         return 0
-    entry = argparse.Namespace(**vars(args))
-    entry.gpu, entry.compute, entry.command = "none", False, ["/workspace-tools/thin-session", "--attach"]
+    control = argparse.Namespace(**vars(args))
+    control.action, control.session, control.check, control.detach_others = 'attach', name, False, False
+    control.timeout = 60
+    return control_session(control)
+
+
+def control_session(args):
+    stopping = args.action == 'stop'
+    row = session_control.select(state_path(args), args.session, args.project, stopping, args.site)
+    path = Path(row['record'])
+    if row['status'] == 'local-ended':
+        if stopping:
+            print('Recorded keeper already ended; no stop was sent. This does not verify orphaned processes.')
+            return 0
+        raise WorkspaceError('Recorded workspace keeper ended. No replacement was created; use ws session to start one.')
+    if row['status'] == 'local-starting':
+        raise WorkspaceError('Recorded workspace is still starting. Local log: ' + str(path.with_suffix('.log')))
+    operation = 'stop' if stopping else ('check' if args.check else 'attach')
+    with session_control.session_lock(path.with_suffix('.lock')):
+        record = load_json(path)
+        if not session_records.keeper_running(record):
+            raise WorkspaceError('Recorded keeper ended during selection; no action sent.')
+        image = image_record(row['image'])
+        if image.get('layout') != integration.LAYOUT or image.get('release') != row['release']:
+            raise WorkspaceError('Recorded image no longer matches this workspace release; no action sent.')
+        entry = argparse.Namespace(**vars(args))
+        entry.project, entry.image = row['project'], image['path']
+        entry.site = row['site'] or args.site
+        entry.work, entry.host_jobs, entry.gpu, entry.compute, entry.dry_run = None, False, 'none', False, False
+        entry.command = session_control.command(row, record, operation, getattr(args, 'detach_others', False))
+        entry.control_timeout = args.timeout if operation != 'attach' else None
+        print('{} workspace {} on {} using its recorded image. Entering runtime...'.format(
+            'Stopping' if stopping else 'Checking' if args.check else 'Reconnecting to',
+            row['session'], session_records.display(row['hostname'])), flush=True)
+        if stopping:
+            print('This closes the selected workspace server and its panes.', flush=True)
+            result = enter(entry)
+            if result:
+                return result
+            deadline = time.monotonic() + 15
+            while session_records.keeper_running(record):
+                if time.monotonic() >= deadline:
+                    raise WorkspaceError('Tmux accepted the stop, but the keeper is still exiting. '
+                                         'Local log: ' + str(path.with_suffix('.log')))
+                time.sleep(0.1)
+            print('Selected workspace stopped; its keeper exited.')
+            return 0
+    # Do not hold the startup lock for the lifetime of an attached client.
     return enter(entry)
 
 
@@ -634,8 +700,8 @@ def sessions(args):
         print(session_records.display(warning), file=sys.stderr)
     if report['sessions']:
         print('\nrecorded = another node; liveness was not checked. '
-              'Reconnect using its site-approved login address, then run ws session '
-              'with the same project and image. Sessions do not move between nodes.')
+              'Reconnect using its site-approved login address, then use ws attach --session NAME. '
+              'Use ws stop --session NAME to close a selected local workspace. Sessions do not move between nodes.')
     return 0
 
 
@@ -703,6 +769,7 @@ def parser():
     sub = result.add_subparsers(dest="action")
     for name, handler in (("enter", enter), ("jobs", scheduler_operation), ("submit", scheduler_operation), ("doctor", doctor),
                           ("use", select_release), ("rollback", select_release), ("session", session), ("sessions", sessions),
+                          ("attach", control_session), ("stop", control_session),
                           ("init", configure), ("refresh", configure)):
         command = sub.add_parser(name)
         command.set_defaults(handler=handler)
@@ -711,6 +778,14 @@ def parser():
             command.add_argument("--state-dir", help="Override this site's persistent workspace-state directory")
         if name in ("enter", "doctor", "session"):
             command.add_argument("--project", default=os.getcwd())
+        if name in ('attach', 'stop'):
+            command.add_argument('--project', help='Select an existing workspace by its original project directory')
+            command.add_argument('--session', help='Exact session name printed by ws sessions')
+            command.add_argument('--timeout', type=int, choices=range(1, 601), default=60, metavar='SECONDS',
+                                 help='Entry time limit for stop/check (default: 60; range: 1-600)')
+        if name == 'attach':
+            command.add_argument('--check', action='store_true', help='Check the existing tmux server without attaching')
+            command.add_argument('--detach-others', action='store_true', help='Detach other clients when attaching; keep panes running')
         if name in ("enter", "doctor", "session", "init", "refresh"):
             command.add_argument("--image", help="Explicit SIF; otherwise use the selected image")
         if name in ("enter", "jobs", "submit", "session", "init", "refresh"):

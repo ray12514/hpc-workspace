@@ -1,5 +1,27 @@
 # Workspace validation
 
+## Existing-session reconnect and targeted stop
+
+Date: **2026-09-29**. Source branch `codex/session-reconnect`; the published 0.7.2-preview1 image is unchanged.
+
+The requested multi-workspace lifecycle passes using real Apptainer 1.5.3, packaged tmux, and two synthetic tasks in a disposable offline Linux fixture. [`tests/thin-sessions.py`](../tests/thin-sessions.py) starts A, detaches, starts B, returns to A, loses and replaces its terminal, detaches an older client, checks the existing server, opens/exits an additional foreground container, and stops A while B's task continues. B remains attachable. Both original keeper identities and task PIDs persist until their respective stops. An ended workspace cannot be silently recreated by attach.
+
+The fixture extracts the original SIF once and substitutes that sandbox directory for runtime execution. Its final attach times were **0.66–0.84 seconds**, excluding initial extraction. An earlier run with independent `--unsquash` extraction per client passed initial switching and terminal-loss recovery, then exhausted the disposable container's disk during concurrent attachment. That fixture capacity failure is not a diagnosis of Blueback, and these timings do not measure mounted SIFs or Lustre. A separate initial single-workspace test also verified terminal-loss recovery using the original released launcher and per-entry extraction.
+
+The **34 focused host tests pass**: 18 session record/control tests, 12 workspace tests, and four integration tests. A regression holds the real startup lock in another process: the original launcher timed out after two seconds without a diagnostic; the new launcher returns immediately without creating a keeper. Other checks cover remote records, old boot/PID identities, ambiguous selection, legacy metadata, the recorded image, targeted stop, and bounded control subprocesses. Four changed Python files parse with Python 3.6 syntax rules; an actual Python 3.6 interpreter was not used. Focused Ruff checks and 13 Bash documentation blocks pass.
+
+### Separate Codex sandbox observation
+
+The sandbox check **fails** in the nested Apptainer fixture. Actual packaged Codex **0.155.1**, with a disposable home and no API calls, reports the same error from a managed tmux window and a fresh foreground workspace:
+
+```text
+bwrap: Can't bind mount / on /: Unable to mount source on destination: Invalid argument
+```
+
+The supported command syntax was confirmed with the packaged `codex sandbox --help`; the probe uses `codex sandbox -c 'sandbox_mode="workspace-write"' -- COMMAND`. A trivial Python command through the same packaged Codex passes directly in `hpc-workspace-thin:0.7.2-preview1` under Docker, without outer Apptainer or tmux. Thus this local failure does not require tmux or session switching. The precise nested mount/kernel cause remains unresolved. It is not the user's fully captured error, and does not establish the cause of their reported “old root” unmount message.
+
+No cluster, Lustre filesystem, real gateway, credentials, PuTTY client, or live build was accessed. The session controls do not disable or modify Codex's sandbox. Blueback's multi-minute entry stall remains unconfirmed until site-local process/log evidence is available.
+
 ## Codex CA diagnosis and session entry clarification
 
 Date: **2026-09-28**. This is a documentation update; the recommended image and launcher are unchanged.
