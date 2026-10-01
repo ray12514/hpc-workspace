@@ -2,8 +2,8 @@
 
 This page contains the complete procedure for collecting diagnostics when the
 existing workspace will not reattach, including intermittent tmux `D`/`R` states.
-The diagnostic is already on GitHub in **ray12514/hpc-workspace**, branch
-**codex/session-reconnect**. You do not need to push anything from Blueback.
+The diagnostic is in **ray12514/hpc-workspace** on the main branch. You do not
+need to push anything from Blueback.
 
 **Already collected the report?** Start with [CPU limits and filesystem
 waits](#cpu-limits-and-filesystem-waits). To test Codex controlling an allocation
@@ -20,7 +20,7 @@ and workspace running; no workspace activation, update, or restart is required.
 
 ## 2. Copy and run this entire block
 
-This downloads a separate copy of the correct GitHub branch under `/tmp` and
+This downloads a separate copy of the GitHub repository under `/tmp` and
 runs its diagnostic. It supplies every required file, selects the branch for
 you, and saves both the printed summary and the detailed report. It does not
 change an existing checkout or install a new workspace release.
@@ -32,7 +32,7 @@ required. No GitHub sign-in or agent API key is needed for this procedure.
 ws_diag_source=$(mktemp -d /tmp/ws-diagnostics.XXXXXX) &&
 GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/false \
 git -c credential.helper= clone --depth 1 --single-branch \
-  --branch codex/session-reconnect \
+  --branch main \
   https://github.com/ray12514/hpc-workspace.git "$ws_diag_source" &&
 (
   umask 077

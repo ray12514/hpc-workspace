@@ -2,7 +2,7 @@
 
 This is a small connectivity and workspace test. Keep the existing CCE build
 running. The commands below leave its locks, overlays and packages alone.
-Use branch **`codex/session-reconnect`** of **ray12514/hpc-workspace** for this
+Use the **main** branch of **ray12514/hpc-workspace** for this
 guide; no workspace/image update is required for `ws job-env` or direct entry.
 
 **Option B passed on Blueback (operator report, 2026-09-29):** compute workspace

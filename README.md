@@ -4,11 +4,11 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-This source branch adds explicit existing-session reconnect and targeted stop controls. It also keeps the editor window open as a Bash shell after Neovim exits; that editor fix requires a newly built image. See the [activation and switching guide](docs/session-locations.md#reconnect-and-stop-controls-in-the-source-launcher) and the [native Codex key helper](docs/restricted-codex.md#save-once-load-on-demand). These source changes are not yet in the published release below.
+**0.7.3-preview1** adds explicit `ws attach` and `ws stop` controls for managed sessions. The editor window returns to Bash after Neovim exits, and the native Codex key helper is available in workspace shells. The diagnostic and compute-handoff guides from the former reconnect branch are included. See the [session guide](docs/session-locations.md#reconnect-and-stop-controls) and [native Codex setup](docs/restricted-codex.md#save-once-load-on-demand).
 
-**0.7.2-preview1 fixes tmux commands and layout helpers selecting the wrong server, and ships `ws sessions` to find recorded login-node sessions.** It retains the readable configuration forms, gateway profiles, remembered Apptainer setup, and existing CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
+The thin workspace retains the 0.7.2 tmux routing fix and `ws sessions` location lookup, readable configuration forms, gateway profiles, remembered Apptainer setup, and CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm).
 
-[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.2-preview1)
+[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview1)
 
 ## Get the current release
 
@@ -43,6 +43,8 @@ ws session        # enter the environment in managed, packaged tmux
 Start with the [daily workflow tutorial](docs/daily-workflow.md), including a copyable practice project. It walks through navigation, Ctrl-R/Ctrl-T, `find`/`fd` + `fzf` + `bat`, ripgrep, Neovim, Git review, project checks, job scripts, and saving your work. Keep the [command reference](docs/command-reference.md) alongside it for quick lookup.
 
 Use ordinary site commands such as `module`, `sbatch`, and `qsub` from that shell. Your existing native job scripts retain their usual role. Enter the workspace within an interactive allocation when you want its tools on the allocated node.
+
+In a managed session, **Ctrl-B d** detaches while work continues. `ws sessions` shows recorded nodes and projects; `ws attach --session NAME` reconnects without creating a replacement, and `ws stop --session NAME` closes the selected local session. Start a fresh workspace later with `ws session` from its project directory. The [daily guide](docs/daily-workflow.md#save-your-work-and-return-later) explains saved layouts versus running processes.
 
 The shell foundation is Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxide, less and terminal support. It includes the common prompt, history/path shortcuts, completion, editor defaults and personal overrides. The package set is locked in [flake.lock](image/nix/flake.lock); runtime dependencies ship in the image. No Nix installation or toolbox compilation is needed on the hosts.
 
@@ -80,16 +82,16 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.7.2-preview1
+scripts/build-thin 0.7.3-preview1
 scripts/docker-public build -f image/Apptainer.Dockerfile \
   -t hpc-workspace-apptainer:1.5.3 .
-scripts/export-thin 0.7.2-preview1
+scripts/export-thin 0.7.3-preview1
 # Prepare the public Linux acceptance fixture (Apptainer plus native Git).
 scripts/docker-public build --target native -f tests/ThinTools.Dockerfile \
   -t hpc-workspace-test-native:1.5.3 .
-scripts/test-thin dist/hpc-workspace-thin-0.7.2-preview1-linux-amd64.sif
-scripts/package-thin 0.7.2-preview1
-scripts/test-thin-install dist/release-0.7.2-preview1.json
+scripts/test-thin dist/hpc-workspace-thin-0.7.3-preview1-linux-amd64.sif
+scripts/package-thin 0.7.3-preview1
+scripts/test-thin-install dist/release-0.7.3-preview1.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.

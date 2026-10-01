@@ -50,31 +50,9 @@ The first two are observations of the keeper, not a health check of every progra
 
 The lookup does not change SSH routing, renew Kerberos tickets, or move processes. If the session ended, start a new one and recover saved files/editor layouts normally. Keep workspace state on storage shared by the relevant login nodes; a node-local state directory cannot provide discovery from another node.
 
-## Reconnect and stop controls in the source launcher
+## Reconnect and stop controls
 
-**Availability:** `attach`, `stop`, and the immediate startup-lock diagnostic are on `codex/session-reconnect`, not in the published 0.7.2-preview1 bundle. These launcher controls work with the existing thin image. The editor-window fix in this branch requires a newly built image. `./setup` still installs the published bundle, not these changes.
-
-From a native Bash shell with the installed `ws` already on PATH, this block downloads a separate checkout and activates its launcher **for this shell only**, preserving the current image selection and custom installation location. It does not edit startup files or merge into an existing checkout. The public HTTPS clone cannot prompt for credentials.
-
-```bash
-ws_reconnect_source=$(mktemp -d "$HOME/hpc-workspace-reconnect.XXXXXX") &&
-GIT_TERMINAL_PROMPT=0 git clone --depth 1 --single-branch \
-  --branch codex/session-reconnect \
-  https://github.com/ray12514/hpc-workspace.git "$ws_reconnect_source" &&
-ws_reconnect_prefix=$(python3 - "$ws_reconnect_source/lib" <<'PY'
-import sys
-sys.path.insert(0, sys.argv[1])
-from bootstrap import install_prefix
-print(install_prefix())
-PY
-) &&
-export WS_INSTALL_ROOT="$ws_reconnect_prefix" &&
-export PATH="$ws_reconnect_source/bin:$PATH" &&
-hash -r &&
-ws sessions
-```
-
-For offline use, transfer the complete checkout through the site's normal route. Do not copy only `bin/ws` over the installed launcher. On later logins, use the saved checkout's `bin/ws attach` or `stop` directly; these controls obtain the image from the selected record.
+**Availability:** `ws attach` and `ws stop` ship in 0.7.3-preview1. Install with `./setup` from an updated checkout, or use the matching standalone installer from the release bundle. These controls also recognize managed sessions created by the earlier 0.7.2 image; attachment uses each session's recorded original image. Run them from a native Bash shell on the recorded node.
 
 | Action, from the native shell on the recorded node | Command |
 | --- | --- |
@@ -93,15 +71,15 @@ Stop requires explicit selection and validates the local keeper identity. It tar
 
 ## Diagnose a stalled attachment from the host
 
-**Availability:** `scripts/diagnose-session` is standalone source on
-`codex/session-reconnect`; it needs native Linux Python 3.6+, but no workspace
+**Availability:** `scripts/diagnose-session` is standalone source in this
+repository; it needs native Linux Python 3.6+, but no workspace
 installation, image update, or activation. Run it from a second native SSH shell
 on the same actual login node and under the same user as the existing session.
 It does not start Apptainer, invoke tmux, select a different group, read workspace
 configuration, or signal existing processes.
 
 **Use [START-HERE-DIAGNOSTICS.md](../START-HERE-DIAGNOSTICS.md) for the complete
-copy/paste procedure**, including selecting the correct branch, running the
+copy/paste procedure**, including obtaining the source, running the
 diagnostic, saving its summary, and knowing what to send back. It is linked at
 the top of the repository README so the whole procedure is available on GitHub
 when working from another machine. It downloads a separate diagnostic checkout;

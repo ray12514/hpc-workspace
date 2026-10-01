@@ -33,7 +33,7 @@ Copy this whole block into that fresh native shell:
 ws_stop_source=$(mktemp -d /tmp/cse-native-stop.XXXXXX) &&
 GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/false \
 git -c credential.helper= clone --depth 1 --single-branch \
-  --branch codex/session-reconnect \
+  --branch main \
   https://github.com/ray12514/hpc-workspace.git "$ws_stop_source" &&
 python3 "$ws_stop_source/scripts/stop-own-node-processes" --stop
 ```

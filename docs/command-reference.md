@@ -11,9 +11,9 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Native login shell, project directory | `ws enter` | Enter the integrated Bash shell |
 | Native login shell, project directory | `ws session` | Start/reconnect to the managed tmux workspace |
 | Native login shell | `ws sessions` / `ws sessions --json` | List recorded session nodes/projects/images (0.7.2+) |
-| Native login shell, source launcher | `ws attach --session NAME` | Reconnect using the recorded project/image; never create a new workspace |
-| Native login shell, source launcher | `ws attach --session NAME --check` | Check that the recorded tmux server responds |
-| Native login shell, source launcher | `ws stop --session NAME` | Close that workspace's tmux server/panes and wait for its keeper to exit |
+| Native login shell | `ws attach --session NAME` | Reconnect using the recorded project/image; never create a new workspace |
+| Native login shell | `ws attach --session NAME --check` | Check that the recorded tmux server responds |
+| Native login shell | `ws stop --session NAME` | Close that workspace's tmux server/panes and wait for its keeper to exit |
 | Inside managed tmux | Ctrl-B then `:`, enter `kill-server` | Stop the current workspace and return to the native shell |
 | Native shell | `ws enter --dry-run` | Inspect the local mount plan |
 | Inside workspace | `ws tools` / `ws tools --json` | Inspect packaged tool versions |
