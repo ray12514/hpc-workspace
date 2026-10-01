@@ -170,7 +170,7 @@ git diff --staged
 
 Delta supplies the pager unless your Git configuration already chooses one. `lazygit` provides a visual alternative. `difft old.py new.py` compares two explicit versions structurally. The practice copy is not automatically a Git repository; Git review applies to your own repository unless you explicitly initialize the copy.
 
-For agent work, keep the editor in window 2 and run your configured `codex` or `claude` in window 3 from the same project. Save your editor changes before asking for edits. Unmodified buffers reload external changes on checks/focus; an unsaved buffer produces a conflict instead of silently losing your work. Review the resulting diff and run the same checks you use for manual changes. Running agents against the same shared worktree simultaneously can still create conflicting edits.
+For agent work, keep the editor in window 2 and run your configured `codex` or `pi` in window 3 from the same project. Save your editor changes before asking for edits. Unmodified buffers reload external changes on checks/focus; an unsaved buffer produces a conflict instead of silently losing your work. Review the resulting diff and run the same checks you use for manual changes. Running agents against the same shared worktree simultaneously can still create conflicting edits.
 
 ## Check code and make project tasks repeatable
 
@@ -253,4 +253,4 @@ Use `WS_COLOR=256 ws session` or `WS_COLOR=truecolor ws session` from the native
 
 ## Configure an agent connection
 
-`ws configure codex` and `ws configure claude` open forms for named gateway profiles. Use `ws agent codex team-a` or `ws agent claude team-a` to select one. Key rotation and defaults are covered in the [configuration guide](agent-profiles.md).
+`ws configure codex` and `ws configure pi` open forms for named gateway profiles. Use `ws agent codex team-a` or `ws agent pi team-a` to select one. Key rotation and defaults are covered in the [configuration guide](agent-profiles.md).

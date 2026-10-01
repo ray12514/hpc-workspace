@@ -1,92 +1,44 @@
 # Configure and switch API gateways
 
-The 0.7 thin workspace adds Gum forms for named agent gateway profiles. Keep several connections, change their settings, rotate a key, and choose a default without manually swapping files. Start a fresh agent process after changing a connection or credential; a running process keeps its launch settings.
+The workspace provides named gateway profiles for Codex and Pi. Create one with `ws configure codex` or `ws configure pi`, then use `ws agent codex NAME` or `ws agent pi NAME`. The form accepts a base URL, model ID, and a key entered with hidden input or supplied through an environment variable. It previews changes before saving; cancellation leaves the files untouched. `--plain` uses basic prompts when the terminal cannot run Gum.
 
-## First connection
+## Choose the protocol
 
-Inside the workspace:
+Codex profiles use an OpenAI Responses endpoint and a Bearer key. Pi profiles ask for an API protocol: OpenAI Responses, OpenAI Chat Completions, or Anthropic Messages. Choose the protocol implemented by the gateway, not the model's brand. Pi's credential header can be `Authorization: Bearer` or `x-api-key`. A URL change alone cannot translate between protocols. [Pi model configuration](https://pi.dev/docs/latest/models), [Pi custom providers](https://pi.dev/docs/latest/custom-provider)
 
-```bash
-ws configure codex
-# Or:
-ws configure claude
-```
-
-Choose **Add a gateway**, name it (for example `team-a`), and enter the endpoint and model supplied by its operator. The form shows destination files and previews changes before Save. Cancelling does not save. `ws configure --plain` uses basic prompts; `TERM=dumb` selects that mode automatically.
-
-Starting with **0.7.1-preview1**, forms use the terminal's normal text and background colors for readable headings, values, choices, and help on dark or light backgrounds. Arrow-key selection and the input cursor remain interactive. This applies only to workspace forms; your shell, editor, and standalone Gum theme retain their colors. Keys remain masked.
-
-If a form in 0.7.0 is hard to read, use `ws configure codex --plain` (or `claude`) to select an existing gateway and choose **Edit connection**. Review the endpoint and model before saving. You can also name it directly: `ws configure codex team-a --plain`. Use **Rotate key** only if the credential needs replacing.
-
-Choose a **stored key**, entered with hidden input, or a **gateway-specific environment variable** such as `TEAM_A_API_KEY`. The variable option stores its name, not its value. Supply that variable through the site's normal approved mechanism. Real keys belong on the system, outside this repository, chat, project templates, and shell command history.
-
-Codex uses an **OpenAI Responses-compatible** endpoint. Claude uses an **Anthropic Messages-compatible** endpoint; choose the Bearer token or API-key header that gateway requires. Changing a URL does not translate between protocols. This first adapter does not configure cloud-provider authentication, extra headers/query parameters, federation, or automatic credential refresh. [Codex providers](https://learn.chatgpt.com/docs/config-file/config-advanced#custom-model-providers), [Claude gateway protocol](https://code.claude.com/docs/en/llm-gateway-protocol)
-
-For a site-provided Codex configuration that requires a custom header, use `ws agent codex --native` with the working native TOML. The [restricted configuration guide](restricted-codex.md) maps the required fields, CA bundle, and credential source, and outlines the next form extension. The current managed Codex form does not support that header mode.
-
-Enter the base URL supplied by the gateway operator; each client appends its API route. Claude may present its usual one-time approval when an API key replaces an existing subscription login in an interactive session. [Claude gateway credential selection](https://code.claude.com/docs/en/llm-gateway-connect#conflicts-with-an-existing-login)
+The managed Codex form does not yet support custom HTTP headers. For a site configuration that requires one, use `ws agent codex --native` and the [native Codex guide](restricted-codex.md). Pi's own `~/.pi/agent/models.json` can also define custom headers; use `ws agent pi --native` for a configuration outside the managed form. Pi can use `$HPC_GATEWAY_KEY` from `ws-codex-key-on` in a header value without copying the key into JSON.
 
 ## Launch and switch
 
 ```bash
+ws configure codex team-a
+ws configure pi team-a
 ws agent codex team-a
-ws agent claude team-a
+ws agent pi team-a
 ws agent codex --list
-ws agent claude --list
-
-# Native agent arguments follow --:
-ws agent codex team-a -- --model another-model
+ws agent pi --list
 ```
 
-Create `team-b` through the same form, then launch it by name. There is no need to prepare two YAML files yourself. Each connection gets its own native profile and credential source; selecting one leaves the others intact.
+Use **Use by default** in a profile's form to select it for new launches of that agent. For one launch with ordinary agent settings, use `ws agent codex --native` or `ws agent pi --native`. Pi also supports its own `/login` and `/model` commands for built-in providers, including OpenAI and Anthropic; those accounts remain independent from Codex. [Pi authentication](https://pi.dev/docs/latest/providers)
 
-To make one the normal choice, open its form and choose **Use by default**, then Save:
+A managed profile owns its route and model. Pass unrelated native arguments after `--`; select `--native` before using native provider, model, or credential options. Start a fresh agent process after changing a connection or rotating a key.
 
-```bash
-ws configure codex team-a
-codex
-```
-
-The same default-selection workflow applies to Claude. It affects new launches of the packaged agent. To use ordinary agent configuration for one invocation:
-
-```bash
-ws agent codex --native
-ws agent claude --native
-```
-
-The form also offers **Use ordinary agent settings** to clear a saved default. Help, version, and login/logout commands keep their ordinary behavior. Additional native profile/remote/settings-overlay options require `--native`; a managed gateway launch owns its connection settings.
-
-## Rotate or edit
-
-```bash
-ws configure codex team-a
-ws configure claude team-a
-```
-
-Choose **Rotate key** to replace a stored key without re-entering the endpoint or model. Choose **Edit connection** to change those fields, the credential source, or Claude's header mode. Existing values appear in the form; stored keys never appear in its preview. For an environment-backed credential, update the variable through its existing source and start a new agent process.
-
-If a credential is absent, that profile fails to launch with an actionable message. It does not silently use another profile's key. Editing an endpoint directly in a managed native file requires reviewing its credential binding through the form before launching again.
-
-## Files and scope
+## Credentials and files
 
 | Contents | Default location |
 | --- | --- |
 | Profile names and defaults | `~/.config/hpc-workspace/agents.json` |
 | Private credential source | `~/.config/hpc-workspace/credentials/TOOL-NAME.json` |
 | Codex native profile | `~/.codex/ws-NAME.config.toml` |
-| Claude native preferences overlay | `~/.claude/workspace-profiles/NAME.json` |
-| Private copies of replaced files | `~/.config/hpc-workspace/backups/` |
+| Pi provider entries | `~/.pi/agent/models.json`, under `ws-NAME` |
+| Private backups of replaced files | `~/.config/hpc-workspace/backups/` |
 
-`WS_CONFIG_DIR`, `CODEX_HOME`, and `CLAUDE_CONFIG_DIR` select corresponding alternate locations. The form shows resolved destinations and preserves symlinked dotfiles. New files and backups use mode 600. Backups can contain old credentials and remain local. Stored keys use private files, not encryption or an OS keychain.
+`WS_CONFIG_DIR`, `CODEX_HOME`, and `PI_CODING_AGENT_DIR` select alternate locations. New files and backups use mode 600. A stored key is a private plaintext file, not encryption or an OS keychain. Stored keys enter only the selected agent's child environment and do not appear in command arguments or the parent shell. An environment-backed profile stores only the variable name; that variable must already be available to the launching shell. Keep real keys out of the repository, chat, project templates, and shell history.
 
-The adapters edit their named profile files. Ordinary user/project settings remain in place. Unrelated fields in managed profiles are retained; TOMLKit preserves TOML comments. Saving checks for intervening file changes and rolls back partial writes where its own contents are still present.
+The Pi provider entry references `$WS_SELECTED_PI_KEY`; the workspace supplies that variable only to the selected Pi process. If Pi has a stored credential for the same `ws-NAME` provider, remove it before using the workspace profile so it cannot take precedence. Pi's native `auth.json` may contain other provider credentials and remains untouched.
 
-Codex receives the selected key in its child environment and loads the native profile with `--profile`. Claude receives a private per-process settings overlay because `settings.env` can override inherited environment values. That temporary file is removed on normal exit and handled termination; forced kills or node failure can leave private files for system cleanup. Keys do not appear in command-line arguments or the parent interactive shell.
+Choose **Rotate key** to replace a stored key without changing the endpoint or model. Choose **Edit connection** to change the protocol, credential source, or other managed fields. Direct changes to a managed provider require a review through the form before launch. Saved user and project agent settings otherwise remain in place. API calls and private acceptance results stay on the cluster.
 
-Site-managed agent policy still takes precedence. These profiles cover direct foreground launches. Saved enterprise gateway sign-in, managed routing, spawned agents, and background sessions require separate site checks; an edited file does not establish gateway compatibility. The [research note](research/agent-gateway-configuration.md) records Claude precedence and bundled-version limits. API calls and private acceptance results stay on the cluster.
+Pi runs generated commands with the launching user's permissions. Its project trust prompt controls project resources but is not a command sandbox. Review the files and credentials exposed to a Pi session. [Pi security guide](https://pi.dev/docs/latest/security)
 
-## Workspace settings
-
-`ws configure workspace` edits extra filesystem binds and the optional scheduler default through the existing workspace configuration. Native `sbatch`/`qsub` do not require that default. Inspector import remains available through `ws init` and `ws refresh`; the form does not rerun Inspector.
-
-This release provides these selected forms. Arbitrary YAML/JSON/TOML schemas, broader agent preferences, and automatic credential refresh remain future work.
+`ws configure workspace` edits extra filesystem binds and the optional scheduler default. Native `sbatch` and `qsub` do not require that default.

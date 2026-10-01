@@ -1,6 +1,6 @@
 # Workspace toolkit roadmap
 
-Updated 2026-09-25. The [thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. The 0.6 preview added the common CLI expansion, Codex and Claude Code, and the first editor plugin/parser bundle. The 0.7 preview adds remembered Apptainer setup and Gum forms for workspace settings and named agent gateways. See [current editor behavior and shortcuts](editor-and-agents.md) and the [gateway guide](agent-profiles.md). Personal HPC helpers and a deeper editor-agent adapter remain future work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
+Updated 2026-10-01. The [thin preview](thin-start.md) implements a pinned Nix tool set, common appearance, automated host integration, packaged tmux and release installation/update/rollback. The [implementation plan](thin-container-plan.md) describes the full direction; the [validation record](validation.md) separates tested fixtures from pending site acceptance. The 0.6 preview added the common CLI expansion and the first editor plugin/parser bundle. The current preview includes Codex and Pi. The 0.7 preview adds remembered Apptainer setup and Gum forms for workspace settings and named agent gateways. See [current editor behavior and shortcuts](editor-and-agents.md) and the [gateway guide](agent-profiles.md). Personal HPC helpers and a deeper editor-agent adapter remain future work. The [shell research](research/shell-usability-tools.md) and [Neovim research](research/neovim-agent-workflow.md) record those proposals.
 
 Use the site's existing compilers through its normal module environment. Additional compiler installations are outside the default toolkit; include one only for a concrete workflow that requires a specific version unavailable from the site. Editor language servers and agent runtimes remain separate packaging decisions and must preserve access to the selected site compiler.
 
@@ -24,7 +24,7 @@ The common additions below are packaged in the 0.6 preview. Host compilers/build
 | Project tasks | Make, CMake, Ninja | Just for named project recipes; watchexec for explicitly started, narrowly scoped watches |
 | Python projects | Python, pip, venv | uv for project environments/lockfiles and Ruff for checking/formatting |
 | Configuration and tabular data | jq | Mike Farah's yq for YAML and Miller for CSV/TSV reports |
-| Guided configuration (0.7) | Saved local workspace settings | Gum forms for extra binds, scheduler defaults, and Codex/Claude gateway profiles with key rotation |
+| Guided configuration (0.7) | Saved local workspace settings | Gum forms for extra binds, scheduler defaults, and Codex/Pi gateway profiles with key rotation |
 | Logs and storage | less, htop, rsync | lnav for logs and ncdu for deliberate disk-usage inspection |
 | Visual file operations | Neovim's file browser | Optional Superfile configured without Nerd Fonts |
 | Per-project setup | Explicit shell/project settings | Optional direnv, enabled only for a project whose environment file the user has approved |
@@ -39,7 +39,7 @@ The editor has the shared theme, persistent undo, session save/restore, file/tex
 
 Keep one main editor configuration and a small, pinned plugin set. Package the plugins, language servers, and selected syntax parsers during release preparation for the selected execution context. Opening the editor should not trigger downloads or tool installation. Use plain labels/signs by default and test narrow PuTTY-sized windows, colors, and keyboard behavior as well as VS Code.
 
-Run Neovim and Codex or Claude Code in neighboring tmux panes/windows, with a clearly identified execution context for tests and host operations. Validate editor/agent subprocesses across the chosen container/host integration. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
+Run Neovim and Codex or Pi in neighboring tmux panes/windows, with a clearly identified execution context for tests and host operations. Validate editor/agent subprocesses across the chosen container/host integration. Agent edits to an unmodified buffer can be reloaded; unsaved editor changes must be preserved and conflicts made visible. Give simultaneous editing agents separate Git worktrees. Review changes with the same editor/Git tools used for manual work.
 
 The workspace sets `VISUAL=nvim` and `EDITOR=nvim`. The current integration is adjacent editor/agent windows, external-file checks, and a shared Git review workflow. Additional agent-specific editor adapters remain optional future work. Agent skill files are bundled, but their automatic activation in the thin runtime is still outstanding; see [skills](skills.md).
 
@@ -88,7 +88,7 @@ Existing discovery commands and possible extensions:
 1. Delivered: pinned Nix tools, automated host integration, managed tmux, expanded agents/editor/CLI bundle, and the one-command download/install/update path. See [validation](validation.md) for the terminal, locale, library, and installation checks; site-specific acceptance remains local work.
 2. Use the [practice project](../examples/workflow/) and daily guide to refine the workflow. Add real project recipes using each project's existing build/tests and native scheduler scripts.
 3. Delivered in 0.7: [remembered Apptainer runtime setup](runtime-setup.md), using a recorded executable directly when sufficient and a saved module recipe when required. Verify each site's fresh-login and compute-node cases locally.
-4. Delivered in 0.7: optional [Gum configuration forms](agent-profiles.md) for workspace settings and named Codex/Claude gateways. Broader agent preferences and general project-file schemas remain in the [configuration roadmap](guided-configuration.md). Initial runtime setup remains usable before the image can run.
+4. Delivered in 0.7: optional [Gum configuration forms](agent-profiles.md) for workspace settings and named Codex/Pi gateways. Broader agent preferences and general project-file schemas remain in the [configuration roadmap](guided-configuration.md). Initial runtime setup remains usable before the image can run.
 5. Complete automatic skill activation for the thin runtime and validate it without replacing independently managed skills.
 6. Integrate `libsweep` as the first personal HPC tool, then add further helpers and scientific runtime layers as concrete workflows require them.
 

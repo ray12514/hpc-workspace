@@ -3,10 +3,6 @@
 import os
 from pathlib import Path
 import sys
-import tempfile
-import subprocess
-import json
-import signal
 
 root = Path('/workspace-tools')
 sys.path.insert(0, str(root / 'lib'))
@@ -21,45 +17,21 @@ if not environment.get('SSL_CERT_FILE'):
         if Path(path).is_file():
             apply_overrides(environment, {'SSL_CERT_FILE': path})
             break
-if name == 'claude':
-    apply_overrides(environment, {'DISABLE_AUTOUPDATER': '1', 'DISABLE_UPDATES': '1',
-                                 'USE_BUILTIN_RIPGREP': '0'})
-    environment.setdefault('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', '1')
 args = [str(root / 'libexec' / name)]
 if name == 'codex':
     args += ['-c', 'check_for_update_on_startup=false']
+elif name == 'pi':
+    environment.setdefault('PI_SKIP_VERSION_CHECK', '1')
+    if not environment.get('NODE_EXTRA_CA_CERTS') and environment.get('SSL_CERT_FILE'):
+        environment['NODE_EXTRA_CA_CERTS'] = environment['SSL_CERT_FILE']
 try:
     # Help and account-management commands keep their ordinary native behavior.
     arguments = sys.argv[1:]
     informational = any(item in ('--help', '-h', '--version', '-V', '-v') for item in arguments)
-    account = arguments[:1] in (['login'], ['logout'], ['auth'])
-    if informational or account:
-        overlay = None
-    else:
-        arguments, environment, overlay = launch_profile(name, arguments, environment)
-    if overlay is None:
-        os.execve(args[0], args + arguments, environment)
-    # Claude settings.env overrides the inherited environment. Supply the selected
-    # credential in a private per-process overlay, never as a JSON argv value.
-    with tempfile.TemporaryDirectory(prefix='ws-agent-') as temporary:
-        path = Path(temporary) / 'settings.json'
-        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, 'w') as stream:
-            json.dump(overlay, stream)
-        child = subprocess.Popen(args + ['--settings', str(path)] + arguments, env=environment)
-        def forward(signum, frame):
-            if child.poll() is None:
-                child.send_signal(signum)
-        signal.signal(signal.SIGTERM, forward)
-        signal.signal(signal.SIGHUP, forward)
-        while True:
-            try:
-                result = child.wait()
-                break
-            except KeyboardInterrupt:
-                # The terminal delivers SIGINT to the agent in this process group.
-                continue
-        sys.exit(result if result >= 0 else 128 - result)
+    account = (name == 'codex' and arguments[:1] in (['login'], ['logout'])) or (name == 'pi' and arguments[:1] == ['auth'])
+    if not (informational or account):
+        arguments, environment, _ = launch_profile(name, arguments, environment)
+    os.execve(args[0], args + arguments, environment)
 except (ValueError, OSError, TypeError, KeyError) as exc:
     print('workspace agent: ' + str(exc), file=sys.stderr)
     sys.exit(2)

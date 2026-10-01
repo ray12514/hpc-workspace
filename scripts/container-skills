@@ -26,7 +26,7 @@ if not snapshot.exists():
             shutil.rmtree(stage)
 conflicts = []
 for skill in sorted(snapshot.iterdir()):
-    for folder in (Path.home() / '.agents/skills', Path.home() / '.claude/skills'):
+    for folder in (Path.home() / '.agents/skills',):
         folder.mkdir(parents=True, exist_ok=True, mode=0o700)
         link = folder / skill.name
         if link.is_symlink():

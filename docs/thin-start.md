@@ -1,6 +1,6 @@
 # Install the integrated development environment
 
-The **0.7.3-preview1** thin release provides one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. It includes the expanded productivity toolkit, Codex and Claude Code, a preconfigured Neovim bundle, explicit managed-session reconnect/stop commands, and an on-demand native Codex key helper. Site-local facts and results stay on the system.
+The **0.7.3-preview1** thin release provides one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. It includes the expanded productivity toolkit, Codex and Pi, a preconfigured Neovim bundle, explicit managed-session reconnect/stop commands, and an on-demand native Codex key helper. Site-local facts and results stay on the system.
 
 This page covers installation and lifecycle. After setup, follow the [daily workflow tutorial](daily-workflow.md) or use the [command reference](command-reference.md). The [documentation index](README.md) separates current user guides from historical releases and design notes.
 
@@ -102,7 +102,7 @@ If installation fails, its local error needs resolving before activation will wo
 
 In the current 0.7 releases, choose `ws enter` or `ws session` from the native shell. The launcher currently rejects `ws session` inside an existing workspace; this is a launcher limitation, not a restriction on using tmux inside a container.
 
-Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace, editor, and agents windows that use the integrated environment. The agents window starts a shell; run `codex` or `claude` when ready. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
+Start in a project directory and run `ws enter`, or `ws session` for the packaged tmux session. The session contains workspace, editor, and agents windows that use the integrated environment. The agents window starts a shell; run `codex` or `pi` when ready. A small background keeper holds the container open until the tmux server ends, so detaching does not remove its tool files. Plain `tmux` inside the workspace uses the same defaults; use `ws session` when the session must outlive the entering shell. No host tmux package is needed for the thin workflow.
 
 | Command | Current behavior |
 | --- | --- |
@@ -177,4 +177,4 @@ For the first local check, enter the workspace, use `module list` and the site's
 
 ## Guided settings and API gateways
 
-Run `ws configure` inside the workspace for Gum forms, or `ws configure --plain` for basic prompts. Configure named Codex/Claude gateways, rotate credentials, select defaults, or adjust extra workspace binds. The [configuration guide](agent-profiles.md) covers supported fields and profile switching.
+Run `ws configure` inside the workspace for Gum forms, or `ws configure --plain` for basic prompts. Configure named Codex/Pi gateways, rotate credentials, select defaults, or adjust extra workspace binds. The [configuration guide](agent-profiles.md) covers supported fields and profile switching.

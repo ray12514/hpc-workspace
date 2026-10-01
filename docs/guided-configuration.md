@@ -1,19 +1,19 @@
 # Guided configuration in the terminal
 
-Status: **first implementation in 0.7.0-preview1.** Use the [configuration guide](agent-profiles.md) for available commands. Gum, workspace bind/scheduler forms, named Codex/Claude gateways, and credential updates are implemented. The broader template design below remains a roadmap; forms are never required during ordinary login.
+Status: **first implementation in 0.7.0-preview1, with Pi support in 0.7.3-preview1.** Use the [configuration guide](agent-profiles.md) for available commands. Gum, workspace bind/scheduler forms, named Codex/Pi gateways, and credential updates are implemented. The broader template design below remains a roadmap; forms are never required during ordinary login.
 
 ## What the user sees
 
 A terminal form can present text inputs, lists, toggles, and help, then write a valid configuration file. Start from the saved values, change only what is needed, and review the resulting changes before saving. The underlying file remains usable in Neovim or another editor.
 
-The current `ws configure` entry point presents workspace, Codex, and Claude choices. A later project-template extension could add a fourth choice:
+The current `ws configure` entry point presents workspace, Codex, and Pi choices. A later project-template extension could add a fourth choice:
 
 ```text
 Configure
 
   Workspace
   Codex
-  Claude Code
+  Pi
   Project configuration
 
 Choose a target -> load current values -> answer questions
@@ -42,12 +42,12 @@ These projects provide interface components. They do not automatically know whic
 | --- | --- | --- |
 | Workspace | Existing local `config.json` | Implemented: extra binds and optional scheduler default. Inspector import and runtime setup remain native commands |
 | Codex | Named `~/.codex/ws-NAME.config.toml` | Implemented: endpoint, model, credential source, key rotation, and default selection. Broader user/project preferences remain future work |
-| Claude Code | Named `~/.claude/workspace-profiles/NAME.json` | Implemented: endpoint, model, credential source/header, key rotation, and default selection. Use its own `/config` menu for preferences it already handles well |
+| Pi | Named provider entry in `~/.pi/agent/models.json` | Implemented: endpoint, protocol, model, credential source/header, key rotation, and default selection. Pi's `/login` and `/model` remain available for ordinary provider use |
 | Project tools | A known YAML, JSON, or TOML template | Tool-specific paths, modes, and other fields with clear validation |
 
 Codex's official documentation describes TOML configuration, user/project layers, and a published JSON Schema. Use that schema as a source for validation, with explicit compatibility against the client version in our release. A current online schema is not automatically the right schema for an older bundled client. [OpenAI configuration basics](https://learn.chatgpt.com/docs/config-file/config-basic), [OpenAI configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 
-Claude Code documents JSON settings at the scopes above and a built-in `/config` menu for some preferences. Its documentation links a published settings schema and notes that the schema can lag the CLI. Preserve the application's own authentication/state files and managed settings; a preferences form should not replace them. [Claude Code settings](https://code.claude.com/docs/en/settings)
+Pi reads its provider entries from `models.json` and keeps credentials and sessions in separate files. The workspace form owns only provider entries named `ws-NAME`; it preserves unrelated provider and authentication settings. [Pi configuration](https://pi.dev/docs/latest/models)
 
 Use each application's configured home directory when it differs from these defaults. Begin with ordinary preferences, not wholesale edits to every setting. Models, providers, hooks, and permissions need application-specific handling; do not copy a shared set of guessed options into both agent formats.
 
@@ -89,7 +89,7 @@ Use plain labels, ordinary fonts, keyboard navigation, and a limited-color theme
 
 1. Implemented in 0.7: remembered runtime setup with a host-only bootstrap path.
 2. Implemented in 0.7: Gum and the first workspace form, with selected fields and the existing no-form installation path.
-3. Implemented in 0.7: Codex/Claude gateway adapters. Expand preferences only after validating their fields and scopes against the packaged clients. Reuse built-in application menus where they already solve the problem.
+3. Implemented: Codex and Pi gateway adapters. Expand preferences only after validating their fields and scopes against the packaged clients. Reuse built-in application menus where they already solve the problem.
 4. Add named templates for personal HPC tools as those tools enter the workspace. Only then consider general schema-driven forms or a richer Huh application.
 
 Before extending the forms, test existing files, unknown-key preservation, invalid input, cancellation, concurrent edits, backups, symlinks, offline operation, terminal behavior, and the actual applications reading the result. Syntax validity alone does not establish that an application accepts a setting. Huh, arbitrary schemas, project templates, and noninteractive provider editing are not included. See [validation](validation.md) for exercised cases.

@@ -20,7 +20,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Native shell | `ws runtime setup` / `ws runtime status` | Check and remember Apptainer / display its saved invocation |
 | Inside workspace | `ws configure` | Choose a workspace or agent configuration form |
 | Inside workspace | `ws configure codex team-a` | Create/edit a named gateway, rotate its key, or choose a default |
-| Inside workspace | `ws agent codex team-a` | Launch the selected gateway profile; `claude` works the same way |
+| Inside workspace | `ws agent codex team-a` | Launch the selected gateway profile; `pi` works the same way |
 | Inside workspace | `ws agent codex --list` / `ws agent codex --native` | List profiles / use ordinary agent settings for this launch |
 | Native shell | `ws rollback` | Select the previously installed release for new sessions |
 
@@ -94,7 +94,7 @@ Keys separated by spaces are pressed in sequence. In tmux, press and release **C
 | Mount identity | `findmnt -T "$PWD"` | Host-provided utility, viewed from this container |
 | Processes | `htop` / `btop` | Processes/resources visible on the current node; not a cluster queue |
 | Examples offline | `tldr tar` / `tldr rg` | Bundled command examples; update with the workspace release |
-| Agents | `codex` / `claude` | Start deliberately in the project after local authentication |
+| Agents | `codex` / `pi` | Start deliberately in the project after local authentication |
 
 Git, find, findmnt, df, du, tail, SSH, Python, compiler/build programs, and scheduler clients come from the host. The workspace packages the productivity tools listed by `ws tools`, their private dependencies, and editor support tools (`basedpyright`, `bash-language-server`, `fortls`). `tput`/`infocmp` supply terminal capability support. C/C++ language assistance uses host `clangd` and `clang-format` when available.
 

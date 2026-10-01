@@ -3,9 +3,26 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   outputs = { self, nixpkgs }:
     let
-      pkgs = import nixpkgs {
-        system = "x86_64-linux";
-        config.allowUnfreePredicate = p: pkgs.lib.getName p == "claude-code";
+      pkgs = import nixpkgs { system = "x86_64-linux"; };
+      piVersion = "0.87.1";
+      piArchive = pkgs.fetchurl {
+        url = "https://github.com/earendil-works/pi/releases/download/v${piVersion}/pi-linux-x64.tar.gz";
+        hash = "sha256-gNeN1i1QBJoAa5gdmUxhJVvMEOcwsMJ41OoKdVkJdkw=";
+      };
+      piPackage = pkgs.stdenvNoCC.mkDerivation {
+        pname = "pi-coding-agent";
+        version = piVersion;
+        src = piArchive;
+        nativeBuildInputs = [ pkgs.patchelf ];
+        installPhase = ''
+          mkdir -p $out/share/pi
+          cp -a ./. $out/share/pi/
+          chmod u+w $out/share/pi/pi
+          patchelf --set-interpreter '${pkgs.stdenv.cc.bintools.dynamicLinker}' \
+            --set-rpath '${pkgs.glibc}/lib' $out/share/pi/pi
+          test "$($out/share/pi/pi --version)" = '${piVersion}'
+        '';
+        meta.license = pkgs.lib.licenses.mit;
       };
       tools = {
         bash = pkgs.bashInteractive;
@@ -47,7 +64,7 @@
         basedpyright = pkgs.basedpyright;
         fortls = pkgs.fortls;
       };
-      agentTools = { codex = pkgs.codex; claude = pkgs.claude-code; };
+      agentTools = { codex = pkgs.codex; pi = piPackage; };
       parsers = p: with p; [ c cpp fortran python bash json yaml lua markdown markdown_inline cmake vim vimdoc ];
       plugins = with pkgs.vimPlugins; [
         fzf-lua which-key-nvim gitsigns-nvim blink-cmp conform-nvim
@@ -115,11 +132,11 @@
         ln -s /workspace-tools/libexec/fortls $out/bin/fortls
         harden ${pkgs.codex}/bin/.codex-wrapped $out/libexec/codex
         harden ${pkgs.codex}/bin/codex-code-mode-host $out/libexec/codex-code-mode-host
-        harden ${pkgs.claude-code}/bin/.claude-wrapped $out/libexec/claude
-        patchelf --force-rpath --add-rpath '${pkgs.lib.getLib pkgs.alsa-lib}/lib' $out/libexec/claude
+        cp -a ${piPackage}/share/pi $out/share/pi
+        ln -s /workspace-tools/share/pi/pi $out/libexec/pi
         harden ${pkgs.bubblewrap}/bin/bwrap $out/agent-bin/bwrap
         harden ${pkgs.socat}/bin/socat $out/agent-bin/socat
-        for name in codex claude; do ln -s /workspace-tools/thin-agent $out/bin/$name; done
+        for name in codex pi; do ln -s /workspace-tools/thin-agent $out/bin/$name; done
         ln -s ${pkgs.bash-completion}/share/bash-completion $out/share/bash-completion
         ln -s ${pkgs.fzf}/share/fzf $out/share/fzf
         ln -s ${pkgs.ncurses}/share/terminfo $out/share/terminfo

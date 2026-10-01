@@ -21,7 +21,7 @@ assert (personal / "inputrc").is_file()
 assert (personal / "xdg/nvim/init.lua").is_file()
 assert not (Path('/project') / 'HOST_BASHRC_READ').exists()
 assert (home / ".agents/skills/research/SKILL.md").read_text() == "keep my custom skill\n"
-assert (home / ".claude/skills/research/SKILL.md").is_file()
+assert (home / ".agents/skills/research/SKILL.md").is_file()
 assert (home / ".agents/skills/codebase-design").is_symlink()
 
 if phase == "save":

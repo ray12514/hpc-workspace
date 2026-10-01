@@ -29,7 +29,7 @@ class ConfigTests(unittest.TestCase):
         context.start()
         self.addCleanup(context.stop)
 
-    def profile(self, name='alpha', tool='claude', source='stored', auth='bearer'):
+    def profile(self, name='alpha', tool='pi', source='stored', auth='bearer'):
         if tool == 'codex':
             try:
                 toml_module()
@@ -38,7 +38,7 @@ class ConfigTests(unittest.TestCase):
         index = agents.catalog()
         native, key = agents.documents(tool, name, index)
         proposed = dict(base_url='https://' + name + '.example.invalid/v1', model='model-' + name,
-                        source=source, variable='TEAM_KEY', auth=auth)
+                        source=source, variable='TEAM_KEY', auth=auth, api='openai-responses')
         agents.candidate(tool, name, native, key, proposed, 'synthetic-' + name)
         index.data['profiles'][tool][name] = {'path': str(native.path), 'credential': str(key.path)}
         commit([native, key, index], self.folder)
@@ -105,49 +105,59 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(a.path.exists())
         self.assertFalse(b.path.exists())
 
-    def test_claude_switch_rotation_and_environment_cleanup(self):
+    def test_pi_switch_rotation_and_environment_cleanup(self):
         self.profile('alpha')
         self.profile('beta', auth='api-key')
         base = dict(os.environ, ANTHROPIC_AUTH_TOKEN='wrong', ANTHROPIC_API_KEY='wrong',
-                    CLAUDE_CODE_USE_BEDROCK='1', SITE_MODULE='keep')
+                    OPENAI_API_KEY='wrong', SITE_MODULE='keep')
         for name in ('alpha', 'beta'):
-            args, env, overlay = agents.launch_profile('claude', ['--print', 'hello'], dict(base, WS_AGENT_PROFILE=name))
-            self.assertEqual(args, ['--print', 'hello'])
+            args, env, overlay = agents.launch_profile('pi', ['--print', 'hello'], dict(base, WS_AGENT_PROFILE=name))
+            self.assertEqual(args[:4], ['--provider', 'ws-' + name, '--model', 'model-' + name])
             self.assertEqual(env['SITE_MODULE'], 'keep')
             self.assertNotIn('ANTHROPIC_AUTH_TOKEN', env)
-            self.assertEqual(overlay['env']['CLAUDE_CODE_USE_BEDROCK'], '')
-            field = 'ANTHROPIC_AUTH_TOKEN' if name == 'alpha' else 'ANTHROPIC_API_KEY'
-            self.assertEqual(overlay['env'][field], 'synthetic-' + name)
-            self.assertNotIn('wrong', json.dumps(overlay))
-        native, secret = agents.documents('claude', 'alpha', agents.catalog())
+            self.assertEqual(env['WS_SELECTED_PI_KEY'], 'synthetic-' + name)
+            self.assertIsNone(overlay)
+            self.assertNotIn('synthetic-' + name, str(args))
+        native, secret = agents.documents('pi', 'alpha', agents.catalog())
         original = native.path.read_bytes()
-        agents.candidate('claude', 'alpha', native, secret, agents.values('claude', 'alpha', native, secret), 'rotated-synthetic')
+        agents.candidate('pi', 'alpha', native, secret, agents.values('pi', 'alpha', native, secret), 'rotated-synthetic')
         commit([native, secret], self.folder)
         self.assertEqual(original, native.path.read_bytes())
-        self.assertEqual(agents.load_profile('claude', 'alpha')[2], 'rotated-synthetic')
-        self.assertEqual(agents.load_profile('claude', 'beta')[2], 'synthetic-beta')
+        self.assertEqual(agents.load_profile('pi', 'alpha')[2], 'rotated-synthetic')
+        self.assertEqual(agents.load_profile('pi', 'beta')[2], 'synthetic-beta')
 
     def test_missing_credential_or_changed_endpoint_does_not_fall_back(self):
         path, secret = self.profile(source='environment')
         with self.assertRaisesRegex(ValueError, 'unavailable'):
-            agents.load_profile('claude', 'alpha')
+            agents.load_profile('pi', 'alpha')
         os.environ['TEAM_KEY'] = 'synthetic-from-env'
-        self.assertEqual(agents.load_profile('claude', 'alpha')[2], 'synthetic-from-env')
+        self.assertEqual(agents.load_profile('pi', 'alpha')[2], 'synthetic-from-env')
         data = json.loads(path.read_text())
-        data['env']['ANTHROPIC_BASE_URL'] = 'https://changed.example.invalid'
+        data['providers']['ws-alpha']['baseUrl'] = 'https://changed.example.invalid'
         path.write_text(json.dumps(data))
-        with self.assertRaisesRegex(ValueError, 'binding changed'):
-            agents.load_profile('claude', 'alpha')
+        with self.assertRaisesRegex(ValueError, 'changed'):
+            agents.load_profile('pi', 'alpha')
 
     def test_native_escape_and_defaults(self):
         self.profile()
         index = agents.catalog()
-        index.data['defaults']['claude'] = 'alpha'
+        index.data['defaults']['pi'] = 'alpha'
         commit([index], self.folder)
-        self.assertIsNotNone(agents.launch_profile('claude', [], dict(self.env))[2])
-        self.assertIsNone(agents.launch_profile('claude', [], dict(self.env, WS_AGENT_PROFILE='none'))[2])
+        self.assertEqual(agents.launch_profile('pi', [], dict(self.env))[0][:2], ['--provider', 'ws-alpha'])
+        self.assertIsNone(agents.launch_profile('pi', [], dict(self.env, WS_AGENT_PROFILE='none'))[2])
         with self.assertRaisesRegex(ValueError, 'active'):
-            agents.launch_profile('claude', ['--settings', 'other.json'], dict(self.env))
+            agents.launch_profile('pi', ['--model', 'other'], dict(self.env))
+
+    def test_pi_stored_native_credential_cannot_override_selected_key(self):
+        path, secret = self.profile()
+        native_auth = path.parent / 'auth.json'
+        native_auth.write_text(json.dumps({'ws-alpha': {'type': 'api_key', 'key': 'wrong-key'}}))
+        with self.assertRaisesRegex(ValueError, 'stored Pi credential'):
+            agents.launch_profile('pi', [], dict(self.env, WS_AGENT_PROFILE='alpha'))
+        native_auth.unlink()
+        args, env, _ = agents.launch_profile('pi', [], dict(self.env, WS_AGENT_PROFILE='alpha'))
+        self.assertEqual(args[:2], ['--provider', 'ws-alpha'])
+        self.assertEqual(env['WS_SELECTED_PI_KEY'], 'synthetic-alpha')
 
     def test_codex_comments_unknown_settings_and_selected_key(self):
         path, secret = self.profile(tool='codex')
@@ -198,7 +208,7 @@ class ConfigTests(unittest.TestCase):
         a = workspace.parse_arguments(['agent', 'codex', 'alpha', '--', 'exec', 'hello'])
         self.assertEqual(a.name, 'alpha')
         self.assertEqual(a.command, ['exec', 'hello'])
-        b = workspace.parse_arguments(['agent', 'claude', '--native', '--', '--version'])
+        b = workspace.parse_arguments(['agent', 'pi', '--native', '--', '--version'])
         self.assertTrue(b.native)
         self.assertTrue(workspace.parse_arguments(['agent', 'codex', '--list']).list)
 

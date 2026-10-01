@@ -2,7 +2,7 @@
 
 This is the feature/reference guide for the current thin workspace. For a step-by-step routine and copyable search/edit recipes, start with [Daily workflow](daily-workflow.md); for a short lookup sheet, use the [command reference](command-reference.md).
 
-The thin preview packages these defaults centrally. New shells use the selected release; personal files under `~/.config/hpc-workspace` are preserved. Run `ws tools` (or `ws tools --json`) inside the workspace for exact installed versions. The Nix lock and image manifests pin tools, plugins, parsers, and help pages together; this is a tested package snapshot, not a promise that every upstream project has the same release schedule. In 0.7, `ws configure codex` and `ws configure claude` add [named gateway profiles and key rotation](agent-profiles.md).
+The thin preview packages these defaults centrally. New shells use the selected release; personal files under `~/.config/hpc-workspace` are preserved. Run `ws tools` (or `ws tools --json`) inside the workspace for exact installed versions. The Nix lock and image manifests pin tools, plugins, parsers, and help pages together; this is a tested package snapshot, not a promise that every upstream project has the same release schedule. `ws configure codex` and `ws configure pi` add [named gateway profiles and key rotation](agent-profiles.md).
 
 ## Daily toolkit
 
@@ -15,7 +15,7 @@ The thin preview packages these defaults centrally. New shells use the selected 
 | Python and shell quality | uv, Ruff, ShellCheck, shfmt; uv defaults to using an available Python rather than downloading one |
 | Data | jq, Mike Farah's `yq`, Miller (`mlr`) |
 | Offline examples | `tldr tar`, using pinned English common/Linux pages inside the image |
-| Editor and agents | Neovim, tmux, Codex, Claude Code; private agent/editor runtimes do not replace host Python, Node, or compilers |
+| Editor and agents | Neovim, tmux, Codex, Pi; private agent/editor runtimes do not replace host Python, Node, or compilers |
 
 Use the site's module-selected compiler and scientific stack. `find`, `df`, `findmnt`, Git, SSH, scheduler clients, and other native programs continue to come from the host. No disk scan, benchmark, directory watch, agent session, or `.envrc` execution starts merely because you enter the workspace. Delta is the shell's Git pager only when you have not already chosen a pager.
 
@@ -50,7 +50,7 @@ An unmodified buffer reloads external agent edits on focus/buffer checks. Neovim
 
 ## tmux
 
-From the native login shell, `ws session` enters the workspace and starts **workspace**, **editor**, and **agents** windows. It is an alternative to `ws enter`, not a command to run inside it. The agents window is a shell: run `codex` or `claude` there when ready. It uses the same project directory. Use Ctrl-B then the window number to switch.
+From the native login shell, `ws session` enters the workspace and starts **workspace**, **editor**, and **agents** windows. It is an alternative to `ws enter`, not a command to run inside it. The agents window is a shell: run `codex` or `pi` there when ready. It uses the same project directory. Use Ctrl-B then the window number to switch.
 
 Ctrl-B followed by `|` or `-` splits at the current directory. Ctrl-B then h/j/k/l selects a pane; capital H/J/K/L resizes it. Ctrl-B then `[` enters copy mode, with `v` to select and `y` to copy into tmux's buffer. The editor's Space-w navigation can cross its outer split boundary into tmux. Ordinary shell Ctrl-H/J/K/L behavior remains available. [vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator)
 
@@ -79,7 +79,7 @@ compute node:                           native site shell
                                               |
                                            ws enter
                                               |
-                                      nvim / codex / claude
+                                      nvim / codex / pi
 ```
 
 Use your site's existing resource options and interactive procedure. When a command exports its environment, the optional prefix strips workspace-only settings before calling the native client:
@@ -95,7 +95,7 @@ ws job-env -- srun YOUR_SITE_OPTIONS --pty /bin/bash -l
 hostname
 ws enter
 codex --version
-claude --version
+pi --version
 # Then start the agent you want to use.
 ```
 
@@ -107,11 +107,11 @@ Install the release on a persistent filesystem available to the compute nodes. T
 
 ## AI setup and local checks
 
-The image contains Codex and Claude Code, without credentials. Their wrappers retain existing authentication, proxies, and certificate choices. When `SSL_CERT_FILE` is unset, the wrapper chooses an available host certificate bundle before the bundled public roots. No TLS verification is disabled. Agent automatic updates are disabled so the installed versions follow workspace releases; neither wrapper bypasses the agent's approval/sandbox controls.
+The image contains Codex and Pi, without credentials. Their wrappers retain the site proxy and certificate environment. When `SSL_CERT_FILE` is unset, a wrapper chooses an available host certificate bundle before the bundled public roots. Pi also uses that bundle as `NODE_EXTRA_CA_CERTS` unless it is already set. No TLS verification is disabled. Update the agents by installing a new workspace release; the image versions are pinned. Pi runs its tools with the permissions of the account that launched it, so review the project and credentials available to it. [Pi security guide](https://pi.dev/docs/latest/security)
 
-Authenticate locally on the cluster using the method approved for your account. For a headless Codex login, `codex login --device-auth` is an official option when enabled for the account/workspace. Codex also supports API-key authentication and custom CA bundles. Claude's sign-in/API-provider setup is independent. Shared home directories can make saved credentials visible on compute nodes, but network and provider access must still work there. [Codex authentication](https://learn.chatgpt.com/docs/auth), [Claude Code setup](https://code.claude.com/docs/en/setup)
+Authenticate locally on the cluster using the method approved for your account. For a headless Codex login, `codex login --device-auth` is an option when enabled for the account/workspace. Pi's `/login` selects its own providers, or a named workspace gateway can use `ws configure pi`. Pi can select OpenAI or Anthropic models without the separate Codex CLI sharing its sessions. Shared home directories can make saved credentials visible on compute nodes, but network and provider access must still work there. [Codex authentication](https://developers.openai.com/codex/auth), [Pi authentication](https://pi.dev/docs/latest/providers)
 
-`codex --version` and `claude --version` verify installation, not outbound API connectivity. Test sign-in and a small approved request once on the login node and again inside a compute-node workspace. Use synthetic/non-sensitive content for the initial check. Claude's required hosts depend on the selected authentication/provider features; use the official list for any local allowlist work. Keep site diagnostics and credentials on the cluster. [Claude network configuration](https://code.claude.com/docs/en/network-config)
+`codex --version` and `pi --version` verify installation, not outbound API connectivity. Test sign-in and a small approved request once on the login node and again inside a compute-node workspace. Use synthetic content for the initial check. Keep site diagnostics and credentials on the cluster.
 
 ## Locale warning
 

@@ -29,7 +29,7 @@ Until you update and enter a fresh workspace, use basic prompts:
 ```bash
 ws configure codex --plain
 # Or:
-ws configure claude --plain
+ws configure pi --plain
 ```
 
 Choose the existing gateway and **Edit connection** to review its endpoint and model. **Rotate key** changes only the credential. Keys remain hidden intentionally; ordinary fields and their questions should be readable. No PuTTY update is required to use the basic prompts. See the [profile guide](agent-profiles.md) for editing and key rotation.

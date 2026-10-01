@@ -9,6 +9,7 @@ import pty
 import re
 import select
 import signal
+import ssl
 import subprocess
 import struct
 import sys
@@ -58,11 +59,12 @@ print('CONTRAST_OK')
         assert not parameters & (fixed_colors | {2, 8}), 'Form overrides readable terminal colors: ' + repr(match[0])
 
 
-def create(tool, name, endpoint, key, auth='bearer'):
+def create(tool, name, endpoint, key, auth='bearer', api='openai-responses'):
     index = profiles.catalog()
     native, secret = profiles.documents(tool, name, index)
     profiles.candidate(tool, name, native, secret,
-                       dict(base_url=endpoint, model='fixture-model', source='stored', variable='', auth=auth), key)
+                       dict(base_url=endpoint, model='fixture-model', source='stored', variable='',
+                            auth=auth, api=api), key)
     index.data['profiles'][tool][name] = {'path': str(native.path), 'credential': str(secret.path)}
     commit([native, secret, index], os.environ['WS_CONFIG_DIR'])
     return native.path, secret.path
@@ -104,10 +106,10 @@ def terminal(command, steps, env):
 
 with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as temporary:
     home = Path(temporary)
-    os.environ.update(HOME=str(home), CODEX_HOME=str(home / 'codex'), CLAUDE_CONFIG_DIR=str(home / 'claude'),
+    os.environ.update(HOME=str(home), CODEX_HOME=str(home / 'codex'), PI_CODING_AGENT_DIR=str(home / 'pi'),
                       WS_CONFIG_DIR=str(home / 'workspace'), TERM='xterm-256color')
     for variable in list(os.environ):
-        if variable.startswith(('ANTHROPIC_', 'CLAUDE_CODE_USE_')) or variable in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'WS_AGENT_PROFILE'):
+        if variable.startswith('ANTHROPIC_') or variable in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'WS_AGENT_PROFILE'):
             del os.environ[variable]
     # PuTTY-compatible TERM values, tmux, and inherited themes must all preserve
     # the terminal's normal contrast. No terminal background query is answered.
@@ -133,19 +135,20 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
     assert code == 0
     assert b'synthetic-hidden' not in output, 'Gum echoed a hidden input'
     before = list(home.rglob('*.json'))
-    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'claude', 'cancelled'],
+    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'pi', 'cancelled'],
                             [('API base URL', b'\x03')], dict(os.environ))
     assert code == 130
     assert list(home.rglob('*.json')) == before, 'Cancel wrote configuration'
     # A full plain-prompt edit uses the same backend and key masking.
-    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'claude', 'plain', '--plain'],
+    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'pi', 'plain', '--plain'],
                             [('API base URL:', b'https://plain.example.invalid\n'),
-                             ('Model identifier', b'fixture-model\n'), ('Credential header', b'1\n'),
+                             ('Model identifier', b'fixture-model\n'), ('Gateway API protocol', b'1\n'),
+                             ('Credential header', b'1\n'),
                              ('Credential source', b'1\n'), ('API key (hidden)', b'plain-hidden-key\n'),
                              ('Save this profile', b'2\n')], dict(os.environ))
     assert code == 0
     assert b'plain-hidden-key' not in output
-    assert profiles.load_profile('claude', 'plain')[2] == 'plain-hidden-key'
+    assert profiles.load_profile('pi', 'plain')[2] == 'plain-hidden-key'
     if args.forms_only:
         print('PASS: terminal contrast, selection, typed/saved values, masked input, cancellation, and plain forms')
         raise SystemExit(0)
@@ -167,22 +170,22 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = 'http://127.0.0.1:' + str(server.server_address[1])
     try:
-        for tool, name, auth in [('codex', 'one', 'bearer'), ('codex', 'two', 'bearer'),
-                                 ('claude', 'one', 'bearer'), ('claude', 'two', 'api-key')]:
+        for tool, name, auth, api in [('codex', 'one', 'bearer', 'openai-responses'),
+                                      ('codex', 'two', 'bearer', 'openai-responses'),
+                                      ('pi', 'one', 'bearer', 'openai-responses'),
+                                      ('pi', 'two', 'api-key', 'openai-responses'),
+                                      ('pi', 'three', 'api-key', 'anthropic-messages')]:
             expected = 'synthetic-key-' + tool + '-' + name
-            create(tool, name, base + ('/v1' if tool == 'codex' else ''), expected, auth)
+            create(tool, name, base + '/v1', expected, auth, api)
             environment = dict(os.environ, WS_AGENT_PROFILE=name, OPENAI_API_KEY='wrong-key',
-                               ANTHROPIC_API_KEY='wrong-key', ANTHROPIC_AUTH_TOKEN='wrong-token',
-                               CLAUDE_CODE_USE_BEDROCK='1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC='1')
+                               ANTHROPIC_API_KEY='wrong-key', ANTHROPIC_AUTH_TOKEN='wrong-token')
             # Existing user settings try to reintroduce the wrong route and auth.
-            if tool == 'claude':
-                user = Path(environment['CLAUDE_CONFIG_DIR']) / 'settings.json'
-                user.write_text(json.dumps({'env': {'ANTHROPIC_AUTH_TOKEN': 'wrong-from-settings',
-                                                    'ANTHROPIC_BASE_URL': 'http://127.0.0.1:1',
-                                                    'CLAUDE_CODE_USE_VERTEX': '1'}}))
+            if tool == 'pi':
+                user = Path(environment['PI_CODING_AGENT_DIR']) / 'settings.json'
+                user.write_text(json.dumps({'defaultProvider': 'openai', 'defaultModel': 'wrong-model'}))
             command = [str(ROOT / 'bin' / tool)]
             command += (['--strict-config', 'exec', '--skip-git-repo-check', 'fixture request'] if tool == 'codex'
-                        else ['--print', '--tools', '', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--', 'fixture request'])
+                        else ['--print', '--no-session', '--no-tools', '--', 'fixture request'])
             captured.clear()
             child = subprocess.Popen(command, cwd=str(home), env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
             try:
@@ -194,16 +197,44 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
             for path, bearer, api_key in captured:
                 selected = bearer if auth == 'bearer' else api_key
                 assert selected == ('Bearer ' + expected if auth == 'bearer' else expected), 'Wrong selected credential for ' + tool
+                if auth == 'api-key':
+                    assert not bearer or expected not in bearer, 'Selected key leaked to a second header'
                 assert 'wrong' not in str((bearer, api_key)), 'Inherited credential reached the gateway'
             assert expected.encode() not in stdout + stderr, 'Credential appeared in agent output'
         # Rotation is observed by the next launch and does not alter the other profile.
-        native, secret = profiles.documents('claude', 'one', profiles.catalog())
+        native, secret = profiles.documents('pi', 'one', profiles.catalog())
         old = native.path.read_bytes()
-        profiles.candidate('claude', 'one', native, secret, profiles.values('claude', 'one', native, secret), 'synthetic-rotated')
+        profiles.candidate('pi', 'one', native, secret, profiles.values('pi', 'one', native, secret), 'synthetic-rotated')
         commit([native, secret], os.environ['WS_CONFIG_DIR'])
         assert native.path.read_bytes() == old
-        assert profiles.load_profile('claude', 'one')[2] == 'synthetic-rotated'
-        assert profiles.load_profile('claude', 'two')[2] == 'synthetic-key-claude-two'
+        assert profiles.load_profile('pi', 'one')[2] == 'synthetic-rotated'
+        assert profiles.load_profile('pi', 'two')[2] == 'synthetic-key-pi-two'
+        # Pi's bundled runtime must trust a site CA supplied through the
+        # workspace's usual SSL_CERT_FILE, without disabling TLS verification.
+        certificate = home / 'fixture-ca.pem'
+        private_key = home / 'fixture-ca.key'
+        subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+                        '-keyout', str(private_key), '-out', str(certificate), '-days', '1',
+                        '-subj', '/CN=localhost', '-addext', 'subjectAltName=IP:127.0.0.1'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        secure_server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(str(certificate), str(private_key))
+        secure_server.socket = context.wrap_socket(secure_server.socket, server_side=True)
+        threading.Thread(target=secure_server.serve_forever, daemon=True).start()
+        try:
+            create('pi', 'secure', 'https://127.0.0.1:' + str(secure_server.server_address[1]) + '/v1',
+                   'synthetic-secure-key')
+            environment = dict(os.environ, WS_AGENT_PROFILE='secure', SSL_CERT_FILE=str(certificate))
+            environment.pop('NODE_EXTRA_CA_CERTS', None)
+            captured.clear()
+            child = subprocess.run([str(ROOT / 'bin/pi'), '--print', '--no-session', '--no-tools', '--',
+                                    'fixture request'], cwd=str(home), env=environment,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=45)
+            assert captured, 'Pi did not trust the selected site CA: ' + child.stderr.decode(errors='replace')[-1200:]
+            assert any(bearer == 'Bearer synthetic-secure-key' for _, bearer, _ in captured)
+        finally:
+            secure_server.shutdown()
     finally:
         server.shutdown()
-    print('PASS: terminal contrast, Gum and plain forms, cancellation, masked input, actual Codex/Claude gateway routing, stale-auth cleanup, and key rotation')
+    print('PASS: terminal contrast, Gum and plain forms, cancellation, masked input, Codex/Pi gateway routing, site CA trust, stale-auth cleanup, and key rotation')

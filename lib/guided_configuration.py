@@ -67,7 +67,7 @@ def workspace_form(form):
 
 def run(args):
     form = Form(args.plain)
-    target = args.target or form.choose('Configure', ['workspace', 'codex', 'claude'])
+    target = args.target or form.choose('Configure', ['workspace', 'codex', 'pi'])
     if target == 'workspace':
         workspace_form(form)
     else:
@@ -77,7 +77,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('target', nargs='?', choices=('workspace', 'codex', 'claude'))
+    parser.add_argument('target', nargs='?', choices=('workspace', 'codex', 'pi'))
     parser.add_argument('name', nargs='?')
     parser.add_argument('--plain', action='store_true')
     args = parser.parse_args()
