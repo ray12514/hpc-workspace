@@ -22,7 +22,17 @@ The repo's recommendation selects the version, so use `git pull --ff-only` befor
 
 ## PROMPT_COMMAND is read-only or the workspace label is missing
 
-Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory. The fallback omits the workspace Git branch and exit-status decorations.
+Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory in a local reproduction. The fallback omits the workspace Git branch and exit-status decorations. The error still occurs on a reported RHEL system, so that release is not a confirmed fix for that site.
+
+To isolate where startup is happening on the affected system, run these three commands **one at a time from a native shell**, outside `ws enter` or `ws session`, after updating this checkout with `git pull --ff-only`. Each starts a fresh Bash, prints a distinct marker, and exits. They do not print the API key or the value of `PROMPT_COMMAND`; a site startup file might print other local details, so redact those before sharing output.
+
+```bash
+command bash --noprofile --norc -ic 'printf "NATIVE_CLEAN_OK\n"'
+ws enter -- /workspace-tools/bin/bash --noprofile --norc -ic 'printf "WS_CLEAN_OK release=%s\n" "${WS_RELEASE:-unset}"'
+ws enter -- /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -ic 'printf "WS_RC_OK\n"'
+```
+
+For **each** command, record whether the site login header appeared, whether `PROMPT_COMMAND: readonly variable` appeared, and whether its `*_OK` marker printed. The first command tests the native Bash without profile or rc files. The second tests workspace entry and its packaged Bash without a Bash rc file. The third adds the workspace Bash rc file, which may source the site's module initialization. This comparison identifies the startup boundary; it does not by itself identify the exact site file or authorize changing site configuration. These checks leave existing tmux sessions alone.
 
 Check a new shell's state without printing the hook's contents or any keys:
 
