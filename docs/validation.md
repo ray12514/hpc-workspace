@@ -1,5 +1,13 @@
 # Workspace validation
 
+## Read-only site prompt hook: 0.7.3-preview2
+
+On 2026-10-01, a synthetic module initializer made `PROMPT_COMMAND` read-only before the workspace Bash rcfile ran. The published 0.7.3-preview1 image then printed `PROMPT_COMMAND: readonly variable` and displayed a prompt without the `ws:` identity, matching the operator's reported error on a second system. The operator's exact site initialization was not inspected.
+
+With the corrected startup file, a real PTY under the packaged Linux Bash retained the site's hook, displayed the colored `ws:fixture login@test-node` identity, and updated the directory after `cd`. The focused test passed through the final 0.7.3-preview2 SIF under Apptainer 1.5.3. The full host suite passed 110 tests (seven platform skips); the complete offline Apptainer 1.5.3 SIF suite and matching bundle install/reinstall tests passed before the final documentation-only rebuild. The final SIF was rerun through the focused prompt check, and the final bundle passed offline install/reinstall tests.
+
+The [published release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview2) has eight assets matching local filenames, sizes, and SHA-256 digests. Its public manifest downloads without authentication and has SHA-256 `87c97c0958ac0ecb7f09b1bac53a2f001c78b439b625192902e4b8e4c18b8731`. `./setup --download-only` fetched and verified the public bundle using the new recommendation. This test establishes behavior for the simulated read-only hook; the prompt should still be checked on the affected cluster system after installation.
+
 ## Codex and Pi image: 0.7.3-preview1
 
 On 2026-10-01, the local macOS host passed 109 unit tests (seven platform skips). The offline Linux configuration fixture launched the packaged Codex and Pi clients against synthetic loopback gateways. It verified Pi's OpenAI Responses and Anthropic Messages routes, Bearer and `x-api-key` credentials, stale credential isolation, key rotation, and HTTPS trust using a synthetic site certificate through `SSL_CERT_FILE`.
