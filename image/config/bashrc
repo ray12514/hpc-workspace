@@ -65,11 +65,32 @@ _ws_prompt() {
     (( status != 0 )) && _ws_result="exit:$status "
     return 0
 }
+_ws_prompt_fallback=''
 if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
-    PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}")
+    _ws_prompt_readonly=''
+    while IFS= read -r _ws_readonly_line; do
+        if [[ $_ws_readonly_line =~ ^declare\ -[a-zA-Z]*r[a-zA-Z]*\ PROMPT_COMMAND($|=) ]]; then
+            _ws_prompt_readonly=1
+            break
+        fi
+    done < <(readonly -p)
+    if [[ $_ws_prompt_readonly == 1 ]]; then
+        # Some site startup scripts make their hook read-only. Keep the
+        # workspace identity and changing directory visible in that shell.
+        _ws_prompt
+        _ws_prompt_fallback=1
+    else
+        PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}")
+    fi
 fi
+unset _ws_prompt_readonly _ws_readonly_line
 # shellcheck disable=SC2016
-PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_branch}'"${_ws_reset}\n${_ws_error}"'${_ws_result}'"${_ws_reset}"'\$ '
+if [[ $_ws_prompt_fallback == 1 ]]; then
+    PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${PWD}'"${_ws_reset}"'\n\$ '
+else
+    PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_branch}'"${_ws_reset}\n${_ws_error}"'${_ws_result}'"${_ws_reset}"'\$ '
+fi
+unset _ws_prompt_fallback
 alias ll='ls -alF'
 alias la='ls -A'
 alias ..='cd ..'

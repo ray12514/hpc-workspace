@@ -95,6 +95,8 @@ printf 'integration-passed\n'
 
     toolkit = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-toolkit.py')
     print(toolkit.stdout, end='', flush=True)
+    ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/test_bash_prompt.py')
+    print('PASS: read-only site prompt hook retains workspace label, color, and current directory.', flush=True)
     routing = ws('enter', *common, '--', '/workspace-tools/libexec/python3', '-I', '/src/tests/thin-tmux-routing.py')
     print(routing.stdout, end='', flush=True)
     original_environment = env.copy()

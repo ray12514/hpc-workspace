@@ -20,6 +20,21 @@ Rerun `./setup`; verified downloads are reused and partial files can resume. A c
 
 The repo's recommendation selects the version, so use `git pull --ff-only` before setup. A running shell or tmux server retains its original image. Inside it, `printf '%s\n' "$WS_RELEASE"` and `ws tools` show that session's version. Return to the native shell and start a new `ws enter` or `ws session` to use the selected release.
 
+## PROMPT_COMMAND is read-only or the workspace label is missing
+
+Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory. The fallback omits the workspace Git branch and exit-status decorations.
+
+Check a new shell's state without printing the hook's contents or any keys:
+
+```bash
+printf 'release=%s workspace=%s layout=%s\n' "${WS_RELEASE:-unset}" "${WS_CONTAINER:-unset}" "${WS_LAYOUT:-unset}"
+if readonly -p | grep -Eq '^declare -[[:alpha:]]*r[[:alpha:]]* PROMPT_COMMAND(=|$)'; then echo prompt_command=readonly; else echo prompt_command=writable; fi
+[[ ${PROMPT_COMMAND[*]:-} == *'_ws_prompt'* ]] && echo hook=present || echo hook=missing
+type -t module
+```
+
+Run this inside `ws enter` on the affected and working systems. If the affected shell reports a writable hook, or the new image still lacks its label, save the exact startup error and the check's output locally for comparison. The command above does not print a key or the hook's value. Start a new workspace after updating; attaching an existing server returns to its original image.
+
 ## Configuration form text is too dark to read
 
 The 0.7.0 form used Gum's fixed gray headings, placeholders, and help text. Those can have poor contrast on a black background. **0.7.1-preview1** uses your terminal's normal foreground/background colors for the interactive form, including its choices and help; it does not depend on detecting a dark theme through SSH or tmux.
