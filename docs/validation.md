@@ -1,5 +1,13 @@
 # Workspace validation
 
+## Codex and Pi image: 0.7.3-preview1
+
+On 2026-10-01, the local macOS host passed 109 unit tests (seven platform skips). The offline Linux configuration fixture launched the packaged Codex and Pi clients against synthetic loopback gateways. It verified Pi's OpenAI Responses and Anthropic Messages routes, Bearer and `x-api-key` credentials, stale credential isolation, key rotation, and HTTPS trust using a synthetic site certificate through `SSL_CERT_FILE`.
+
+The exported SIF passed the Apptainer 1.5.3 extracted-image suite: packaged versions, native scheduler client forwarding, editor return to shell, terminal controls, gateway routing, locale handling, managed tmux shutdown, and Inspector import. A separate two-project regression switched and reattached sessions, recovered after terminal loss, and stopped one workspace while the other remained attachable. These tests used disposable local homes and no provider account or cluster network. The observed Codex Bubblewrap mount failure occurred in both managed tmux and a foreground container in this nested fixture; it remains a site-local check.
+
+The release manifest contains the exact committed source, SIF checksum, and installer checksum. Cluster SIF mounting, scheduler integration, and access to real site gateways and certificates require testing on the target system.
+
 ## Native cleanup without reattachment
 
 On 2026-09-29 the operator explicitly requested stopping their processes on the
