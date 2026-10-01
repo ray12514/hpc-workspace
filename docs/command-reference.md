@@ -14,6 +14,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Native login shell, source launcher | `ws attach --session NAME` | Reconnect using the recorded project/image; never create a new workspace |
 | Native login shell, source launcher | `ws attach --session NAME --check` | Check that the recorded tmux server responds |
 | Native login shell, source launcher | `ws stop --session NAME` | Close that workspace's tmux server/panes and wait for its keeper to exit |
+| Inside managed tmux | Ctrl-B then `:`, enter `kill-server` | Stop the current workspace and return to the native shell |
 | Native shell | `ws enter --dry-run` | Inspect the local mount plan |
 | Inside workspace | `ws tools` / `ws tools --json` | Inspect packaged tool versions |
 | Native shell | `ws runtime setup` / `ws runtime status` | Check and remember Apptainer / display its saved invocation |
@@ -27,7 +28,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 
 Use `ws sessions` from the native shell after a round-robin login to find [recorded session locations](session-locations.md). If still on 0.7.1, the updated repository's `./bin/ws sessions` can inspect its older records.
 
-The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, and rotation. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
+The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, and rotation. The [native Codex guide](restricted-codex.md#save-once-load-on-demand) includes hidden key storage and an on-demand shell command for custom-header gateways. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
 
 ## Keyboard essentials
 

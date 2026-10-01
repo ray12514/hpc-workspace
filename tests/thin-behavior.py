@@ -63,6 +63,8 @@ set -e
 [[ $(command -v sbatch) == "$1/sbatch" ]]
 [[ $(command -v qsub) == "$1/qsub" ]]
 [[ $(command -v bash) == /workspace-tools/bin/bash ]]
+[[ $(type -t ws-codex-key-save) == function ]]
+[[ $(type -t ws-codex-key-on) == function ]]
 bind -X | /usr/bin/grep -Eq 'fzf.*history'
 module load fixture
 [[ $MODULE_SENTINEL == after ]]

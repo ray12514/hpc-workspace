@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import time
@@ -25,7 +26,9 @@ if sys.argv[1:2] == ['--serve']:
         subprocess.check_call(base + ['set-option', '-g', 'default-shell', '/workspace-tools/bin/bash'])
         subprocess.check_call(base + ['set-option', '-g', 'default-command', '/workspace-tools/thin-shell'])
         subprocess.check_call(base + ['set-option', '-t', name, '@workspace-image', release])
-        subprocess.check_call(base + ['new-window', '-t', name, '-n', 'editor', '-c', project, 'nvim'])
+        editor = shlex.join(['/workspace-tools/thin-shell', '-c',
+                             'nvim; exec /workspace-tools/thin-shell'])
+        subprocess.check_call(base + ['new-window', '-t', name, '-n', 'editor', '-c', project, editor])
         subprocess.check_call(base + ['new-window', '-t', name, '-n', 'agents', '-c', project, '/workspace-tools/thin-shell'])
         subprocess.check_call(base + ['select-window', '-t', name + ':workspace'])
     pid = int(subprocess.check_output(base + ['display-message', '-p', '#{pid}']))

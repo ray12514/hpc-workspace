@@ -89,6 +89,9 @@ if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && command -v zoxide >/dev/null; then
     eval "$(zoxide init bash)"
     alias ll='eza --long --all --group-directories-first --icons=never'
 fi
+if [[ -f /workspace-tools/config/codex-native-key.bash ]]; then
+    source /workspace-tools/config/codex-native-key.bash
+fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
 fi

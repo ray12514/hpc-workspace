@@ -4,7 +4,7 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-This source branch adds explicit existing-session reconnect and targeted stop controls. See the [activation and switching guide](docs/session-locations.md#reconnect-and-stop-controls-in-the-source-launcher). These changes work with the existing image but are not yet in the published release below.
+This source branch adds explicit existing-session reconnect and targeted stop controls. It also keeps the editor window open as a Bash shell after Neovim exits; that editor fix requires a newly built image. See the [activation and switching guide](docs/session-locations.md#reconnect-and-stop-controls-in-the-source-launcher) and the [native Codex key helper](docs/restricted-codex.md#save-once-load-on-demand). These source changes are not yet in the published release below.
 
 **0.7.2-preview1 fixes tmux commands and layout helpers selecting the wrong server, and ships `ws sessions` to find recorded login-node sessions.** It retains the readable configuration forms, gateway profiles, remembered Apptainer setup, and existing CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm); no cluster access or private inventory is needed to build the release.
 

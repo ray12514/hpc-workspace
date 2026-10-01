@@ -25,6 +25,8 @@ ws session
 
 `ws session` enters the workspace and opens three tmux windows: **1 workspace**, **2 editor**, **3 agents**. Press and release Ctrl-B, then press the window number. The agents window is an ordinary shell until you start an agent. The managed session keeps its container available when you detach.
 
+The editor window starts in Neovim. After `:wq` or `:q`, it returns to a workspace Bash prompt in the **same window**. Run `nvim` there to reopen the editor.
+
 For a single shell, use `ws enter` instead. You can run plain `tmux` inside it; that uses the packaged tools and defaults, but does not keep the container independently alive after its entering shell ends. The current launcher requires managed `ws session` to start from the native login shell. That restriction exists to arrange the container's lifetime; see the [entry-command comparison](thin-start.md#everyday-use). You do not need a site name, host tmux module, or `--host-jobs` for this workflow.
 
 Inside the workspace, `ws tools` lists the installed versions. `printf '%s\n' "$WS_RELEASE"` shows this shell's release. Your module environment and native commands remain available. In particular, `find` comes from the host, while `fd` is packaged in the workspace; `command -v find fd` shows their locations.
@@ -235,7 +237,9 @@ In tmux, **Ctrl-B d** detaches; `ws session` on the same node/project/release re
 
 Snapshots are scoped to the originating node; a new session on another login node does not automatically find the old layout. Keep a server holding an interactive job alive while resolving reconnect or Kerberos problems. See [cross-node recovery limits](session-locations.md#starting-on-another-node-instead).
 
-Close a shell pane with `exit` or Ctrl-D at an empty prompt. Closing the last pane/window ends the session and its keeper. When a compute allocation ends, its processes end; files on persistent shared storage remain, while node-local temporary data follows the site's cleanup policy.
+To **stop** the whole current workspace, save files, then press **Ctrl-B :** and enter `kill-server`. That closes all windows on this workspace's dedicated tmux server and returns to the native shell; the managed container keeper exits with the server. The source launcher's `ws sessions` lists recorded names, and `ws stop --session NAME` can stop a selected local workspace from a separate native shell. Stopping ends agent processes and any interactive job client held in those panes. Run `ws session` later from the project directory on that node to start a fresh tmux server and container entry. Saved files remain, but stopped processes do not resume automatically.
+
+Close one shell pane with `exit` or Ctrl-D at an empty prompt. Closing the last pane/window also ends the session and its keeper. When a compute allocation ends, its processes end; files on persistent shared storage remain, while node-local temporary data follows the site's cleanup policy.
 
 For an update, return to your repository checkout in the native shell and run `git pull --ff-only && ./setup`. Start a new `ws enter` or `ws session` afterward. Existing sessions keep their original image; updates preserve your personal preferences and saved state.
 

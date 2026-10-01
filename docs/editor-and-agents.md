@@ -62,6 +62,8 @@ Check usable Kerberos credentials separately from SSH login success. A hop may r
 
 Ctrl-C interrupts a foreground command. Ctrl-D at an empty Bash prompt, or `exit`, closes that pane's shell. In 0.6.1 and later, the pane closes with it; closing the final pane/window returns the client to its parent shell. Ending an interactive job in a pane returns to the pane's login-node shell rather than closing that shell.
 
+In the managed **editor** window, `:wq` now leaves a workspace Bash prompt in that same window. Run `nvim` to reopen the editor. To close the entire managed workspace, press Ctrl-B then `:`, enter `kill-server`, and return to the native shell. The source launcher also provides `ws stop --session NAME` from a native shell for a selected local workspace; see the [daily workflow](daily-workflow.md#save-your-work-and-return-later). Both stop the panes and their foreground programs.
+
 Earlier releases set `remain-on-exit on`, retaining a dead pane after its shell exited. This can look like a frozen terminal because there is no shell left to read ordinary input. Ctrl-B then d detaches even from that screen. Ctrl-B then x and confirmation closes the current pane; use it on the dead pane, not on work you want to retain. A fresh patch-release session uses `remain-on-exit off`. A personal `tmux.conf` override still takes precedence.
 
 For an older image, put `set -g remain-on-exit off` in `~/.config/hpc-workspace/tmux.conf` to change future workspace tmux servers. In an existing tmux session, Ctrl-B then `:` opens the tmux command prompt; enter `set -g remain-on-exit off` to change the server's default. Close an already-dead pane separately. This setting changes pane-exit behavior; it does not add the container keeper that `ws session` supplies.

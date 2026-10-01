@@ -81,7 +81,20 @@ try:
     # Close the managed session normally, so the keeper must finish without
     # relying on the forced server cleanup in the finally block.
     subprocess.run(base+['send-keys','-t',name+':editor',':qa!','Enter'],check=True)
-    for window in ('workspace', 'agents'):
+    deadline=time.monotonic()+10
+    while time.monotonic()<deadline:
+        windows=subprocess.check_output(base+['list-windows','-t',name,'-F','#{window_name}'],text=True).splitlines()
+        assert 'editor' in windows, 'Quitting Neovim closed the editor window'
+        command=subprocess.check_output(base+['display-message','-p','-t',name+':editor','#{pane_current_command}'],text=True).strip()
+        if command == 'bash': break
+        time.sleep(.1)
+    else:
+        raise AssertionError('Quitting Neovim did not return the editor window to Bash')
+    subprocess.run(base+['send-keys','-t',name+':editor','printf ready > editor-shell-ready','Enter'],check=True)
+    deadline=time.monotonic()+10
+    while time.monotonic()<deadline and not (project/'editor-shell-ready').exists(): time.sleep(.1)
+    assert (project/'editor-shell-ready').exists(), 'Editor shell did not accept input'
+    for window in ('workspace', 'editor', 'agents'):
         subprocess.run(base+['send-keys','-t',name+':'+window,'exit','Enter'],check=True)
     deadline=time.monotonic()+10
     while time.monotonic()<deadline:

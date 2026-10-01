@@ -52,7 +52,7 @@ The lookup does not change SSH routing, renew Kerberos tickets, or move processe
 
 ## Reconnect and stop controls in the source launcher
 
-**Availability:** `attach`, `stop`, and the immediate startup-lock diagnostic are on `codex/session-reconnect`, not in the published 0.7.2-preview1 bundle. These source changes work with the existing thin image. `./setup` still installs the published bundle, not these changes.
+**Availability:** `attach`, `stop`, and the immediate startup-lock diagnostic are on `codex/session-reconnect`, not in the published 0.7.2-preview1 bundle. These launcher controls work with the existing thin image. The editor-window fix in this branch requires a newly built image. `./setup` still installs the published bundle, not these changes.
 
 From a native Bash shell with the installed `ws` already on PATH, this block downloads a separate checkout and activates its launcher **for this shell only**, preserving the current image selection and custom installation location. It does not edit startup files or merge into an existing checkout. The public HTTPS clone cannot prompt for credentials.
 
