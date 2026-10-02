@@ -1,8 +1,14 @@
 # Workspace validation
 
+## Site startup prompt correction: 0.7.3-preview6
+
+The affected RHEL system ran the repository-only preview6 startup trial against its installed preview5 workspace. The installed entry showed `actual_label=no`. The candidate entry completed and showed `candidate_visible_label=yes`, `candidate_prompt_hook=present`, `candidate_prompt_template=workspace`, and a read-only four-element prompt array with function, command, function, function shapes. This is direct confirmation of the candidate prompt on that system without copying its site Bash files or credentials. A fresh entry from the packaged preview6 image remains to be checked after installation.
+
+The candidate bypasses the packaged Bash binary's early `/etc/bashrc` read, then sources the site file with the workspace's narrow `readonly PROMPT_COMMAND` deferral active. A synthetic `/etc/bashrc` reproduced preview5's missing label and showed the label, site hook, and changing directory with the candidate. The local host suite passed 123 tests with nine platform skips before release preparation. The packaged image and bundle require their own validation below.
+
 ## Compound read-only prompt hook: 0.7.3-preview5
 
-**Post-release finding:** The affected RHEL system reported that preview5 still lacked the label. Its safe stage photo showed `PROMPT_COMMAND` already read-only at the first line of the workspace Bash configuration, with one scalar command and no deferred/readable workspace hook at any later stage. A packaged Bash binary inspection found `/etc/bashrc` in its compiled startup paths. A synthetic `/etc/bashrc` that made the hook read-only reproduced the user's exact visible failure against preview5. The repo candidate starts the final Bash with `--norc`, then sources `/etc/bashrc` under the workspace's narrow prompt-readonly deferral; the same synthetic fixture now shows the site hook and workspace label on the first prompt and after `cd`, with no read-only error. The affected RHEL system still needs to run the repo-only trial before a replacement image is published.
+**Post-release finding:** The affected RHEL system reported that preview5 still lacked the label. Its safe stage photo showed `PROMPT_COMMAND` already read-only at the first line of the workspace Bash configuration, with one scalar command and no deferred/readable workspace hook at any later stage. A packaged Bash binary inspection found `/etc/bashrc` in its compiled startup paths. A synthetic `/etc/bashrc` that made the hook read-only reproduced the user's exact visible failure against preview5. The preview6 candidate and affected-system trial are recorded above.
 
 On the affected RHEL system, preview4 made `scp` work. The workspace prompt still lacked its `ws:` label. The extended native-shell diagnostic reported `prompt_storage=scalar`, `prompt_element_count=1`, `prompt_element_shapes=command`, a read-only `PROMPT_COMMAND`, and a missing workspace hook. It did not print the site command or personal Bash file. This excludes the single-function case handled by preview4.
 

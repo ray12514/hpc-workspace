@@ -38,7 +38,9 @@ Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-p
 
 The affected system confirmed the read-only error was gone in preview3, but the label still disappeared. Its prompt hook remained read-only and the workspace hook was missing. **0.7.3-preview4** rechecks after personal startup and restores the workspace label after a single read-only site function runs. The packaged PTY regression reproduces and fixes that late-hook case. Test in a new entry; an old tmux server keeps its old prompt behavior.
 
-The affected system's preview4 diagnostic identified a single scalar, read-only command instead of a function; its label was still missing. **0.7.3-preview5** defers `readonly PROMPT_COMMAND` during startup, preserves the original site command between the workspace prompt hooks, and restores the read-only attribute afterward. Packaged PTY and SIF checks pass; a fresh entry on the affected RHEL system is still needed to confirm the site prompt. Update from a native shell with `git pull --ff-only && ./setup`, then run a new `ws enter`.
+The affected system's preview4 diagnostic identified a single scalar, read-only command instead of a function; its label was still missing. **0.7.3-preview5** defers `readonly PROMPT_COMMAND` during startup, but the site's `/etc/bashrc` had already locked the variable before that deferral began. The label remained missing in preview5.
+
+**0.7.3-preview6** starts the final shell without automatic startup files, then sources the site file while the workspace's prompt-readonly deferral is active. The affected RHEL system tried these files directly from the repository: `candidate_visible_label=yes`, `candidate_prompt_hook=present`, `candidate_prompt_template=workspace`, and `candidate_prompt_command=readonly`. To install the image, use `git pull --ff-only && ./setup` from a native shell, then start a new `ws enter`. Existing sessions retain their original image until stopped and recreated.
 
 If the `ws:` label is still missing in preview5, run this **from a native shell in the updated repo checkout**:
 
@@ -46,7 +48,7 @@ If the `ws:` label is still missing in preview5, run this **from a native shell 
 python3 scripts/try-workspace-prompt.py
 ```
 
-It checks the installed preview5 entry, then tries the repository's revised startup files in one temporary workspace shell. The trial does not install an image or change your current session. It reports only whether the `ws:` label appears and whether the workspace and site hooks remain present; it does not print the site command, banner, personal Bash file, or credentials. Temporary files are removed at exit. Share its short report before building another release.
+It checks the installed preview5 entry, then tries the preview6 startup files in one temporary workspace shell. The trial does not install an image or change your current session. It reports only whether the `ws:` label appears and whether the workspace and site hooks remain present; it does not print the site command, banner, personal Bash file, or credentials. Temporary files are removed at exit.
 
 For deeper startup boundaries, `python3 scripts/diagnose-workspace-prompt.py` traces the repository candidate with read-only, deferred, hook, and prompt-template flags at eight stages. Its `actual_` lines still describe the installed entry.
 
