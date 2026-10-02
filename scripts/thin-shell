@@ -14,27 +14,40 @@ exec /workspace-tools/bin/bash --noprofile --norc -ic '
         done
         unset _ws_module_init _ws_lmod
     fi
+    _ws_prompt_count=0
     if [[ ${PROMPT_COMMAND+x} == x ]]; then
         _ws_prompt_decl=$(declare -p PROMPT_COMMAND 2>/dev/null)
-        if [[ $_ws_prompt_decl =~ ^declare\ -[a-zA-Z]*[aA] ]]; then
-            if (( ${#PROMPT_COMMAND[@]} > 128 )); then
-                printf "workspace: too many site prompt hooks to preserve\n" >&2
-                exit 1
-            fi
-            _ws_prompt_count=0
-            for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
-                printf -v "WS_SITE_PROMPT_$_ws_prompt_count" %s "$_ws_prompt_item"
-                export "WS_SITE_PROMPT_$_ws_prompt_count"
-                _ws_prompt_count=$((_ws_prompt_count+1))
-            done
-            export WS_SITE_PROMPT_COUNT=$_ws_prompt_count
-        else
-            export PROMPT_COMMAND
+        [[ $_ws_prompt_decl =~ ^declare\ -[a-zA-Z]*r[a-zA-Z]*\ PROMPT_COMMAND($|=) ]] && export WS_SITE_PROMPT_READONLY=1
+        if (( ${#PROMPT_COMMAND[@]} > 128 )); then
+            printf "workspace: too many site prompt hooks to preserve\n" >&2
+            exit 1
         fi
+        for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
+            printf -v "WS_SITE_PROMPT_$_ws_prompt_count" %s "$_ws_prompt_item"
+            export "WS_SITE_PROMPT_$_ws_prompt_count"
+            _ws_prompt_count=$((_ws_prompt_count+1))
+        done
     fi
+    export WS_SITE_PROMPT_COUNT=$_ws_prompt_count
     while IFS= read -r _ws_function; do
         export -f "$_ws_function"
     done < <(compgen -A function)
     export WS_SHELL_PREFLIGHT=1
-    exec /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -i "$@"
+    # A packaged Bash can read the bound host /etc/bashrc before --rcfile and
+    # inherit a frozen PROMPT_COMMAND. Start without automatic rc files, then
+    # source the workspace rcfile at the first interactive prompt. The middle
+    # Bash clears any read-only attribute left by site module initialization.
+    exec /workspace-tools/bin/bash --noprofile --norc -ic '\''
+        export WS_PROMPT_RC=${WS_PROMPT_RC:-/workspace-tools/config/bashrc}
+        _ws_initial_prompt() {
+            source "$WS_PROMPT_RC" || return
+            local _ws_initial_hook
+            for _ws_initial_hook in "${PROMPT_COMMAND[@]}"; do
+                eval "$_ws_initial_hook"
+            done
+        }
+        export -f _ws_initial_prompt
+        export PROMPT_COMMAND=_ws_initial_prompt
+        exec /workspace-tools/bin/bash --noprofile --norc -i "$@"
+    '\'' thin-shell "$@"
 ' thin-shell "$@"

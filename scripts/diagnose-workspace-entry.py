@@ -78,11 +78,11 @@ def workspace_command(path):
         import shlex
         quoted = shlex.quote(str(path))
         commands.append("printf 'ssh_config_owner=%s\\n' \"$(stat -Lc '%u,%g,%a' -- " + quoted + " 2>/dev/null || echo unavailable)\"")
-    commands.extend(["printf '__WS_DIAG_END__\\n'", 'exit'])
+    commands.append("printf '__WS_DIAG_END__\\n'")
     return '; '.join(commands) + '\n'
 
 
-def workspace_facts(path, timeout=50):
+def workspace_facts(path, timeout=50, entry_argv=None):
     executable = shutil.which('ws')
     if not executable:
         return None, 'ws unavailable in the native shell'
@@ -91,15 +91,25 @@ def workspace_facts(path, timeout=50):
         options = termios.tcgetattr(0)
         options[3] &= ~(termios.ECHO | termios.ECHONL)
         termios.tcsetattr(0, termios.TCSANOW, options)
-        os.execv(executable, [executable, 'enter'])
+        os.execv(executable, [executable] + (entry_argv or ['enter']))
     output = bytearray()
     started = time.monotonic()
     sent = False
+    exit_sent = False
+    end_seen_at = None
+    last_output_at = None
     try:
         while time.monotonic() - started < timeout:
             if not sent and time.monotonic() - started >= 1:
                 os.write(master, workspace_command(path).encode('utf-8'))
                 sent = True
+            if end_seen_at is not None and not exit_sent:
+                now = time.monotonic()
+                # Observe the prompt after the diagnostic command finishes.
+                if ((last_output_at is not None and now - last_output_at >= .5)
+                        or now - end_seen_at >= 3):
+                    os.write(master, b'exit\n')
+                    exit_sent = True
             if select.select([master], [], [], .2)[0]:
                 try:
                     chunk = os.read(master, 65536)
@@ -108,8 +118,13 @@ def workspace_facts(path, timeout=50):
                 if not chunk:
                     break
                 output.extend(chunk)
-                if END_LINE.search(bytes(output).replace(b'\r', b'')):
-                    break
+                normalized = bytes(output).replace(b'\r', b'')
+                end = END_LINE.search(normalized)
+                if end is not None:
+                    if end_seen_at is None:
+                        end_seen_at = time.monotonic()
+                    if normalized[end.end():]:
+                        last_output_at = time.monotonic()
                 if len(output) > 1024 * 1024:
                     return None, 'workspace output exceeded diagnostic limit'
         normalized = bytes(output).replace(b'\r', b'')
@@ -117,11 +132,11 @@ def workspace_facts(path, timeout=50):
         end = END_LINE.search(normalized)
         if start is None or end is None or end.start() <= start.end():
             return None, 'workspace did not reach diagnostic marker within {} seconds'.format(timeout)
-        before = normalized[:start.start()]
         body = normalized[start.end():end.start()]
-        # The final prompt line can be on a second line after the context line.
-        tail = ANSI.sub(b'', before).rstrip(b'\r\n')[-400:]
-        visible = 'yes' if b'ws:' in tail else 'no'
+        # This prompt exists even if the startup was too slow to draw one
+        # before the diagnostic command was sent.
+        after = ANSI.sub(b'', normalized[end.end():])[-1000:]
+        visible = 'yes' if b'ws:' in after else 'no'
         facts = {'visible_label': visible}
         for raw in body.replace(b'\r', b'').split(b'\n'):
             if b'=' not in raw:

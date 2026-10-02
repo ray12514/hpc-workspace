@@ -43,10 +43,12 @@ The affected system's preview4 diagnostic identified a single scalar, read-only 
 If the `ws:` label is still missing in preview5, run this **from a native shell in the updated repo checkout**:
 
 ```bash
-python3 scripts/diagnose-workspace-prompt.py
+python3 scripts/try-workspace-prompt.py
 ```
 
-It checks the actual fresh entry, then starts a temporary instrumented copy of the same thin-shell startup sequence. The report shows only read-only, deferred, hook, and prompt-template flags at eight startup boundaries; it does not print the site command, site banner, personal Bash file, or credentials. The temporary files are removed at exit. Share the complete short report so the next change can target the boundary that differs on the site.
+It checks the installed preview5 entry, then tries the repository's revised startup files in one temporary workspace shell. The trial does not install an image or change your current session. It reports only whether the `ws:` label appears and whether the workspace and site hooks remain present; it does not print the site command, banner, personal Bash file, or credentials. Temporary files are removed at exit. Share its short report before building another release.
+
+For deeper startup boundaries, `python3 scripts/diagnose-workspace-prompt.py` traces the repository candidate with read-only, deferred, hook, and prompt-template flags at eight stages. Its `actual_` lines still describe the installed entry.
 
 To isolate where startup is happening on the affected system, run these three commands **one at a time from a native shell**, outside `ws enter` or `ws session`, after updating this checkout with `git pull --ff-only`. Each starts a fresh Bash, prints a distinct marker, and exits. They do not print the API key or the value of `PROMPT_COMMAND`; a site startup file might print other local details, so redact those before sharing output.
 

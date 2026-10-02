@@ -11,7 +11,6 @@ from pathlib import Path
 import pty
 import re
 import select
-import shlex
 import shutil
 import signal
 import sys
@@ -21,10 +20,10 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGES = ('start', 'after_module', 'after_preflight', 'after_hook',
+STAGES = ('start', 'after_site', 'after_module', 'after_hook',
           'after_zoxide', 'before_personal', 'after_personal', 'after_final')
 STAGE_PATTERN = re.compile(
-    rb'(?m)^__WS_STAGE__ (start|after_module|after_preflight|after_hook|'
+    rb'(?m)^__WS_STAGE__ (start|after_site|after_module|after_hook|'
     rb'after_zoxide|before_personal|after_personal|after_final) '
     rb'readonly=(yes|no) deferred=(yes|no) hook=(yes|no) '
     rb'restore=(yes|no) template=(yes|no) storage=(scalar|array|unset) '
@@ -34,13 +33,13 @@ DONE = re.compile(rb'(?m)^__WS_STAGES_DONE__$')
 # Each insertion is adjacent to a stable startup boundary, rather than a
 # DEBUG trap that could record arbitrary site commands or their arguments.
 BOUNDARIES = (
-    ('after_module', 'if [[ ${WS_SHELL_PREFLIGHT:-} == 1 && ${WS_SITE_PROMPT_COUNT:-} =~ ^[0-9]+$ ]]'),
-    ('after_preflight', 'unset WS_SHELL_PREFLIGHT\n'),
+    ('after_site', 'if [[ ${WS_LAYOUT:-core} != thin-v1 ]]; then\n'),
+    ('after_module', 'unset WS_SHELL_PREFLIGHT\n'),
     ('after_hook', '# shellcheck disable=SC2016\n'),
     ('after_zoxide', 'if [[ -f /workspace-tools/config/codex-native-key.bash ]]; then\n'),
     ('before_personal', 'if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then\n'),
     ('after_personal', '# Restore the Bash builtin before composing the final prompt.\n'),
-    ('after_final', 'unset _ws_prompt_readonly_requested _ws_late_prompt_readonly _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item\n'),
+    ('after_final', 'unset WS_SITE_PROMPT_READONLY _ws_prompt_readonly_requested _ws_late_prompt_readonly _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item\n'),
 )
 
 PROBE = r'''
@@ -76,10 +75,11 @@ def instrument_bashrc(source):
 
 
 def instrument_thin_shell(source, rcfile):
-    original = '--rcfile /workspace-tools/config/bashrc'
-    if source.count(original) != 1:
-        raise ValueError('thin shell startup changed')
-    return source.replace(original, '--rcfile ' + shlex.quote(str(rcfile)), 1)
+    spec = importlib.util.spec_from_file_location('workspace_prompt_candidate',
+                                                  str(ROOT / 'scripts/try-workspace-prompt.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.candidate_shell(source, rcfile)
 
 
 def capture_stages(executable, thin_shell, timeout=65):
