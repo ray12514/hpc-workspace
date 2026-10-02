@@ -14,14 +14,14 @@ spec.loader.exec_module(diagnostic)
 
 
 class WorkspaceDiagnosticTests(unittest.TestCase):
-    def run_fixture(self, prompt):
+    def run_fixture(self, prompt, hook='PROMPT_COMMAND=_ws_prompt'):
         with tempfile.TemporaryDirectory(prefix='ws-diagnostic-') as directory:
             folder = Path(directory)
             rc = folder / 'bashrc'
             rc.write_text((
                 "echo PRIVATE_SITE_BANNER\n"
                 "_ws_prompt() { _ws_label='ws:fixture login@test-node'; }\n"
-                "PROMPT_COMMAND=_ws_prompt\n"
+                + hook + "\n"
                 "WS_RELEASE=0.7.3-preview3 WS_LAYOUT=thin-v1 WS_CONTAINER=1\n")
                 + 'PS1={}\n'.format(shlex.quote(prompt)))
             fake_ws = folder / 'ws'
@@ -45,6 +45,11 @@ class WorkspaceDiagnosticTests(unittest.TestCase):
         self.assertEqual(facts['visible_label'], 'no')
         self.assertEqual(facts['prompt_template'], 'other')
         self.assertEqual(facts['prompt_hook'], 'present')
+
+    def test_restore_hook_alone_is_not_workspace_hook(self):
+        facts = self.run_fixture('SITE> ',
+                                 hook='PROMPT_COMMAND=(_ws_prompt_restore)')
+        self.assertEqual(facts['prompt_hook'], 'missing')
 
 
 if __name__ == '__main__':

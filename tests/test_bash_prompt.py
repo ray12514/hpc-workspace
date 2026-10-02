@@ -20,10 +20,10 @@ ANSI = re.compile(rb'\x1b\[[0-9;]*m')
 
 
 class PromptStartupTests(unittest.TestCase):
-    def read_prompt(self, master):
+    def read_prompt(self, master, markers=(b'$ ',)):
         output = bytearray()
         deadline = time.monotonic() + 10
-        while b'$ ' not in output and time.monotonic() < deadline:
+        while not any(marker in output for marker in markers) and time.monotonic() < deadline:
             if select.select([master], [], [], .2)[0]:
                 try:
                     output.extend(os.read(master, 65536))
@@ -31,7 +31,7 @@ class PromptStartupTests(unittest.TestCase):
                     if exc.errno != errno.EIO:
                         raise
                     break
-        self.assertIn(b'$ ', output, output)
+        self.assertTrue(any(marker in output for marker in markers), output)
         return bytes(output)
 
     def test_readonly_site_prompt_command_keeps_workspace_label(self):
@@ -105,6 +105,44 @@ class PromptStartupTests(unittest.TestCase):
                 moved = self.read_prompt(master)
                 self.assertIn(b'MODULE_OK', moved)
                 self.assertIn(b'function', moved)
+                self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
+            finally:
+                os.kill(child, signal.SIGKILL)
+                os.waitpid(child, 0)
+                os.close(master)
+
+    @unittest.skipUnless(Path('/workspace-tools/thin-shell').is_file(), 'thin image only')
+    def test_late_readonly_hook_still_shows_workspace_identity(self):
+        with tempfile.TemporaryDirectory(prefix='ws-late-prompt-') as temporary:
+            root = Path(temporary)
+            init = root / 'modules/init'
+            init.mkdir(parents=True)
+            (init / 'bash').write_text(
+                "_site_prompt() { PS1='SITE> '; }\n"
+                "PROMPT_COMMAND=_site_prompt\nreadonly PROMPT_COMMAND\n"
+                "module() { :; }\n")
+            home = root / 'home'
+            personal = home / '.config/hpc-workspace'
+            personal.mkdir(parents=True)
+            (personal / 'bashrc').write_text(
+                "PROMPT_COMMAND=(_site_prompt)\nreadonly PROMPT_COMMAND\nPS1='SITE> '\n")
+            (root / 'state').mkdir()
+            environment = {'PATH': '/workspace-tools/bin:/usr/bin:/bin',
+                           'HOME': str(home), 'TERM': 'xterm-256color',
+                           'WS_COLOR': '256', 'WS_GIT_PROMPT': '0',
+                           'WS_LAYOUT': 'thin-v1', 'WS_ROOT': '/workspace-tools',
+                           'WS_SITE': 'fixture', 'WS_CONTEXT': 'login',
+                           'WS_HOSTNAME': 'test-node', 'WS_STATE_HOME': str(root / 'state'),
+                           'MODULESHOME': str(root / 'modules'), 'LMOD_CMD': '/nonexistent'}
+            child, master = pty.fork()
+            if child == 0:
+                os.execve('/workspace-tools/thin-shell', ['thin-shell'], environment)
+            try:
+                initial = self.read_prompt(master, (b'$ ', b'SITE> '))
+                self.assertNotIn(b'PROMPT_COMMAND: readonly variable', initial)
+                self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
+                os.write(master, b'cd /tmp\n')
+                moved = self.read_prompt(master, (b'$ ', b'SITE> '))
                 self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
             finally:
                 os.kill(child, signal.SIGKILL)

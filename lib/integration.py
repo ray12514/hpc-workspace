@@ -1,11 +1,15 @@
 """Automatic host filesystem/environment integration for the thin image layout."""
 from contextlib import contextmanager
+import glob
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
+import re
+import shlex
 import socket
+import stat
 import tempfile
 import runtime_setup
 
@@ -13,6 +17,9 @@ LAYOUT = 'thin-v1'
 RESERVED = {'nix', 'workspace-tools', 'workspace-state', 'workspace-bootstrap'}
 KERNEL = {'dev', 'proc', 'sys'}
 READ_ONLY = {'usr', 'bin', 'sbin', 'lib', 'lib32', 'lib64', 'libx32', 'etc', 'opt', 'boot'}
+SSH_CONFIG_FILE_LIMIT = 1024 * 1024
+SSH_CONFIG_TOTAL_LIMIT = 4 * 1024 * 1024
+SSH_CONFIG_COUNT_LIMIT = 128
 
 
 def descriptor(image):
@@ -57,6 +64,59 @@ def validate_extra(item):
     return destination
 
 
+def snapshot_ssh_client_config(directory, system_config=Path('/etc/ssh/ssh_config')):
+    """Copy readable SSH client configs to user-owned files for one entry.
+
+    Root-owned host files can appear as UID 65534 in a rootless user namespace.
+    OpenSSH rejects that owner, although the same host client works natively.
+    Only the client config and files reached by Include are copied, not keys.
+    """
+    root = Path(directory) / 'ssh-config'
+    queue = [Path(system_config)]
+    visited = set()
+    total = 0
+    while queue:
+        source = queue.pop(0)
+        try:
+            source = source.resolve(strict=True)
+            if source in visited:
+                continue
+            details = source.stat()
+            if not stat.S_ISREG(details.st_mode) or details.st_size > SSH_CONFIG_FILE_LIMIT:
+                continue
+            if details.st_uid not in (0, os.getuid()) or details.st_mode & 0o022:
+                continue
+            if len(visited) >= SSH_CONFIG_COUNT_LIMIT or total + details.st_size > SSH_CONFIG_TOTAL_LIMIT:
+                raise ValueError('SSH client config exceeds workspace snapshot limit')
+            contents = source.read_bytes()
+        except (OSError, UnicodeError):
+            continue
+        if len(contents) > SSH_CONFIG_FILE_LIMIT:
+            continue
+        total += len(contents)
+        visited.add(source)
+        target = root / str(source).lstrip('/')
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target.write_bytes(contents)
+        target.chmod(0o600)
+        for line in contents.decode('utf-8', 'replace').splitlines():
+            match = re.match(r'^\s*Include\s+(.+)$', line, re.IGNORECASE)
+            if not match:
+                continue
+            try:
+                patterns = shlex.split(match.group(1), comments=True)
+            except ValueError:
+                continue
+            for pattern in patterns:
+                if '%' in pattern or '$' in pattern:
+                    continue  # OpenSSH expands connection-specific tokens itself.
+                candidate = Path(pattern).expanduser()
+                if not candidate.is_absolute():
+                    candidate = Path(system_config).parent / candidate
+                queue.extend(Path(path) for path in sorted(glob.glob(str(candidate))))
+    return root
+
+
 def plan(image, project, state, data, args, bind_spec, environment_file=None, create_state=False):
     if platform.system() != 'Linux':
         raise ValueError('The thin host integration must be planned on Linux')
@@ -78,6 +138,13 @@ def plan(image, project, state, data, args, bind_spec, environment_file=None, cr
                '--no-mount', 'home,cwd,hostfs,bind-paths', '--pwd', str(project)]
     for item in mounts:
         command += ['--bind', bind_spec(item['source'], item['destination'], item.get('mode', 'ro'))]
+    if environment_file:
+        ssh_root = Path(environment_file).parent / 'ssh-config'
+        if ssh_root.is_dir():
+            for source in sorted(ssh_root.rglob('*')):
+                if source.is_file():
+                    destination = '/' + str(source.relative_to(ssh_root))
+                    command += ['--bind', bind_spec(source, destination, 'ro')]
     if any(c in str(state) for c in (',', ':', '\n', '\r')):
         raise ValueError('Unsupported character in state path')
     command += ['--bind', str(state) + ':/workspace-state:rw']
@@ -117,6 +184,7 @@ def plan(image, project, state, data, args, bind_spec, environment_file=None, cr
 def snapshot(args, state):
     # Private ephemeral data; the cached integration recipe contains no values.
     with tempfile.TemporaryDirectory(prefix='workspace-start-') as directory:
+        snapshot_ssh_client_config(directory)
         path = Path(directory) / 'environment.json'
         descriptor = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, 'w') as stream:

@@ -1,5 +1,13 @@
 # Workspace validation
 
+## Late prompt hook and rootless SSH config: 0.7.3-preview4
+
+On 2026-10-02, the affected RHEL system reported that preview3 removed the read-only assignment error but still lacked the `ws:` label. The one-command fresh-entry diagnostic reported release `0.7.3-preview3`, thin layout, interactive Bash, the workspace prompt function and label value, but a missing workspace hook, a different `PS1` template, and a read-only `PROMPT_COMMAND`. The personal workspace Bash file was present; its contents were not collected. The same report showed the host's SSH client config as UID/GID `0:0`, mode `644`, and its workspace view as `65534:65534`, mode `644`. Both shells resolved `ssh` and `scp` from `/usr/bin`.
+
+The new packaged Linux PTY regression recreates a later startup file that replaces and locks the site hook and resets `PS1`. It failed against preview3, displaying only `SITE>`, then passed with the late prompt bridge and updated its path after `cd`. Existing read-only site-hook and normal thin-shell prompt tests also pass with the same source. A separate diagnostic fixture distinguishes `_ws_prompt_restore` from the actual `_ws_prompt` hook.
+
+The host launcher now snapshots readable system SSH client config files reached through `Include` into a private, temporary tree with user ownership and mode `600`; the test verifies nested relative and absolute includes, skips a group-writable file, and checks the planned read-only bind paths. A rootless Apptainer 1.5.3 fixture showed a root-owned host config as UID `65534` inside the image, then the bound user-owned copy as UID `1000`. A separate offline OpenSSH 9.6 client check returned `Bad owner or permissions` for an included UID `65534` config and succeeded with the same content owned by UID `1000`. No real site config content, key, account, or transfer was used. A fresh entry and small transfer on the affected RHEL system remain the acceptance check.
+
 ## RHEL prompt startup correction: 0.7.3-preview3
 
 On 2026-10-02, the operator reported that the published 0.7.3-preview2 image still printed `PROMPT_COMMAND: readonly variable` on a RHEL system. A clean workspace Bash did not print it, but the workspace Bash rcfile did. In an interactive workspace, the release and thin layout were correct, `_ws_prompt` and its label existed, and `PS1` no longer contained the workspace prompt template. The corrected native-shell diagnostic reproduced the error and reported `WS_TRACE /workspace-tools/config/bashrc:155`; the shipped file has 118 physical lines. A local trace reproduced the same generated-code line number when zoxide 0.10.0 wrote the site's read-only prompt variable.

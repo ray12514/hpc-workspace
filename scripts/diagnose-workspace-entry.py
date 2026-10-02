@@ -56,7 +56,8 @@ def workspace_command(path):
         "printf 'uid=%s\\n' \"$(id -u)\"",
         "printf 'interactive=%s\\n' \"$([[ $- == *i* ]] && echo yes || echo no)\"",
         "declare -F _ws_prompt >/dev/null && echo prompt_function=present || echo prompt_function=missing",
-        "[[ ${PROMPT_COMMAND[*]:-} == *'_ws_prompt'* ]] && echo prompt_hook=present || echo prompt_hook=missing",
+        "_ws_diag_hook=missing; for _ws_diag_item in \"${PROMPT_COMMAND[@]}\"; do [[ $_ws_diag_item == _ws_prompt ]] && _ws_diag_hook=present; done; printf 'prompt_hook=%s\\n' \"$_ws_diag_hook\"",
+        "declare -F __ws_site_prompt_original >/dev/null && echo prompt_bridge=present || echo prompt_bridge=missing",
         "[[ ${PS1:-} == *'${_ws_label}'* ]] && echo prompt_template=workspace || echo prompt_template=other",
         "[[ ${_ws_label+x} == x ]] && echo prompt_label_value=set || echo prompt_label_value=unset",
         "readonly -p | grep -Eq '^declare -[[:alpha:]]*r[[:alpha:]]* PROMPT_COMMAND(=|$)' && echo prompt_command=readonly || echo prompt_command=writable",
@@ -123,7 +124,7 @@ def workspace_facts(path, timeout=50):
             key, value = raw.split(b'=', 1)
             key = key.decode('ascii', 'ignore')
             if key in ('release', 'layout', 'container', 'uid', 'interactive',
-                       'prompt_function', 'prompt_hook', 'prompt_template',
+                       'prompt_function', 'prompt_hook', 'prompt_bridge', 'prompt_template',
                        'prompt_label_value', 'prompt_command', 'personal_bashrc',
                        'prompt_color', 'ssh_kind', 'ssh_path', 'scp_kind',
                        'scp_path', 'ssh_config_owner'):
@@ -175,7 +176,7 @@ def main(argv=None):
         return 1
     print('workspace_entry=ok', flush=True)
     for name in ('visible_label', 'release', 'layout', 'container', 'uid',
-                 'interactive', 'prompt_function', 'prompt_hook', 'prompt_template',
+                 'interactive', 'prompt_function', 'prompt_hook', 'prompt_bridge', 'prompt_template',
                  'prompt_label_value', 'prompt_command', 'personal_bashrc',
                  'prompt_color', 'ssh_kind', 'ssh_path', 'scp_kind', 'scp_path',
                  'ssh_config_owner'):

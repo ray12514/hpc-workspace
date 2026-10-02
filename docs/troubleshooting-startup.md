@@ -22,7 +22,7 @@ The repo's recommendation selects the version, so use `git pull --ff-only` befor
 
 ## PROMPT_COMMAND is read-only or the workspace label is missing
 
-For the remaining missing `ws:` label on a fresh 0.7.3-preview3 shell, run this **once from a native shell in the repo checkout**. It enters and exits its own fresh interactive workspace, so you do not need to run a second block inside `ws enter`:
+For a missing `ws:` label or `scp` reporting bad ownership on an SSH config file, run this **once from a native shell in the repo checkout**. It enters and exits its own fresh interactive workspace, so you do not need to run a second block inside `ws enter`:
 
 ```bash
 git pull --ff-only && python3 scripts/diagnose-workspace-entry.py
@@ -30,11 +30,13 @@ git pull --ff-only && python3 scripts/diagnose-workspace-entry.py
 
 Paste its complete short report. It reports whether the actual interactive prompt displayed the workspace label, release/layout, prompt hook/template flags, and native versus workspace SSH executable and config-file ownership. It does not print the prompt text, site banner, SSH config contents, hook contents, or keys; it does not contact another machine. If `ssh_config_path=not_found`, rerun it with `--ssh-config /exact/path/from/the/scp/error`. It leaves existing tmux sessions alone. The error path might use either `/etc/ssh/config.d` or `/etc/ssh/ssh_config.d`.
 
-The thin layout bind-mounts the host `/etc` read-only. A file that OpenSSH rejects inside the workspace may have a different visible owner because of the site's container UID mapping, or the two shells may resolve different SSH clients. The report distinguishes those cases before changing any host file or SSH configuration. Until resolved, run `scp` from the native shell where it succeeds.
+The thin layout bind-mounts the host `/etc` read-only. On the reported rootless RHEL system, a root-owned host SSH config appeared as UID `65534` inside the workspace; OpenSSH refused that owner before connecting. **0.7.3-preview4** binds private, temporary, user-owned copies of the system SSH client config and its `Include` files into each fresh entry. It does not change the host files. If the transfer still fails, this report shows whether the owner mapping was corrected and whether both shells resolve the same client. Until resolved, run `scp` from the native shell where it succeeds.
 
 Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory in a local reproduction. The fallback omits the workspace Git branch and exit-status decorations. The error still occurs on a reported RHEL system, so that release is not a confirmed fix for that site.
 
 **0.7.3-preview3** addresses the reproduced cause: zoxide's Bash initialization also writes `PROMPT_COMMAND`. Normal `ws enter` and managed windows now prepare the site's module functions and prompt hook in a short-lived Bash, then start the final workspace Bash with the site hook retained and writable. The workspace restores its prompt after the site hook runs. The packaged image passes a synthetic site hook that both makes `PROMPT_COMMAND` read-only and replaces `PS1`; the affected RHEL system still needs a fresh-session check. From the native shell, update with `git pull --ff-only && ./setup`, then start a **new** `ws enter`. An existing tmux server keeps its original image.
+
+The affected system confirmed the read-only error was gone in preview3, but the label still disappeared. Its prompt hook remained read-only and the workspace hook was missing. **0.7.3-preview4** rechecks after personal startup and restores the workspace label after a single read-only site function runs. The packaged PTY regression reproduces and fixes that late-hook case. Test in a new entry; an old tmux server keeps its old prompt behavior.
 
 To isolate where startup is happening on the affected system, run these three commands **one at a time from a native shell**, outside `ws enter` or `ws session`, after updating this checkout with `git pull --ff-only`. Each starts a fresh Bash, prints a distinct marker, and exits. They do not print the API key or the value of `PROMPT_COMMAND`; a site startup file might print other local details, so redact those before sharing output.
 
@@ -65,7 +67,7 @@ type -t module
 
 Run this inside `ws enter` on the affected and working systems. If the affected shell reports a writable hook, or the new image still lacks its label, save the exact startup error and the check's output locally for comparison. The command above does not print a key or the hook's value. Start a new workspace after updating; attaching an existing server returns to its original image.
 
-In the 0.7.3-preview2 read-only fallback, `hook=missing` is expected because Bash will not let the workspace add a hook. In a fresh 0.7.3-preview3 `ws enter`, the site and workspace hooks should both be present. To check why the label is absent **inside an interactive `ws enter` shell**, run:
+In the 0.7.3-preview2 read-only fallback, `hook=missing` is expected because Bash will not let the workspace add a hook. Preview3 can also report a missing workspace hook if a later startup file makes the site hook read-only; preview4 handles a single site function in that state. To check why the label is absent **inside an interactive `ws enter` shell**, run:
 
 ```bash
 declare -F _ws_prompt >/dev/null && echo prompt_function=present || echo prompt_function=missing

@@ -85,7 +85,11 @@ _ws_prompt_restore() {
     _ws_prompt_applied=$PS1
 }
 _ws_prompt_fallback=''
-if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
+_ws_prompt_hook_present=''
+for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
+    [[ $_ws_prompt_item == _ws_prompt ]] && _ws_prompt_hook_present=1
+done
+if [[ -z $_ws_prompt_hook_present ]]; then
     _ws_prompt_readonly=''
     while IFS= read -r _ws_readonly_line; do
         if [[ $_ws_readonly_line =~ ^declare\ -[a-zA-Z]*r[a-zA-Z]*\ PROMPT_COMMAND($|=) ]]; then
@@ -102,7 +106,7 @@ if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
         PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}" _ws_prompt_restore)
     fi
 fi
-unset _ws_readonly_line
+unset _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item
 # shellcheck disable=SC2016
 if [[ $_ws_prompt_fallback == 1 ]]; then
     PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${PWD}'"${_ws_reset}"'\n\$ '
@@ -110,6 +114,7 @@ else
     PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${_ws_path}${_ws_branch}'"${_ws_reset}\n${_ws_error}"'${_ws_result}'"${_ws_reset}"'\$ '
 fi
 unset _ws_prompt_fallback
+_ws_workspace_prompt_template=$PS1
 alias ll='ls -alF'
 alias la='ls -A'
 alias ..='cd ..'
@@ -142,5 +147,41 @@ fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
 fi
-# Capture a personal prompt override before any site prompt hook runs.
-_ws_prompt_template=$PS1 _ws_prompt_applied=$PS1
+# A personal/site startup file can replace and freeze PROMPT_COMMAND after the
+# workspace first composes it. Recheck after every startup file has run.
+_ws_late_prompt_readonly=''
+while IFS= read -r _ws_readonly_line; do
+    if [[ $_ws_readonly_line =~ ^declare\ -[a-zA-Z]*r[a-zA-Z]*\ PROMPT_COMMAND($|=) ]]; then
+        _ws_late_prompt_readonly=1
+        break
+    fi
+done < <(readonly -p)
+_ws_prompt_hook_present=''
+for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
+    [[ $_ws_prompt_item == _ws_prompt ]] && _ws_prompt_hook_present=1
+done
+if [[ -z $_ws_prompt_hook_present && $_ws_late_prompt_readonly == 1 ]]; then
+    _ws_prompt
+    _ws_result=''
+    PS1=$_ws_workspace_prompt_template
+    _ws_prompt_template=$PS1 _ws_prompt_applied=$PS1
+    # A read-only value that names one site function can still retain that
+    # function's behavior. Wrap the function so it restores our PS1 afterward.
+    if (( ${#PROMPT_COMMAND[@]} == 1 )); then
+        _ws_site_prompt_name=${PROMPT_COMMAND[0]}
+        if [[ $_ws_site_prompt_name =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] &&
+                declare -F "$_ws_site_prompt_name" >/dev/null &&
+                ! declare -F __ws_site_prompt_original >/dev/null; then
+            _ws_saved_hook=$(declare -f "$_ws_site_prompt_name")
+            _ws_hook_body=${_ws_saved_hook#*$'\n'}
+            eval "__ws_site_prompt_original ()"$'\n'"$_ws_hook_body"
+            eval "$_ws_site_prompt_name () { __ws_site_prompt_original \"\$@\"; _ws_prompt; _ws_result=''; PS1=\$_ws_workspace_prompt_template; _ws_prompt_applied=\$PS1; }"
+        fi
+    fi
+    unset _ws_site_prompt_name _ws_saved_hook _ws_hook_body
+else
+    # Capture an intentional personal prompt override when a writable hook
+    # still owns prompt refreshes.
+    _ws_prompt_template=$PS1 _ws_prompt_applied=$PS1
+fi
+unset _ws_late_prompt_readonly _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item
