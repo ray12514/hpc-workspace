@@ -8,6 +8,8 @@ The regression test now includes packaged zoxide. It failed against the 0.7.3-pr
 
 The exported 0.7.3-preview3 candidate SIF passed the complete offline Apptainer 1.5.3 integration suite: native paths and scheduler clients, module forwarding, packaged tools, locale behavior, editor and agent configuration, certificates, managed tmux routing and lifetime, the focused prompt test, and Inspector import. The dedicated host-capable Docker fixture passed the tmux window/editor/job-environment integration check. A direct run of that fixture against the scratch image lacked `/usr/bin/env` because it did not mount the host OS; it was not a product failure. No actual RHEL site file or credential was copied to this development machine. A fresh workspace on the affected system remains the confirmation step.
 
+The final SIF passed the focused prompt regression under Apptainer 1.5.3. The release bundle passed offline install and reinstall checks. The [published release](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview3) has eight assets whose uploaded filenames, sizes, and SHA-256 digests match the tested local files. Its manifest SHA-256 is `110a1401f47e71175b037eb084805ab14ca19f8ccf1ba4627f02f0d141660d4a`. `./setup --download-only` fetched and verified the public bundle through the new recommendation.
+
 ## Read-only site prompt hook: 0.7.3-preview2
 
 On 2026-10-01, a synthetic module initializer made `PROMPT_COMMAND` read-only before the workspace Bash rcfile ran. The published 0.7.3-preview1 image then printed `PROMPT_COMMAND: readonly variable` and displayed a prompt without the `ws:` identity, matching the operator's reported error on a second system. The operator's exact site initialization was not inspected.
