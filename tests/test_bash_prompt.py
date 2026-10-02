@@ -5,6 +5,7 @@ from pathlib import Path
 import pty
 import re
 import select
+import shutil
 import signal
 import tempfile
 import time
@@ -27,7 +28,11 @@ class PromptStartupTests(unittest.TestCase):
             (init / 'bash').write_text("PROMPT_COMMAND='echo SITE_HOOK'\nreadonly PROMPT_COMMAND\nmodule() { :; }\n")
             (root / 'home').mkdir()
             (root / 'state').mkdir()
-            environment = {'PATH': '/usr/bin:/bin', 'HOME': str(root / 'home'),
+            zoxide = shutil.which('zoxide')
+            path = '/usr/bin:/bin'
+            if zoxide:
+                path = str(Path(zoxide).parent) + ':' + path
+            environment = {'PATH': path, 'HOME': str(root / 'home'),
                            'TERM': 'xterm-256color', 'WS_COLOR': '256', 'WS_GIT_PROMPT': '0',
                            'WS_LAYOUT': 'thin-v1', 'WS_ROOT': str(TOOL_ROOT),
                            'WS_SITE': 'fixture', 'WS_CONTEXT': 'login',
@@ -59,6 +64,9 @@ class PromptStartupTests(unittest.TestCase):
                 self.assertIn(b'SITE_HOOK', initial)
                 self.assertIn(b'\x1b[38;5;80m', initial)
                 self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
+                if zoxide:
+                    os.write(master, b'type -t z\n')
+                    self.assertIn(b'function', read_prompt())
                 os.write(master, b'cd /tmp\n')
                 moved = read_prompt()
                 self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))

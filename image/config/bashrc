@@ -83,7 +83,7 @@ if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
         PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}")
     fi
 fi
-unset _ws_prompt_readonly _ws_readonly_line
+unset _ws_readonly_line
 # shellcheck disable=SC2016
 if [[ $_ws_prompt_fallback == 1 ]]; then
     PS1="${_ws_accent}"'${_ws_label}'"${_ws_reset}  ${_ws_muted}"'${PWD}'"${_ws_reset}"'\n\$ '
@@ -107,9 +107,16 @@ if [[ -r ${INPUTRC:-} ]]; then
     bind -f "$INPUTRC"
 fi
 if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && command -v zoxide >/dev/null; then
-    eval "$(zoxide init bash)"
+    if [[ $_ws_prompt_readonly == 1 ]]; then
+        # Zoxide's Bash init also writes PROMPT_COMMAND. Keep its navigation
+        # commands without adding a hook that the site has made read-only.
+        eval "$(zoxide init bash --hook none)"
+    else
+        eval "$(zoxide init bash)"
+    fi
     alias ll='eza --long --all --group-directories-first --icons=never'
 fi
+unset _ws_prompt_readonly
 if [[ -f /workspace-tools/config/codex-native-key.bash ]]; then
     source /workspace-tools/config/codex-native-key.bash
 fi
