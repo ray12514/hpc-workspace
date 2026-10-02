@@ -40,7 +40,7 @@ If only the third command prints the read-only error, type `exit` to leave any i
 bash scripts/diagnose-prompt-startup
 ```
 
-This runs the workspace Bash startup file under a location-only trace and reports the last file and line before the error as `WS_TRACE ...`, followed by `entry_status`. It does not print commands, prompt values, or credentials. It keeps a private temporary stderr log only for the duration of the check and removes it afterward. Site startup may still print its normal header to the terminal; redact site details before sharing. The source location is a lead, not proof that the indicated line itself is wrong.
+This first repeats the **actual `--rcfile /workspace-tools/config/bashrc` startup command**, then runs a traced rcfile that sources the same workspace config during Bash startup. Report `real_rc_readonly_error`, `traced_rc_readonly_error`, any `WS_TRACE` location, and both entry statuses. The earlier version of this diagnostic used `--norc` and sourced the config later from `-c`; that was not the failing startup path and could return a false negative. The revised check prints only file/line locations from its trace, not command text, prompt values, or credentials. It keeps private temporary files only for the duration of the check and removes them afterward. Site startup may still print its normal header to the terminal; redact site details before sharing. The source location is a lead, not proof that the indicated line itself is wrong.
 
 Check a new shell's state without printing the hook's contents or any keys:
 

@@ -13,27 +13,34 @@ if ! command -v ws >/dev/null 2>&1; then
 fi
 
 umask 077
-ws_prompt_log=$(mktemp "${TMPDIR:-/tmp}/ws-prompt.XXXXXX") || exit 1
-trap 'rm -f "$ws_prompt_log"' EXIT
+# The current project directory is explicitly mounted into the thin image.
+# Keep the traced rcfile there so Bash can read it inside the container.
+ws_prompt_dir=$(mktemp -d "$(pwd -P)/.ws-prompt.XXXXXX") || exit 1
+trap 'rm -rf "$ws_prompt_dir"' EXIT
 
-ws_prompt_probe=$(cat <<'BASH'
+cat >"$ws_prompt_dir/traced.bashrc" <<'BASH'
 set -T
 trap 'printf "WS_TRACE %s:%s\n" "${BASH_SOURCE[0]:-?}" "$LINENO" >&2' DEBUG
 source /workspace-tools/config/bashrc
-printf 'WS_SOURCE_DONE\n'
 BASH
-)
 
-ws enter -- /workspace-tools/bin/bash --noprofile --norc -ic "$ws_prompt_probe" 2>"$ws_prompt_log"
-ws_prompt_status=$?
+ws enter -- /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -ic 'printf "WS_REAL_RC_DONE\n"' 2>"$ws_prompt_dir/real.log"
+ws_real_status=$?
+ws enter -- /workspace-tools/bin/bash --noprofile --rcfile "$ws_prompt_dir/traced.bashrc" -ic 'printf "WS_TRACE_RC_DONE\n"' 2>"$ws_prompt_dir/trace.log"
+ws_trace_status=$?
 
 awk '
+    /PROMPT_COMMAND: readonly variable/ { found = 1 }
+    END { print "real_rc_readonly_error=" (found ? "yes" : "no") }
+' "$ws_prompt_dir/real.log"
+printf 'real_entry_status=%s\n' "$ws_real_status"
+awk '
     /^WS_TRACE / { last = $0 }
-    /PROMPT_COMMAND: readonly variable/ {
-        print "readonly_error=yes"
+    /PROMPT_COMMAND: readonly variable/ && !found {
+        print "traced_rc_readonly_error=yes"
         print (last == "" ? "WS_TRACE location unavailable" : last)
         found = 1
     }
-    END { if (!found) print "readonly_error=no" }
-' "$ws_prompt_log"
-printf 'entry_status=%s\n' "$ws_prompt_status"
+    END { if (!found) print "traced_rc_readonly_error=no" }
+' "$ws_prompt_dir/trace.log"
+printf 'traced_entry_status=%s\n' "$ws_trace_status"
