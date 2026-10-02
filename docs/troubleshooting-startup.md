@@ -34,7 +34,7 @@ ws enter -- /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/conf
 
 For **each** command, record whether the site login header appeared, whether `PROMPT_COMMAND: readonly variable` appeared, and whether its `*_OK` marker printed. The first command tests the native Bash without profile or rc files. The second tests workspace entry and its packaged Bash without a Bash rc file. The third adds the workspace Bash rc file, which may source the site's module initialization. This comparison identifies the startup boundary; it does not by itself identify the exact site file or authorize changing site configuration. These checks leave existing tmux sessions alone.
 
-If only the third command prints the read-only error, pull the latest repo and run this from the **native shell**:
+If only the third command prints the read-only error, type `exit` to leave any interactive workspace, pull the latest repo, and run this from the **native shell**. The diagnostic refuses to run inside a workspace because a nested entry can inherit a different Bash/module state and give a false negative:
 
 ```bash
 bash scripts/diagnose-prompt-startup

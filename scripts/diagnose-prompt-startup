@@ -2,6 +2,11 @@
 # Run from a native shell. Report only source locations, never command text or values.
 set -u
 
+if [[ ${WS_CONTAINER:-} == 1 || ${WS_LAYOUT:-} == thin-v1 ]]; then
+    printf 'Run this diagnostic from the native shell, outside the workspace. Type exit once to leave ws enter, then run it again.\n' >&2
+    exit 2
+fi
+
 if ! command -v ws >/dev/null 2>&1; then
     printf 'ws is unavailable in this native shell\n' >&2
     exit 1
