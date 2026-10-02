@@ -34,6 +34,14 @@ ws enter -- /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/conf
 
 For **each** command, record whether the site login header appeared, whether `PROMPT_COMMAND: readonly variable` appeared, and whether its `*_OK` marker printed. The first command tests the native Bash without profile or rc files. The second tests workspace entry and its packaged Bash without a Bash rc file. The third adds the workspace Bash rc file, which may source the site's module initialization. This comparison identifies the startup boundary; it does not by itself identify the exact site file or authorize changing site configuration. These checks leave existing tmux sessions alone.
 
+If only the third command prints the read-only error, pull the latest repo and run this from the **native shell**:
+
+```bash
+bash scripts/diagnose-prompt-startup
+```
+
+This runs the workspace Bash startup file under a location-only trace and reports the last file and line before the error as `WS_TRACE ...`, followed by `entry_status`. It does not print commands, prompt values, or credentials. It keeps a private temporary stderr log only for the duration of the check and removes it afterward. Site startup may still print its normal header to the terminal; redact site details before sharing. The source location is a lead, not proof that the indicated line itself is wrong.
+
 Check a new shell's state without printing the hook's contents or any keys:
 
 ```bash
@@ -44,6 +52,16 @@ type -t module
 ```
 
 Run this inside `ws enter` on the affected and working systems. If the affected shell reports a writable hook, or the new image still lacks its label, save the exact startup error and the check's output locally for comparison. The command above does not print a key or the hook's value. Start a new workspace after updating; attaching an existing server returns to its original image.
+
+In the read-only fallback, `hook=missing` is expected because Bash will not let the workspace add a hook. To check why the label is absent **inside an interactive `ws enter` shell**, run:
+
+```bash
+declare -F _ws_prompt >/dev/null && echo prompt_function=present || echo prompt_function=missing
+[[ -n ${_ws_label:-} ]] && echo label_value=set || echo label_value=empty
+[[ ${PS1:-} == *'${_ws_label}'* ]] && echo prompt_template=workspace || echo prompt_template=other
+```
+
+These checks report only presence flags; they do not print `PS1` or its contents. The earlier `-ic` marker commands exit back to the native shell, so run this block after a separate interactive `ws enter`.
 
 ## Configuration form text is too dark to read
 

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Run from a native shell. Report only source locations, never command text or values.
+set -u
+
+if ! command -v ws >/dev/null 2>&1; then
+    printf 'ws is unavailable in this native shell\n' >&2
+    exit 1
+fi
+
+umask 077
+ws_prompt_log=$(mktemp "${TMPDIR:-/tmp}/ws-prompt.XXXXXX") || exit 1
+trap 'rm -f "$ws_prompt_log"' EXIT
+
+ws_prompt_probe=$(cat <<'BASH'
+set -T
+trap 'printf "WS_TRACE %s:%s\n" "${BASH_SOURCE[0]:-?}" "$LINENO" >&2' DEBUG
+source /workspace-tools/config/bashrc
+printf 'WS_SOURCE_DONE\n'
+BASH
+)
+
+ws enter -- /workspace-tools/bin/bash --noprofile --norc -ic "$ws_prompt_probe" 2>"$ws_prompt_log"
+ws_prompt_status=$?
+
+awk '
+    /^WS_TRACE / { last = $0 }
+    /PROMPT_COMMAND: readonly variable/ {
+        print "readonly_error=yes"
+        print (last == "" ? "WS_TRACE location unavailable" : last)
+        found = 1
+    }
+    END { if (!found) print "readonly_error=no" }
+' "$ws_prompt_log"
+printf 'entry_status=%s\n' "$ws_prompt_status"
