@@ -20,6 +20,20 @@ ANSI = re.compile(rb'\x1b\[[0-9;]*m')
 
 
 class PromptStartupTests(unittest.TestCase):
+    def read_prompt(self, master):
+        output = bytearray()
+        deadline = time.monotonic() + 10
+        while b'$ ' not in output and time.monotonic() < deadline:
+            if select.select([master], [], [], .2)[0]:
+                try:
+                    output.extend(os.read(master, 65536))
+                except OSError as exc:
+                    if exc.errno != errno.EIO:
+                        raise
+                    break
+        self.assertIn(b'$ ', output, output)
+        return bytes(output)
+
     def test_readonly_site_prompt_command_keeps_workspace_label(self):
         with tempfile.TemporaryDirectory(prefix='ws-prompt-') as temporary:
             root = Path(temporary)
@@ -42,33 +56,55 @@ class PromptStartupTests(unittest.TestCase):
             if child == 0:
                 os.execve('/bin/bash', ['bash', '--noprofile', '--rcfile',
                                          str(BASHRC), '-i'], environment)
-            output = bytearray()
-
-            def read_prompt():
-                output.clear()
-                deadline = time.monotonic() + 10
-                while b'$ ' not in output and time.monotonic() < deadline:
-                    if select.select([master], [], [], .2)[0]:
-                        try:
-                            output.extend(os.read(master, 65536))
-                        except OSError as exc:
-                            if exc.errno != errno.EIO:
-                                raise
-                            break
-                self.assertIn(b'$ ', output, output)
-                return bytes(output)
-
             try:
-                initial = read_prompt()
+                initial = self.read_prompt(master)
                 self.assertNotIn(b'PROMPT_COMMAND: readonly variable', initial)
                 self.assertIn(b'SITE_HOOK', initial)
                 self.assertIn(b'\x1b[38;5;80m', initial)
                 self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
                 if zoxide:
                     os.write(master, b'type -t z\n')
-                    self.assertIn(b'function', read_prompt())
+                    self.assertIn(b'function', self.read_prompt(master))
                 os.write(master, b'cd /tmp\n')
-                moved = read_prompt()
+                moved = self.read_prompt(master)
+                self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
+            finally:
+                os.kill(child, signal.SIGKILL)
+                os.waitpid(child, 0)
+                os.close(master)
+
+    @unittest.skipUnless(Path('/workspace-tools/thin-shell').is_file(), 'thin image only')
+    def test_site_prompt_and_module_survive_workspace_shell_startup(self):
+        with tempfile.TemporaryDirectory(prefix='ws-site-prompt-') as temporary:
+            root = Path(temporary)
+            init = root / 'modules/init'
+            init.mkdir(parents=True)
+            (init / 'bash').write_text(
+                "_site_prompt() { PS1='SITE> '; printf 'SITE_HOOK\\n'; }\n"
+                "PROMPT_COMMAND=_site_prompt\nreadonly PROMPT_COMMAND\n"
+                "_site_module_helper() { printf 'MODULE_OK\\n'; }\n"
+                "module() { _site_module_helper; }\n")
+            (root / 'home').mkdir()
+            (root / 'state').mkdir()
+            environment = {'PATH': '/workspace-tools/bin:/usr/bin:/bin',
+                           'HOME': str(root / 'home'), 'TERM': 'xterm-256color',
+                           'WS_COLOR': '256', 'WS_GIT_PROMPT': '0',
+                           'WS_LAYOUT': 'thin-v1', 'WS_ROOT': '/workspace-tools',
+                           'WS_SITE': 'fixture', 'WS_CONTEXT': 'login',
+                           'WS_HOSTNAME': 'test-node', 'WS_STATE_HOME': str(root / 'state'),
+                           'MODULESHOME': str(root / 'modules'), 'LMOD_CMD': '/nonexistent'}
+            child, master = pty.fork()
+            if child == 0:
+                os.execve('/workspace-tools/thin-shell', ['thin-shell'], environment)
+            try:
+                initial = self.read_prompt(master)
+                self.assertNotIn(b'PROMPT_COMMAND: readonly variable', initial)
+                self.assertIn(b'SITE_HOOK', initial)
+                self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
+                os.write(master, b'module; type -t z; cd /tmp\n')
+                moved = self.read_prompt(master)
+                self.assertIn(b'MODULE_OK', moved)
+                self.assertIn(b'function', moved)
                 self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
             finally:
                 os.kill(child, signal.SIGKILL)

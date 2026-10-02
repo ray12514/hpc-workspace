@@ -2,7 +2,7 @@
 if [[ ${WS_LAYOUT:-core} != thin-v1 ]]; then
     export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 fi
-if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
+if [[ ${WS_LAYOUT:-core} == thin-v1 && ${WS_SHELL_PREFLIGHT:-} != 1 ]] && ! declare -F module >/dev/null; then
     _ws_lmod=${LMOD_CMD:-/nonexistent}
     for _ws_module_init in "${MODULESHOME:-/nonexistent}/init/bash" "${_ws_lmod%/libexec/*}/init/bash" /etc/profile.d/lmod.sh /etc/profile.d/modules.sh; do
         if [[ -r $_ws_module_init ]]; then
@@ -13,6 +13,16 @@ if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
     done
     unset _ws_module_init _ws_lmod
 fi
+if [[ ${WS_SHELL_PREFLIGHT:-} == 1 && ${WS_SITE_PROMPT_COUNT:-} =~ ^[0-9]+$ ]] && (( WS_SITE_PROMPT_COUNT <= 128 )); then
+    PROMPT_COMMAND=()
+    for ((_ws_prompt_index=0; _ws_prompt_index<WS_SITE_PROMPT_COUNT; _ws_prompt_index++)); do
+        _ws_prompt_name="WS_SITE_PROMPT_$_ws_prompt_index"
+        PROMPT_COMMAND+=("${!_ws_prompt_name}")
+        unset "$_ws_prompt_name"
+    done
+    unset _ws_prompt_index _ws_prompt_name WS_SITE_PROMPT_COUNT
+fi
+unset WS_SHELL_PREFLIGHT
 export EDITOR=nvim
 export VISUAL=nvim
 export PAGER=less
@@ -42,6 +52,11 @@ fi
 _ws_git_checked=-5 _ws_git_directory='' _ws_branch=''
 _ws_prompt() {
     local status=$? job branch
+    # Keep an intentional PS1 change made at the workspace prompt. A site
+    # hook may replace PS1 later in this prompt cycle; restore it afterward.
+    if [[ ${_ws_prompt_applied+x} == x && ${PS1:-} != "$_ws_prompt_applied" ]]; then
+        _ws_prompt_template=$PS1
+    fi
     history -a
     _ws_label="ws:${WS_SITE:-local} ${WS_CONTEXT:-local}@${WS_HOSTNAME:-${HOSTNAME:-host}}"
     job=${SLURM_JOB_ID:-${PBS_JOBID:-}}
@@ -65,6 +80,10 @@ _ws_prompt() {
     (( status != 0 )) && _ws_result="exit:$status "
     return 0
 }
+_ws_prompt_restore() {
+    PS1=$_ws_prompt_template
+    _ws_prompt_applied=$PS1
+}
 _ws_prompt_fallback=''
 if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
     _ws_prompt_readonly=''
@@ -80,7 +99,7 @@ if [[ ${PROMPT_COMMAND[*]:-} != *'_ws_prompt'* ]]; then
         _ws_prompt
         _ws_prompt_fallback=1
     else
-        PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}" _ws_prompt_restore)
     fi
 fi
 unset _ws_readonly_line
@@ -123,3 +142,5 @@ fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
 fi
+# Capture a personal prompt override before any site prompt hook runs.
+_ws_prompt_template=$PS1 _ws_prompt_applied=$PS1

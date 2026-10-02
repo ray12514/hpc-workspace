@@ -1,2 +1,40 @@
 #!/workspace-tools/bin/bash
-exec /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -i "$@"
+# Prepare site module functions in a short-lived Bash. Read-only shell
+# attributes do not survive exec, so the final workspace Bash can keep the
+# site's prompt hook and compose its own prompt around it.
+exec /workspace-tools/bin/bash --noprofile --norc -ic '
+    if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
+        _ws_lmod=${LMOD_CMD:-/nonexistent}
+        for _ws_module_init in "${MODULESHOME:-/nonexistent}/init/bash" "${_ws_lmod%/libexec/*}/init/bash" /etc/profile.d/lmod.sh /etc/profile.d/modules.sh; do
+            if [[ -r $_ws_module_init ]]; then
+                # shellcheck disable=SC1090
+                source "$_ws_module_init"
+                declare -F module >/dev/null && break
+            fi
+        done
+        unset _ws_module_init _ws_lmod
+    fi
+    if [[ ${PROMPT_COMMAND+x} == x ]]; then
+        _ws_prompt_decl=$(declare -p PROMPT_COMMAND 2>/dev/null)
+        if [[ $_ws_prompt_decl =~ ^declare\ -[a-zA-Z]*[aA] ]]; then
+            if (( ${#PROMPT_COMMAND[@]} > 128 )); then
+                printf "workspace: too many site prompt hooks to preserve\n" >&2
+                exit 1
+            fi
+            _ws_prompt_count=0
+            for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
+                printf -v "WS_SITE_PROMPT_$_ws_prompt_count" %s "$_ws_prompt_item"
+                export "WS_SITE_PROMPT_$_ws_prompt_count"
+                _ws_prompt_count=$((_ws_prompt_count+1))
+            done
+            export WS_SITE_PROMPT_COUNT=$_ws_prompt_count
+        else
+            export PROMPT_COMMAND
+        fi
+    fi
+    while IFS= read -r _ws_function; do
+        export -f "$_ws_function"
+    done < <(compgen -A function)
+    export WS_SHELL_PREFLIGHT=1
+    exec /workspace-tools/bin/bash --noprofile --rcfile /workspace-tools/config/bashrc -i "$@"
+' thin-shell "$@"
