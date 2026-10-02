@@ -1,5 +1,11 @@
 # Workspace validation
 
+## Compound read-only prompt hook: 0.7.3-preview5
+
+On the affected RHEL system, preview4 made `scp` work. The workspace prompt still lacked its `ws:` label. The extended native-shell diagnostic reported `prompt_storage=scalar`, `prompt_element_count=1`, `prompt_element_shapes=command`, a read-only `PROMPT_COMMAND`, and a missing workspace hook. It did not print the site command or personal Bash file. This excludes the single-function case handled by preview4.
+
+A new PTY regression creates the reported compound-hook shape in a personal startup file, with the site command resetting `PS1`. It fails against preview4 with only `SITE>` and passes with the deferred-readonly change: the site hook runs, the workspace label appears, and the displayed path changes after `cd`. The full local host suite passed 119 tests with nine platform skips. The packaged Linux Bash 5 prompt suite passed all four tests in the candidate image. The actual RHEL prompt remains to be checked after installation.
+
 ## Late prompt hook and rootless SSH config: 0.7.3-preview4
 
 On 2026-10-02, the affected RHEL system reported that preview3 removed the read-only assignment error but still lacked the `ws:` label. The one-command fresh-entry diagnostic reported release `0.7.3-preview3`, thin layout, interactive Bash, the workspace prompt function and label value, but a missing workspace hook, a different `PS1` template, and a read-only `PROMPT_COMMAND`. The personal workspace Bash file was present; its contents were not collected. The same report showed the host's SSH client config as UID/GID `0:0`, mode `644`, and its workspace view as `65534:65534`, mode `644`. Both shells resolved `ssh` and `scp` from `/usr/bin`.

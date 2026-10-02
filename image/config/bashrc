@@ -1,4 +1,37 @@
 # The thin layout preserves the calling system's paths and module environment.
+# Site startup can freeze PROMPT_COMMAND before the workspace has a chance to
+# preserve it. Defer only that one readonly declaration until the complete
+# site command has been placed between the workspace's prompt hooks. All
+# other readonly declarations keep their normal Bash behavior.
+_ws_prompt_readonly_requested=''
+readonly() {
+    local _ws_readonly_arg _ws_readonly_other=0 _ws_readonly_defer=''
+    local -a _ws_readonly_args=()
+    for _ws_readonly_arg in "$@"; do
+        case $_ws_readonly_arg in
+            PROMPT_COMMAND)
+                _ws_readonly_defer=1
+                ;;
+            PROMPT_COMMAND=*)
+                PROMPT_COMMAND=${_ws_readonly_arg#PROMPT_COMMAND=}
+                _ws_readonly_defer=1
+                ;;
+            *)
+                _ws_readonly_args+=("$_ws_readonly_arg")
+                [[ $_ws_readonly_arg != -* && $_ws_readonly_arg != -- ]] && _ws_readonly_other=1
+                ;;
+        esac
+    done
+    if [[ $_ws_readonly_defer == 1 ]]; then
+        _ws_prompt_readonly_requested=1
+        if (( _ws_readonly_other )); then
+            builtin readonly "${_ws_readonly_args[@]}" || return
+        fi
+        return 0
+    else
+        builtin readonly "$@"
+    fi
+}
 if [[ ${WS_LAYOUT:-core} != thin-v1 ]]; then
     export PATH="/opt/workspace/bin:/opt/nvim/bin:/opt/workspace/node_modules/.bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 fi
@@ -84,6 +117,14 @@ _ws_prompt_restore() {
     PS1=$_ws_prompt_template
     _ws_prompt_applied=$PS1
 }
+_ws_prompt_legacy() {
+    local _ws_legacy_command
+    _ws_prompt
+    for _ws_legacy_command in "${_ws_site_prompt_commands[@]}"; do
+        eval "$_ws_legacy_command"
+    done
+    _ws_prompt_restore
+}
 _ws_prompt_fallback=''
 _ws_prompt_hook_present=''
 for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
@@ -147,6 +188,8 @@ fi
 if [[ -f "${HOME}/.config/hpc-workspace/bashrc" ]]; then
     source "${HOME}/.config/hpc-workspace/bashrc"
 fi
+# Restore the Bash builtin before composing the final prompt.
+unset -f readonly
 # A personal/site startup file can replace and freeze PROMPT_COMMAND after the
 # workspace first composes it. Recheck after every startup file has run.
 _ws_late_prompt_readonly=''
@@ -160,7 +203,22 @@ _ws_prompt_hook_present=''
 for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
     [[ $_ws_prompt_item == _ws_prompt ]] && _ws_prompt_hook_present=1
 done
-if [[ -z $_ws_prompt_hook_present && $_ws_late_prompt_readonly == 1 ]]; then
+if [[ $_ws_prompt_readonly_requested == 1 && -z $_ws_late_prompt_readonly ]]; then
+    if (( BASH_VERSINFO[0] < 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 1) )); then
+        # Bash before 5.1 runs only the first PROMPT_COMMAND array element.
+        _ws_site_prompt_commands=()
+        for _ws_prompt_item in "${PROMPT_COMMAND[@]}"; do
+            [[ $_ws_prompt_item == _ws_prompt || $_ws_prompt_item == _ws_prompt_restore ]] && continue
+            _ws_site_prompt_commands+=("$_ws_prompt_item")
+        done
+        PROMPT_COMMAND=_ws_prompt_legacy
+    elif [[ -z $_ws_prompt_hook_present ]]; then
+        PROMPT_COMMAND=(_ws_prompt "${PROMPT_COMMAND[@]}" _ws_prompt_restore)
+    fi
+    PS1=$_ws_workspace_prompt_template
+    _ws_prompt_template=$PS1 _ws_prompt_applied=$PS1
+    builtin readonly PROMPT_COMMAND
+elif [[ -z $_ws_prompt_hook_present && $_ws_late_prompt_readonly == 1 ]]; then
     _ws_prompt
     _ws_result=''
     PS1=$_ws_workspace_prompt_template
@@ -184,4 +242,4 @@ else
     # still owns prompt refreshes.
     _ws_prompt_template=$PS1 _ws_prompt_applied=$PS1
 fi
-unset _ws_late_prompt_readonly _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item
+unset _ws_prompt_readonly_requested _ws_late_prompt_readonly _ws_readonly_line _ws_prompt_hook_present _ws_prompt_item

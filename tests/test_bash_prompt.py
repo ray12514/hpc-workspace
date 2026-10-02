@@ -73,6 +73,44 @@ class PromptStartupTests(unittest.TestCase):
                 os.waitpid(child, 0)
                 os.close(master)
 
+    def test_late_readonly_compound_hook_keeps_workspace_label(self):
+        with tempfile.TemporaryDirectory(prefix='ws-compound-prompt-') as temporary:
+            root = Path(temporary)
+            home = root / 'home'
+            personal = home / '.config/hpc-workspace'
+            personal.mkdir(parents=True)
+            (personal / 'bashrc').write_text(
+                "PROMPT_COMMAND='PS1=\"SITE> \"; printf \"SITE_HOOK\\n\"'\n"
+                "readonly PROMPT_COMMAND\n")
+            (root / 'state').mkdir()
+            environment = {'PATH': '/usr/bin:/bin', 'HOME': str(home),
+                           'TERM': 'xterm-256color', 'WS_COLOR': '256',
+                           'WS_GIT_PROMPT': '0', 'WS_LAYOUT': 'thin-v1',
+                           'WS_ROOT': str(TOOL_ROOT), 'WS_SITE': 'fixture',
+                           'WS_CONTEXT': 'login', 'WS_HOSTNAME': 'test-node',
+                           'WS_STATE_HOME': str(root / 'state')}
+            child, master = pty.fork()
+            if child == 0:
+                os.execve('/bin/bash', ['bash', '--noprofile', '--rcfile',
+                                         str(BASHRC), '-i'], environment)
+            try:
+                initial = self.read_prompt(master, (b'$ ', b'SITE> '))
+                self.assertNotIn(b'PROMPT_COMMAND: readonly variable', initial)
+                self.assertIn(b'SITE_HOOK', initial)
+                self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
+                os.write(master, b'cd /tmp\n')
+                moved = self.read_prompt(master, (b'$ ', b'SITE> '))
+                self.assertIn(b'SITE_HOOK', moved)
+                self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
+                os.write(master, b'type -t readonly; readonly -p | grep -q PROMPT_COMMAND && echo PROMPT_READONLY\n')
+                state = self.read_prompt(master, (b'$ ', b'SITE> '))
+                self.assertIn(b'builtin', state)
+                self.assertIn(b'PROMPT_READONLY', state)
+            finally:
+                os.kill(child, signal.SIGKILL)
+                os.waitpid(child, 0)
+                os.close(master)
+
     @unittest.skipUnless(Path('/workspace-tools/thin-shell').is_file(), 'thin image only')
     def test_site_prompt_and_module_survive_workspace_shell_startup(self):
         with tempfile.TemporaryDirectory(prefix='ws-site-prompt-') as temporary:
