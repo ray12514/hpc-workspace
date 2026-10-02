@@ -14,7 +14,8 @@ try:
         'Enter'],check=True)
     deadline=time.monotonic()+10
     while time.monotonic()<deadline and not (project/'job-env-ready').exists(): time.sleep(.1)
-    assert (project/'job-env-ready').exists()
+    assert (project/'job-env-ready').exists(), subprocess.check_output(
+        base+['capture-pane','-p','-S','-80','-t',name+':workspace'],text=True)
     # Run the actual terminal applications with plain-font defaults.
     subprocess.run(['git','init','-q',str(project)],check=True)
     subprocess.run(base+['select-window','-t',name+':agents'],check=True)

@@ -24,6 +24,8 @@ The repo's recommendation selects the version, so use `git pull --ff-only` befor
 
 Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory in a local reproduction. The fallback omits the workspace Git branch and exit-status decorations. The error still occurs on a reported RHEL system, so that release is not a confirmed fix for that site.
 
+**0.7.3-preview3** addresses the reproduced cause: zoxide's Bash initialization also writes `PROMPT_COMMAND`. Normal `ws enter` and managed windows now prepare the site's module functions and prompt hook in a short-lived Bash, then start the final workspace Bash with the site hook retained and writable. The workspace restores its prompt after the site hook runs. The packaged image passes a synthetic site hook that both makes `PROMPT_COMMAND` read-only and replaces `PS1`; the affected RHEL system still needs a fresh-session check. From the native shell, update with `git pull --ff-only && ./setup`, then start a **new** `ws enter`. An existing tmux server keeps its original image.
+
 To isolate where startup is happening on the affected system, run these three commands **one at a time from a native shell**, outside `ws enter` or `ws session`, after updating this checkout with `git pull --ff-only`. Each starts a fresh Bash, prints a distinct marker, and exits. They do not print the API key or the value of `PROMPT_COMMAND`; a site startup file might print other local details, so redact those before sharing output.
 
 ```bash
@@ -53,7 +55,7 @@ type -t module
 
 Run this inside `ws enter` on the affected and working systems. If the affected shell reports a writable hook, or the new image still lacks its label, save the exact startup error and the check's output locally for comparison. The command above does not print a key or the hook's value. Start a new workspace after updating; attaching an existing server returns to its original image.
 
-In the read-only fallback, `hook=missing` is expected because Bash will not let the workspace add a hook. To check why the label is absent **inside an interactive `ws enter` shell**, run:
+In the 0.7.3-preview2 read-only fallback, `hook=missing` is expected because Bash will not let the workspace add a hook. In a fresh 0.7.3-preview3 `ws enter`, the site and workspace hooks should both be present. To check why the label is absent **inside an interactive `ws enter` shell**, run:
 
 ```bash
 declare -F _ws_prompt >/dev/null && echo prompt_function=present || echo prompt_function=missing

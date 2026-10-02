@@ -1,5 +1,13 @@
 # Workspace validation
 
+## RHEL prompt startup correction: 0.7.3-preview3
+
+On 2026-10-02, the operator reported that the published 0.7.3-preview2 image still printed `PROMPT_COMMAND: readonly variable` on a RHEL system. A clean workspace Bash did not print it, but the workspace Bash rcfile did. In an interactive workspace, the release and thin layout were correct, `_ws_prompt` and its label existed, and `PS1` no longer contained the workspace prompt template. The corrected native-shell diagnostic reproduced the error and reported `WS_TRACE /workspace-tools/config/bashrc:155`; the shipped file has 118 physical lines. A local trace reproduced the same generated-code line number when zoxide 0.10.0 wrote the site's read-only prompt variable.
+
+The regression test now includes packaged zoxide. It failed against the 0.7.3-preview2 Bash configuration and passed after the zoxide fallback was corrected. A second PTY regression launches the normal `thin-shell` with a synthetic site initializer that defines a module function, makes `PROMPT_COMMAND` read-only, and resets `PS1` at each prompt. The new startup preserved the site's hook and module helper, kept `z` available, displayed the colored `ws:fixture login@test-node` label, and updated the directory after `cd`. The test also passed inside the newly built 0.7.3-preview3 Docker image without source-file bind mounts. Separate image checks preserved a read-only prompt array and the no-module case.
+
+The exported 0.7.3-preview3 candidate SIF passed the complete offline Apptainer 1.5.3 integration suite: native paths and scheduler clients, module forwarding, packaged tools, locale behavior, editor and agent configuration, certificates, managed tmux routing and lifetime, the focused prompt test, and Inspector import. The dedicated host-capable Docker fixture passed the tmux window/editor/job-environment integration check. A direct run of that fixture against the scratch image lacked `/usr/bin/env` because it did not mount the host OS; it was not a product failure. No actual RHEL site file or credential was copied to this development machine. A fresh workspace on the affected system remains the confirmation step.
+
 ## Read-only site prompt hook: 0.7.3-preview2
 
 On 2026-10-01, a synthetic module initializer made `PROMPT_COMMAND` read-only before the workspace Bash rcfile ran. The published 0.7.3-preview1 image then printed `PROMPT_COMMAND: readonly variable` and displayed a prompt without the `ws:` identity, matching the operator's reported error on a second system. The operator's exact site initialization was not inspected.
