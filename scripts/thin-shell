@@ -3,6 +3,21 @@
 # attributes do not survive exec, so the final workspace Bash can keep the
 # site's prompt hook and compose its own prompt around it.
 exec /workspace-tools/bin/bash --noprofile --norc -ic '
+    # The editor window runs a command shell, then execs a fresh thin-shell
+    # when Neovim exits. That command shell has not drawn a prompt yet, so it
+    # can export our one-shot bootstrap hook. Restore the already serialized
+    # site hooks before a second preflight instead of preserving the bootstrap
+    # hook itself, which would source this rcfile recursively.
+    if [[ ${WS_SHELL_PREFLIGHT:-} == 1 && ${PROMPT_COMMAND:-} == _ws_initial_prompt ]]; then
+        PROMPT_COMMAND=()
+        if [[ ${WS_SITE_PROMPT_COUNT:-} =~ ^[0-9]+$ ]] && (( WS_SITE_PROMPT_COUNT <= 128 )); then
+            for ((_ws_prior_index=0; _ws_prior_index<WS_SITE_PROMPT_COUNT; _ws_prior_index++)); do
+                _ws_prior_name="WS_SITE_PROMPT_$_ws_prior_index"
+                PROMPT_COMMAND+=("${!_ws_prior_name}")
+            done
+            unset _ws_prior_index _ws_prior_name
+        fi
+    fi
     if [[ ${WS_LAYOUT:-core} == thin-v1 ]] && ! declare -F module >/dev/null; then
         _ws_lmod=${LMOD_CMD:-/nonexistent}
         for _ws_module_init in "${MODULESHOME:-/nonexistent}/init/bash" "${_ws_lmod%/libexec/*}/init/bash" /etc/profile.d/lmod.sh /etc/profile.d/modules.sh; do

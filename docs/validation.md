@@ -6,6 +6,8 @@ The affected RHEL system ran the repository-only preview6 startup trial against 
 
 The candidate bypasses the packaged Bash binary's early `/etc/bashrc` read, then sources the site file with the workspace's narrow `readonly PROMPT_COMMAND` deferral active. A synthetic `/etc/bashrc` reproduced preview5's missing label and showed the label, site hook, and changing directory with the candidate. The local host suite passed 123 tests with nine platform skips before release preparation. The packaged image and bundle require their own validation below.
 
+During packaged SIF validation, a new editor-shell reentry case exposed an inherited one-shot bootstrap hook. The original image stalled before a prompt when a command shell executed a new `thin-shell`; a focused packaged test failed on that image and passed with the fix bind-mounted. The fixed path preserves the previously serialized, read-only site hook. The editor lifecycle test now waits for the new Bash prompt before sending input, and the prompt command test waits for command completion instead of a readline redraw.
+
 ## Compound read-only prompt hook: 0.7.3-preview5
 
 **Post-release finding:** The affected RHEL system reported that preview5 still lacked the label. Its safe stage photo showed `PROMPT_COMMAND` already read-only at the first line of the workspace Bash configuration, with one scalar command and no deferred/readable workspace hook at any later stage. A packaged Bash binary inspection found `/etc/bashrc` in its compiled startup paths. A synthetic `/etc/bashrc` that made the hook read-only reproduced the user's exact visible failure against preview5. The preview6 candidate and affected-system trial are recorded above.

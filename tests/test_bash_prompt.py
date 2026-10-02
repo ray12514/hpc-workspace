@@ -34,6 +34,22 @@ class PromptStartupTests(unittest.TestCase):
         self.assertTrue(any(marker in output for marker in markers), output)
         return bytes(output)
 
+    def read_completed_command(self, master, marker):
+        output = bytearray()
+        deadline = time.monotonic() + 10
+        line = re.compile(rb'(?m)(?:^|\r)' + re.escape(marker) + rb'\r?\n')
+        while time.monotonic() < deadline:
+            if select.select([master], [], [], .2)[0]:
+                try:
+                    output.extend(os.read(master, 65536))
+                except OSError as exc:
+                    if exc.errno != errno.EIO:
+                        raise
+                    break
+                if line.search(bytes(output)):
+                    return bytes(output)
+        self.fail('Prompt command did not finish: ' + repr(bytes(output[-500:])))
+
     def test_readonly_site_prompt_command_keeps_workspace_label(self):
         with tempfile.TemporaryDirectory(prefix='ws-prompt-') as temporary:
             root = Path(temporary)
@@ -102,8 +118,8 @@ class PromptStartupTests(unittest.TestCase):
                 moved = self.read_prompt(master, (b'$ ', b'SITE> '))
                 self.assertIn(b'SITE_HOOK', moved)
                 self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
-                os.write(master, b'type -t readonly; readonly -p | grep -q PROMPT_COMMAND && echo PROMPT_READONLY\n')
-                state = self.read_prompt(master, (b'$ ', b'SITE> '))
+                os.write(master, b'type -t readonly; readonly -p | grep -q PROMPT_COMMAND && echo PROMPT_READONLY; printf "__WS_STATE_DONE__\\n"\n')
+                state = self.read_completed_command(master, b'__WS_STATE_DONE__')
                 self.assertIn(b'builtin', state)
                 self.assertIn(b'PROMPT_READONLY', state)
             finally:
@@ -182,6 +198,40 @@ class PromptStartupTests(unittest.TestCase):
                 os.write(master, b'cd /tmp\n')
                 moved = self.read_prompt(master, (b'$ ', b'SITE> '))
                 self.assertIn(b'ws:fixture login@test-node  /tmp', ANSI.sub(b'', moved))
+            finally:
+                os.kill(child, signal.SIGKILL)
+                os.waitpid(child, 0)
+                os.close(master)
+
+    @unittest.skipUnless(Path('/workspace-tools/thin-shell').is_file(), 'thin image only')
+    def test_command_shell_execs_a_fresh_workspace_prompt(self):
+        with tempfile.TemporaryDirectory(prefix='ws-shell-reentry-') as temporary:
+            root = Path(temporary)
+            init = root / 'modules/init'
+            init.mkdir(parents=True)
+            (init / 'bash').write_text(
+                "PROMPT_COMMAND='printf \"SITE_HOOK\\n\"'\n"
+                "readonly PROMPT_COMMAND\nmodule() { :; }\n")
+            (root / 'home').mkdir()
+            (root / 'state').mkdir()
+            environment = {'PATH': '/workspace-tools/bin:/usr/bin:/bin',
+                           'HOME': str(root / 'home'), 'TERM': 'xterm-256color',
+                           'WS_COLOR': 'never', 'WS_GIT_PROMPT': '0',
+                           'WS_LAYOUT': 'thin-v1', 'WS_ROOT': '/workspace-tools',
+                           'WS_SITE': 'fixture', 'WS_CONTEXT': 'login',
+                           'WS_HOSTNAME': 'test-node', 'WS_STATE_HOME': str(root / 'state'),
+                           'MODULESHOME': str(root / 'modules'), 'LMOD_CMD': '/nonexistent'}
+            child, master = pty.fork()
+            if child == 0:
+                os.execve('/workspace-tools/thin-shell',
+                          ['thin-shell', '-c', 'exec /workspace-tools/thin-shell'], environment)
+            try:
+                initial = self.read_prompt(master)
+                self.assertIn(b'ws:fixture login@test-node', ANSI.sub(b'', initial))
+                self.assertIn(b'SITE_HOOK', initial)
+                os.write(master, b'printf "REENTRY_OK\\n"\n')
+                output = self.read_completed_command(master, b'REENTRY_OK')
+                self.assertNotIn(b'PROMPT_COMMAND: readonly variable', output)
             finally:
                 os.kill(child, signal.SIGKILL)
                 os.waitpid(child, 0)
