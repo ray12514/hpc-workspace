@@ -51,6 +51,27 @@ class WorkspaceDiagnosticTests(unittest.TestCase):
                                  hook='PROMPT_COMMAND=(_ws_prompt_restore)')
         self.assertEqual(facts['prompt_hook'], 'missing')
 
+    def test_classifies_readonly_compound_hook_without_exposing_it(self):
+        facts = self.run_fixture('SITE> ', hook=(
+            "PROMPT_COMMAND='PS1=PRIVATE_SITE_PROMPT; echo PRIVATE_HOOK_VALUE'\n"
+            "readonly PROMPT_COMMAND"))
+        self.assertEqual(facts['prompt_command'], 'readonly')
+        self.assertEqual(facts['prompt_storage'], 'scalar')
+        self.assertEqual(facts['prompt_element_count'], '1')
+        self.assertEqual(facts['prompt_element_shapes'], 'command')
+        self.assertNotIn('PRIVATE_HOOK_VALUE', str(facts))
+        self.assertNotIn('PRIVATE_SITE_PROMPT', str(facts))
+
+    def test_classifies_array_function_hook(self):
+        facts = self.run_fixture('SITE> ', hook=(
+            "site_prompt() { PS1='SITE> '; }\n"
+            "PROMPT_COMMAND=(_ws_prompt site_prompt)\n"
+            "readonly PROMPT_COMMAND"))
+        self.assertEqual(facts['prompt_storage'], 'array')
+        self.assertEqual(facts['prompt_element_count'], '2')
+        self.assertEqual(facts['prompt_element_shapes'], 'function,function')
+        self.assertEqual(facts['prompt_function_references_ps1'], 'yes')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -61,6 +61,11 @@ def workspace_command(path):
         "[[ ${PS1:-} == *'${_ws_label}'* ]] && echo prompt_template=workspace || echo prompt_template=other",
         "[[ ${_ws_label+x} == x ]] && echo prompt_label_value=set || echo prompt_label_value=unset",
         "readonly -p | grep -Eq '^declare -[[:alpha:]]*r[[:alpha:]]* PROMPT_COMMAND(=|$)' && echo prompt_command=readonly || echo prompt_command=writable",
+        # Describe the hook's structure without printing the hook itself. This
+        # distinguishes the single-function case supported by preview4 from a
+        # multi-command site hook that needs a different prompt integration.
+        "_ws_diag_decl=$(declare -p PROMPT_COMMAND 2>/dev/null || :); if [[ -z $_ws_diag_decl ]]; then _ws_diag_storage=unset; elif [[ $_ws_diag_decl =~ ^declare\\ -[[:alpha:]]*[aA] ]]; then _ws_diag_storage=array; else _ws_diag_storage=scalar; fi; printf 'prompt_storage=%s\\n' \"$_ws_diag_storage\"",
+        "_ws_diag_shapes=''; _ws_diag_count=0; _ws_diag_ps1=no; for _ws_diag_item in \"${PROMPT_COMMAND[@]}\"; do _ws_diag_count=$((_ws_diag_count + 1)); if [[ -z $_ws_diag_item ]]; then _ws_diag_shape=empty; elif [[ $_ws_diag_item =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] && declare -F \"$_ws_diag_item\" >/dev/null; then _ws_diag_shape=function; _ws_diag_def=$(declare -f \"$_ws_diag_item\"); [[ $_ws_diag_def == *PS1* ]] && _ws_diag_ps1=yes; else _ws_diag_shape=command; fi; _ws_diag_shapes=${_ws_diag_shapes:+${_ws_diag_shapes},}${_ws_diag_shape}; done; printf 'prompt_element_count=%s\\n' \"$_ws_diag_count\"; printf 'prompt_element_shapes=%s\\n' \"${_ws_diag_shapes:-none}\"; printf 'prompt_function_references_ps1=%s\\n' \"$_ws_diag_ps1\"",
         "[[ -f ${HOME}/.config/hpc-workspace/bashrc ]] && echo personal_bashrc=present || echo personal_bashrc=missing",
         "[[ ${NO_COLOR+x} == x || ${WS_COLOR:-auto} == never || ${TERM:-dumb} == dumb ]] && echo prompt_color=disabled || echo prompt_color=eligible",
         "printf 'ssh_kind=%s\\n' \"$(type -t ssh 2>/dev/null || echo missing)\"",
@@ -125,7 +130,9 @@ def workspace_facts(path, timeout=50):
             key = key.decode('ascii', 'ignore')
             if key in ('release', 'layout', 'container', 'uid', 'interactive',
                        'prompt_function', 'prompt_hook', 'prompt_bridge', 'prompt_template',
-                       'prompt_label_value', 'prompt_command', 'personal_bashrc',
+                       'prompt_label_value', 'prompt_command', 'prompt_storage',
+                       'prompt_element_count', 'prompt_element_shapes',
+                       'prompt_function_references_ps1', 'personal_bashrc',
                        'prompt_color', 'ssh_kind', 'ssh_path', 'scp_kind',
                        'scp_path', 'ssh_config_owner'):
                 facts[key] = safe(value.decode('utf-8', 'replace').strip())
@@ -177,7 +184,9 @@ def main(argv=None):
     print('workspace_entry=ok', flush=True)
     for name in ('visible_label', 'release', 'layout', 'container', 'uid',
                  'interactive', 'prompt_function', 'prompt_hook', 'prompt_bridge', 'prompt_template',
-                 'prompt_label_value', 'prompt_command', 'personal_bashrc',
+                 'prompt_label_value', 'prompt_command', 'prompt_storage',
+                 'prompt_element_count', 'prompt_element_shapes',
+                 'prompt_function_references_ps1', 'personal_bashrc',
                  'prompt_color', 'ssh_kind', 'ssh_path', 'scp_kind', 'scp_path',
                  'ssh_config_owner'):
         if name in facts:
