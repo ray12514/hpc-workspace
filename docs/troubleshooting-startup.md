@@ -22,6 +22,16 @@ The repo's recommendation selects the version, so use `git pull --ff-only` befor
 
 ## PROMPT_COMMAND is read-only or the workspace label is missing
 
+For the remaining missing `ws:` label on a fresh 0.7.3-preview3 shell, run this **once from a native shell in the repo checkout**. It enters and exits its own fresh interactive workspace, so you do not need to run a second block inside `ws enter`:
+
+```bash
+git pull --ff-only && python3 scripts/diagnose-workspace-entry.py
+```
+
+Paste its complete short report. It reports whether the actual interactive prompt displayed the workspace label, release/layout, prompt hook/template flags, and native versus workspace SSH executable and config-file ownership. It does not print the prompt text, site banner, SSH config contents, hook contents, or keys; it does not contact another machine. If `ssh_config_path=not_found`, rerun it with `--ssh-config /exact/path/from/the/scp/error`. It leaves existing tmux sessions alone. The error path might use either `/etc/ssh/config.d` or `/etc/ssh/ssh_config.d`.
+
+The thin layout bind-mounts the host `/etc` read-only. A file that OpenSSH rejects inside the workspace may have a different visible owner because of the site's container UID mapping, or the two shells may resolve different SSH clients. The report distinguishes those cases before changing any host file or SSH configuration. Until resolved, run `scp` from the native shell where it succeeds.
+
 Some sites initialize Bash modules with a read-only `PROMPT_COMMAND`. In 0.7.3-preview1, the workspace's attempt to add its prompt hook then printed `PROMPT_COMMAND: readonly variable` and left the `ws:SITE CONTEXT@NODE` label empty. **0.7.3-preview2** checks that attribute and uses a prompt fallback that retains the site hook, workspace label, color, and changing directory in a local reproduction. The fallback omits the workspace Git branch and exit-status decorations. The error still occurs on a reported RHEL system, so that release is not a confirmed fix for that site.
 
 **0.7.3-preview3** addresses the reproduced cause: zoxide's Bash initialization also writes `PROMPT_COMMAND`. Normal `ws enter` and managed windows now prepare the site's module functions and prompt hook in a short-lived Bash, then start the final workspace Bash with the site hook retained and writable. The workspace restores its prompt after the site hook runs. The packaged image passes a synthetic site hook that both makes `PROMPT_COMMAND` read-only and replaces `PS1`; the affected RHEL system still needs a fresh-session check. From the native shell, update with `git pull --ff-only && ./setup`, then start a **new** `ws enter`. An existing tmux server keeps its original image.
