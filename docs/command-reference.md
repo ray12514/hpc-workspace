@@ -28,7 +28,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 
 Use `ws sessions` from the native shell after a round-robin login to find [recorded session locations](session-locations.md). If still on 0.7.1, the updated repository's `./bin/ws sessions` can inspect its older records.
 
-The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, per-gateway CA paths, and rotation. The [native Codex guide](restricted-codex.md#save-once-load-on-demand) includes hidden key storage, a CA setup prompt, and an on-demand shell command for custom-header gateways. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
+The [gateway configuration guide](agent-profiles.md) covers multiple connections, private credentials, per-gateway CA paths, custom Codex headers, and rotation. The [native Codex guide](restricted-codex.md#save-once-load-on-demand) includes the separate single-key helper for an existing native configuration. Add `--plain` to a configuration command for basic prompts; native agent arguments follow `--`, as in `ws agent codex team-a -- --model MODEL`.
 
 ## Keyboard essentials
 

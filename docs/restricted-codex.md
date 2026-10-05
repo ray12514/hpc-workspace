@@ -1,6 +1,6 @@
 # Codex with a site-provided gateway configuration
 
-Keep the native configuration that already works on your system. **The 0.7 workspace form does not yet support your custom authentication header.** Its Codex adapter uses bearer authentication and rejects custom header overrides. Editing a form-managed `ws-NAME.config.toml` is therefore not a workaround for this setup.
+Keep the native configuration that already works on your system if it includes site-specific settings beyond the gateway connection. The named workspace form now accepts a custom credential header: run `ws configure codex team-a`, choose `custom-header`, and enter the exact header name. Each named profile keeps its own key and CA choice. Review any site policy or transport requirements before switching from a working native configuration; the form manages the endpoint, model, credential header, and CA path. [Named gateway profiles](agent-profiles.md) explain how to switch teams.
 
 Inside the workspace, use:
 
@@ -123,11 +123,10 @@ First confirm the version with `codex --version`. Then test a small approved, no
 
 ## Next form extension
 
-This is a **plan**, not functionality added by the 0.7.1/0.7.2 patches:
+The named Codex form now supports item 1. These further improvements remain planned:
 
-1. Add an explicit **custom header** authentication mode with an exact header name and a stored-key or environment-variable source. Keep rotation and endpoint/credential binding; never show the key in a preview.
-2. Add the required policy, model, transport, and CA controls with the values above visible. Preserve site settings and unrelated TOML instead of resetting them during a provider edit. Scope the CA choice to the launched process.
-3. Support importing a working native configuration for review. Display the resolved file and changed fields; leave unsupported constructs intact and explain them. Validate against the bundled client version, including removed options.
-4. Exercise save/cancel, two gateways, key rotation, existing configuration, and actual custom-header requests against a synthetic local gateway before shipping. Private site acceptance stays on the cluster.
+1. Add the required policy and transport controls with the values above visible. Preserve site settings and unrelated TOML instead of resetting them during a provider edit. The CA choice is already scoped to the launched process.
+2. Support importing a working native configuration for review. Display the resolved file and changed fields; leave unsupported constructs intact and explain them. Validate against the bundled client version, including removed options.
+3. Exercise the form against the private site gateway after the offline synthetic-gateway checks. Private site acceptance stays on the cluster.
 
 Skill activation is included starting with preview7. It preserves personal skills and does not change the chosen sandbox or approval policy. See [skills status](skills.md).

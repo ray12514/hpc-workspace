@@ -4,16 +4,18 @@ The workspace provides named gateway profiles for Codex and Pi. Create one with 
 
 ## Choose the protocol
 
-Codex profiles use an OpenAI Responses endpoint and a Bearer key. Pi profiles ask for an API protocol: OpenAI Responses, OpenAI Chat Completions, or Anthropic Messages. Choose the protocol implemented by the gateway, not the model's brand. Pi's credential header can be `Authorization: Bearer` or `x-api-key`. A URL change alone cannot translate between protocols. [Pi model configuration](https://pi.dev/docs/latest/models), [Pi custom providers](https://pi.dev/docs/latest/custom-provider)
+Codex profiles use an OpenAI Responses endpoint. Choose `bearer` for an `Authorization: Bearer` key or `custom-header` and enter the **exact** header name required by that gateway. Pi profiles ask for an API protocol: OpenAI Responses, OpenAI Chat Completions, or Anthropic Messages. Choose the protocol implemented by the gateway, not the model's brand. Pi's managed credential header can be `Authorization: Bearer` or `x-api-key`. A URL change alone cannot translate between protocols. [Official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference), [Pi model configuration](https://pi.dev/docs/latest/models), [Pi custom providers](https://pi.dev/docs/latest/custom-provider)
 
-The managed Codex form does not yet support custom HTTP headers. For a site configuration that requires one, use `ws-codex-native` and the [native Codex guide](restricted-codex.md). Pi's own `~/.pi/agent/models.json` can also define custom headers; use `ws agent pi --native` for a configuration outside the managed form. Pi can use `$HPC_GATEWAY_KEY` from `ws-codex-key-on` in a header value without copying the key into JSON.
+Use one named profile per gateway, such as `team-a` and `team-b`. Each has its own credential source and CA path. Selecting a profile loads only that key into the new agent process; it does not export a key into your workspace shell. `ws-codex-key-on/off` and `ws-codex-native` belong to the separate, single-key native Codex helper. They do not switch named profiles. Pi's own `~/.pi/agent/models.json` can define other custom headers; use `ws agent pi --native` for a Pi configuration outside the managed form.
 
 ## Launch and switch
 
 ```bash
 ws configure codex team-a
+ws configure codex team-b
 ws configure pi team-a
 ws agent codex team-a
+ws agent codex team-b
 ws agent pi team-a
 ws agent codex --list
 ws agent pi --list
@@ -38,7 +40,7 @@ For a gateway that needs a private or site CA, enter that gateway's readable PEM
 
 `WS_CONFIG_DIR`, `CODEX_HOME`, and `PI_CODING_AGENT_DIR` select alternate locations. New files and backups use mode 600. A stored key is a private plaintext file, not encryption or an OS keychain. Stored keys enter only the selected agent's child environment and do not appear in command arguments or the parent shell. An environment-backed profile stores only the variable name; that variable must already be available to the launching shell. Keep real keys out of the repository, chat, project templates, and shell history.
 
-The Pi provider entry references `$WS_SELECTED_PI_KEY`; the workspace supplies that variable only to the selected Pi process. If Pi has a stored credential for the same `ws-NAME` provider, remove it before using the workspace profile so it cannot take precedence. Pi's native `auth.json` may contain other provider credentials and remains untouched.
+The Codex provider entry references `WS_SELECTED_CODEX_KEY` through either `env_key` (Bearer) or `env_http_headers` (the chosen custom header). The Pi provider entry references `$WS_SELECTED_PI_KEY`; the workspace supplies that variable only to the selected Pi process. If Pi has a stored credential for the same `ws-NAME` provider, remove it before using the workspace profile so it cannot take precedence. Pi's native `auth.json` may contain other provider credentials and remains untouched.
 
 Choose **Rotate key** to replace a stored key without changing the endpoint or model. Choose **Edit connection** to change the protocol, credential source, or other managed fields. Direct changes to a managed provider require a review through the form before launch. Saved user and project agent settings otherwise remain in place. API calls and private acceptance results stay on the cluster.
 

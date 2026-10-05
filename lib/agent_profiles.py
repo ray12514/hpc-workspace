@@ -11,6 +11,7 @@ from config_documents import Document, commit, toml_module
 TOOLS = ('codex', 'pi')
 PI_APIS = ('openai-responses', 'openai-completions', 'anthropic-messages')
 PI_KEY_VARIABLE = 'WS_SELECTED_PI_KEY'
+CODEX_KEY_VARIABLE = 'WS_SELECTED_CODEX_KEY'
 
 
 def name_check(value):
@@ -44,6 +45,13 @@ def env_check(value):
         raise ValueError('Use an environment variable name such as TEAM_API_KEY')
     if value in (PI_KEY_VARIABLE, 'OPENAI_API_KEY', 'CODEX_API_KEY', 'ANTHROPIC_API_KEY'):
         raise ValueError('Use a distinct credential variable for this gateway, such as TEAM_API_KEY')
+
+
+def header_check(value):
+    if (not isinstance(value, str) or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", value)
+            or value.lower() in ('authorization', 'proxy-authorization', 'host', 'content-length',
+                                 'content-type', 'connection', 'transfer-encoding')):
+        raise ValueError('Enter the exact gateway credential header name, such as X-Access-Key')
 
 
 def ca_check(value):
@@ -107,7 +115,7 @@ def values(tool, name, native, secret):
                   'model': models[0].get('id', '') if models else '',
                   'api': provider.get('api', 'openai-responses')}
     result.update(source=secret.data.get('source', 'stored'), variable=secret.data.get('variable', ''),
-                  auth=secret.data.get('auth', 'bearer'))
+                  auth=secret.data.get('auth', 'bearer'), header=secret.data.get('header', ''))
     result['ca_bundle'] = secret.data.get('ca_bundle')
     return result
 
@@ -118,8 +126,11 @@ def candidate(tool, name, native, secret, changes, key=None):
     text_check(changes['model'])
     if changes['source'] not in ('stored', 'environment'):
         raise ValueError('Unknown credential source')
-    if changes['auth'] not in ('bearer', 'api-key') or (tool == 'codex' and changes['auth'] != 'bearer'):
+    allowed_auth = ('bearer', 'custom-header') if tool == 'codex' else ('bearer', 'api-key')
+    if changes['auth'] not in allowed_auth:
         raise ValueError('Unsupported authentication mode for this agent')
+    if tool == 'codex' and changes['auth'] == 'custom-header':
+        header_check(changes.get('header'))
     if tool == 'pi' and changes['api'] not in PI_APIS:
         raise ValueError('Choose a supported Pi API protocol')
     if changes['source'] == 'environment':
@@ -142,6 +153,8 @@ def candidate(tool, name, native, secret, changes, key=None):
         secret.data['ca_bundle'] = changes['ca_bundle']
     if tool == 'pi':
         secret.data['api'] = changes['api']
+    if tool == 'codex' and changes['auth'] == 'custom-header':
+        secret.data['header'] = changes['header']
     if tool == 'codex':
         provider_id = 'ws-' + name
         table = toml_module().table
@@ -150,10 +163,14 @@ def candidate(tool, name, native, secret, changes, key=None):
         providers = native.data.setdefault('model_providers', table())
         provider = providers.setdefault(provider_id, table())
         provider.update(name=name, base_url=changes['base_url'], wire_api='responses',
-                        env_key='WS_SELECTED_CODEX_KEY', requires_openai_auth=False)
-        for field in ('auth', 'experimental_bearer_token', 'http_headers', 'env_http_headers', 'query_params'):
+                        requires_openai_auth=False)
+        for field in ('auth', 'experimental_bearer_token', 'http_headers', 'env_http_headers', 'query_params', 'env_key'):
             if field in provider:
                 del provider[field]
+        if changes['auth'] == 'bearer':
+            provider['env_key'] = CODEX_KEY_VARIABLE
+        else:
+            provider['env_http_headers'] = {changes['header']: CODEX_KEY_VARIABLE}
     else:
         providers = native.data.setdefault('providers', {})
         if not isinstance(providers, dict):
@@ -200,6 +217,12 @@ def edit(form, tool, name=None):
         if tool == 'pi':
             proposed['api'] = form.choose('Gateway API protocol', list(PI_APIS), current['api'])
             proposed['auth'] = form.choose('Credential header', ['bearer', 'api-key'], current['auth'])
+        else:
+            proposed['auth'] = form.choose('Credential header', ['bearer', 'custom-header'], current['auth'])
+        if proposed['auth'] == 'custom-header':
+            proposed['header'] = form.text('Exact HTTP header name', current['header'], header_check)
+        else:
+            proposed['header'] = ''
         proposed['source'] = form.choose('Credential source', ['stored', 'environment'], current['source'])
     key = None
     if proposed['source'] == 'environment':
@@ -212,7 +235,7 @@ def edit(form, tool, name=None):
     candidate(tool, name, native, secret, proposed, key)
     profiles[name] = {'path': str(native.link), 'credential': str(secret.link)}
     form.note('Changes for ' + tool + '/' + name + ':')
-    for field in ('base_url', 'model', 'api', 'source', 'variable', 'auth', 'ca_bundle'):
+    for field in ('base_url', 'model', 'api', 'source', 'variable', 'auth', 'header', 'ca_bundle'):
         if current.get(field) != proposed.get(field):
             form.note('  {}: {} -> {}'.format(field, current.get(field) or '(unset)', proposed.get(field) or '(unset)'))
     form.note('  API key: ' + ('replaced (hidden)' if key is not None else 'retained / provided by environment'))
@@ -233,13 +256,21 @@ def load_profile(tool, name):
     if (data.get('schema_version') != 1 or data.get('tool') != tool or data.get('name') != name
             or data.get('base_url') != current['base_url']):
         raise ValueError('Gateway endpoint or credential binding changed; review it with ws configure ' + tool + ' ' + name)
-    if data.get('auth') not in ('bearer', 'api-key') or (tool == 'codex' and data['auth'] != 'bearer'):
+    allowed_auth = ('bearer', 'custom-header') if tool == 'codex' else ('bearer', 'api-key')
+    if data.get('auth') not in allowed_auth:
         raise ValueError('Unsupported gateway authentication mode')
     if tool == 'codex':
         provider = native.data.get('model_providers', {}).get('ws-' + name, {})
-        if (native.data.get('model_provider') != 'ws-' + name or provider.get('env_key') != 'WS_SELECTED_CODEX_KEY'
+        if data['auth'] == 'custom-header':
+            header_check(data.get('header'))
+            auth_matches = ('env_key' not in provider
+                            and provider.get('env_http_headers') == {data['header']: CODEX_KEY_VARIABLE})
+        else:
+            auth_matches = (provider.get('env_key') == CODEX_KEY_VARIABLE
+                            and 'env_http_headers' not in provider and 'header' not in data)
+        if (native.data.get('model_provider') != 'ws-' + name or not auth_matches
                 or provider.get('wire_api') != 'responses' or provider.get('requires_openai_auth') is not False
-                or any(field in provider for field in ('auth', 'experimental_bearer_token', 'http_headers', 'env_http_headers', 'query_params'))):
+                or any(field in provider for field in ('auth', 'experimental_bearer_token', 'http_headers', 'query_params'))):
             raise ValueError('Managed Codex authentication fields changed; review the gateway with ws configure codex ' + name)
     else:
         provider = native.data.get('providers', {}).get('ws-' + name, {})
@@ -299,9 +330,9 @@ def launch_profile(tool, arguments, environment):
         home = Path(environment.get('CODEX_HOME', str(Path.home() / '.codex'))).expanduser().resolve()
         if native.path != (home / ('ws-' + name + '.config.toml')).resolve():
             raise ValueError('CODEX_HOME changed; configure this gateway in the selected Codex home first')
-        for field in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL', 'WS_SELECTED_CODEX_KEY'):
+        for field in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL', CODEX_KEY_VARIABLE):
             environment.pop(field, None)
-        environment['WS_SELECTED_CODEX_KEY'] = key
+        environment[CODEX_KEY_VARIABLE] = key
         if 'ca_bundle' in credential:
             if credential['ca_bundle']:
                 environment['CODEX_CA_CERTIFICATE'] = credential['ca_bundle']

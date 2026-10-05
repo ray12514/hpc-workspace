@@ -1,5 +1,9 @@
 # Workspace validation
 
+## Named Codex custom-header gateways: 0.7.3-preview9
+
+The offline packaged-client fixture exercised two named Codex profiles, including a custom-header team profile against a local synthetic gateway. It confirmed the selected key reached only the chosen header, no Bearer header was sent, and a key from the other profile was not used. The plain form accepted an exact header name without echoing the hidden key. Existing Codex Bearer and Pi Bearer/`x-api-key` fixture routes still passed. Real site headers, gateway acceptance, and required policy settings remain cluster-local checks.
+
 ## Per-gateway Codex and Pi CA setup: 0.7.3-preview8
 
 The offline Linux configuration fixture used the packaged Codex 0.155.1 and Pi clients with a disposable home, a synthetic root CA, and a separately signed local HTTPS server. Each newly created gateway form saved a masked synthetic key and CA path. Both clients sent a request to the local server with their selected key when only the per-profile CA path was configured; the fixture did not export a site-only `SSL_CERT_FILE` or disable TLS verification. Profile switch tests confirmed that a selected CA replaces an inherited agent-specific path and that a blank CA choice returns to workspace defaults. Missing CA files stop the launch before an API call. The native Codex helper test confirmed that its saved key and CA path are present only in the child launch and do not alter the parent pane or curl CA settings. `scripts/test-configuration` and the targeted unit tests passed. No private gateway, cluster node, or real credential was used.
@@ -257,7 +261,7 @@ Date: **2026-09-25**. The shipped 0.7.1 wrapper reproduced a wrong-server failur
 - **Transfer bundle:** fresh installation from a skills-only home, reinstallation, entry using the remembered Apptainer executable without it on PATH, in-shell updates, and custom site-loaded startup files pass. Personal shell/editor configuration and existing skills survive.
 - **Publication:** all eight public assets match the tested filenames, sizes, and GitHub-recorded SHA-256 digests. The published tag points to the image's source commit. The publicly downloaded manifest matches the local bundle, with SHA-256 `6e6b76a9fef583b57dbe3f0a847eab1b24dbbc2fe350566ff7d3192312f449fe`. The actual `./setup --download-only` selects this recommendation, downloads/verifies the public manifest, source, and installer, and verifies the cached SIF.
 
-No target cluster, real gateway, private credential, Windows client, or live scheduler job was accessed. These runtime results use extracted SIFs; normal mounted-SIF execution and Kerberos behavior remain site-local checks. Session records do not move jobs or renew credentials. The custom-header Codex form and automatic thin-image skill activation remain outside this patch.
+No target cluster, real gateway, private credential, Windows client, or live scheduler job was accessed. These runtime results use extracted SIFs; normal mounted-SIF execution and Kerberos behavior remain site-local checks. Session records do not move jobs or renew credentials. The custom-header Codex form and automatic thin-image skill activation were outside that earlier patch and were added in later previews.
 
 ## Session locations and connection guides: repository update
 

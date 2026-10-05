@@ -59,12 +59,12 @@ print('CONTRAST_OK')
         assert not parameters & (fixed_colors | {2, 8}), 'Form overrides readable terminal colors: ' + repr(match[0])
 
 
-def create(tool, name, endpoint, key, auth='bearer', api='openai-responses', ca_bundle=None):
+def create(tool, name, endpoint, key, auth='bearer', api='openai-responses', ca_bundle=None, header=''):
     index = profiles.catalog()
     native, secret = profiles.documents(tool, name, index)
     profiles.candidate(tool, name, native, secret,
                        dict(base_url=endpoint, model='fixture-model', source='stored', variable='',
-                            auth=auth, api=api, ca_bundle=ca_bundle), key)
+                            auth=auth, api=api, ca_bundle=ca_bundle, header=header), key)
     index.data['profiles'][tool][name] = {'path': str(native.path), 'credential': str(secret.path)}
     commit([native, secret, index], os.environ['WS_CONFIG_DIR'])
     return native.path, secret.path
@@ -158,19 +158,33 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
                             [('API base URL:', b'https://plain-codex.example.invalid/v1\n'),
                              ('Model identifier', b'fixture-model\n'),
                              ('Agent CA bundle path', str(form_ca).encode() + b'\n'),
+                             ('Credential header', b'1\n'),
                              ('Credential source', b'1\n'), ('API key (hidden)', b'plain-codex-hidden-key\n'),
                              ('Save this profile', b'2\n')], dict(os.environ))
     assert code == 0
     assert b'plain-codex-hidden-key' not in output
     assert profiles.load_profile('codex', 'plain-codex')[1]['ca_bundle'] == str(form_ca)
+    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'codex', 'plain-team', '--plain'],
+                            [('API base URL:', b'https://plain-team.example.invalid/v1\n'),
+                             ('Model identifier', b'fixture-model\n'),
+                             ('Agent CA bundle path', b'\n'),
+                             ('Credential header', b'2\n'),
+                             ('Exact HTTP header name', b'X-Team-Key\n'),
+                             ('Credential source', b'1\n'), ('API key (hidden)', b'plain-team-hidden-key\n'),
+                             ('Save this profile', b'2\n')], dict(os.environ))
+    assert code == 0
+    assert b'plain-team-hidden-key' not in output
+    assert profiles.load_profile('codex', 'plain-team')[1]['header'] == 'X-Team-Key'
     if args.forms_only:
         print('PASS: terminal contrast, selection, typed/saved values, masked input, cancellation, and plain forms')
         raise SystemExit(0)
     captured = []
+    custom_captured = []
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
             self.rfile.read(int(self.headers.get('Content-Length', 0)))
             captured.append((self.path, self.headers.get('Authorization'), self.headers.get('x-api-key')))
+            custom_captured.append(self.headers.get('X-Team-Key'))
             self.send_response(401)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -215,6 +229,18 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
                     assert not bearer or expected not in bearer, 'Selected key leaked to a second header'
                 assert 'wrong' not in str((bearer, api_key)), 'Inherited credential reached the gateway'
             assert expected.encode() not in stdout + stderr, 'Credential appeared in agent output'
+        create('codex', 'team-custom', base + '/v1', 'synthetic-team-custom-key',
+               'custom-header', header='X-Team-Key')
+        captured.clear()
+        custom_captured.clear()
+        environment = dict(os.environ, WS_AGENT_PROFILE='team-custom', OPENAI_API_KEY='wrong-key')
+        child = subprocess.run([str(ROOT / 'bin/codex'), '--strict-config', 'exec',
+                                '--skip-git-repo-check', 'fixture request'], cwd=str(home),
+                               env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=45)
+        assert captured, 'No custom-header Codex request: ' + child.stderr.decode(errors='replace')[-1200:]
+        assert all(value == 'synthetic-team-custom-key' for value in custom_captured), custom_captured
+        assert all(not bearer for _, bearer, _ in captured), 'Custom-header profile sent bearer auth'
+        assert b'synthetic-team-custom-key' not in child.stdout + child.stderr
         # Rotation is observed by the next launch and does not alter the other profile.
         native, secret = profiles.documents('pi', 'one', profiles.catalog())
         old = native.path.read_bytes()

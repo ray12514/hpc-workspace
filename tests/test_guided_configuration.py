@@ -29,7 +29,7 @@ class ConfigTests(unittest.TestCase):
         context.start()
         self.addCleanup(context.stop)
 
-    def profile(self, name='alpha', tool='pi', source='stored', auth='bearer'):
+    def profile(self, name='alpha', tool='pi', source='stored', auth='bearer', header=''):
         if tool == 'codex':
             try:
                 toml_module()
@@ -38,7 +38,7 @@ class ConfigTests(unittest.TestCase):
         index = agents.catalog()
         native, key = agents.documents(tool, name, index)
         proposed = dict(base_url='https://' + name + '.example.invalid/v1', model='model-' + name,
-                        source=source, variable='TEAM_KEY', auth=auth, api='openai-responses')
+                        source=source, variable='TEAM_KEY', auth=auth, header=header, api='openai-responses')
         agents.candidate(tool, name, native, key, proposed, 'synthetic-' + name)
         index.data['profiles'][tool][name] = {'path': str(native.path), 'credential': str(key.path)}
         commit([native, key, index], self.folder)
@@ -175,6 +175,38 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn('OPENAI_API_KEY', env)
         self.assertNotIn('synthetic-alpha', str(arguments))
         self.assertIsNone(overlay)
+
+    def test_codex_custom_header_is_bound_to_selected_profile(self):
+        self.profile(tool='codex', auth='custom-header', header='X-Team-Key')
+        self.profile(name='beta', tool='codex', auth='custom-header', header='X-Other-Team-Key')
+        args, env, _ = agents.launch_profile('codex', [], dict(self.env, WS_AGENT_PROFILE='alpha',
+                                                               OPENAI_API_KEY='wrong'))
+        self.assertEqual(args[:2], ['--profile', 'ws-alpha'])
+        self.assertEqual(env['WS_SELECTED_CODEX_KEY'], 'synthetic-alpha')
+        self.assertNotIn('OPENAI_API_KEY', env)
+        native, secret = agents.documents('codex', 'alpha', agents.catalog())
+        provider = native.data['model_providers']['ws-alpha']
+        self.assertEqual(provider['env_http_headers'], {'X-Team-Key': 'WS_SELECTED_CODEX_KEY'})
+        self.assertNotIn('env_key', provider)
+        self.assertEqual(secret.data['header'], 'X-Team-Key')
+        beta_native, beta_secret = agents.documents('codex', 'beta', agents.catalog())
+        self.assertEqual(beta_native.data['model_providers']['ws-beta']['env_http_headers'],
+                         {'X-Other-Team-Key': 'WS_SELECTED_CODEX_KEY'})
+        self.assertEqual(beta_secret.data['key'], 'synthetic-beta')
+        native.data['model_providers']['ws-alpha']['env_http_headers'] = {'X-Other': 'WS_SELECTED_CODEX_KEY'}
+        commit([native], self.folder)
+        with self.assertRaisesRegex(ValueError, 'authentication fields changed'):
+            agents.load_profile('codex', 'alpha')
+        agents.candidate('codex', 'alpha', native, secret,
+                         dict(agents.values('codex', 'alpha', native, secret), header='X-Team-Key'),
+                         'rotated-alpha')
+        commit([native, secret], self.folder)
+        self.assertEqual(agents.load_profile('codex', 'alpha')[2], 'rotated-alpha')
+        self.assertEqual(agents.load_profile('codex', 'beta')[2], 'synthetic-beta')
+        with self.assertRaisesRegex(ValueError, 'header name'):
+            agents.header_check('Authorization')
+        with self.assertRaisesRegex(ValueError, 'header name'):
+            agents.header_check('X-Bad\nName')
 
     def test_codex_ca_follows_selected_gateway_and_is_checked_at_launch(self):
         self.profile(tool='codex')
