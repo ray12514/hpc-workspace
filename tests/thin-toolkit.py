@@ -16,8 +16,11 @@ def run(command, **kwargs):
 
 assert os.environ.get('LC_TERMINAL') == 'fixture-terminal', 'Terminal metadata is not a locale setting'
 versions = json.loads(run(['ws', 'tools', '--json']).stdout)
+assert 'nvtop' in versions
+help_text = run(['nvtop', '--help'])
+assert 'usage' in (help_text.stdout + help_text.stderr).lower()
 for name in versions:
-    if name in ('bash', 'infocmp', 'tput', 'nvim'):
+    if name in ('bash', 'infocmp', 'tput', 'nvim', 'nvtop'):
         continue
     flag = '-V' if name in ('tmux', 'lnav') else '--version'
     result = run([name, flag])

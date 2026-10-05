@@ -53,6 +53,8 @@
         watchexec = pkgs.watchexec;
         hyperfine = pkgs.hyperfine;
         btop = pkgs.btop;
+        # Bundles the UI and AMD libdrm, but leaves vendor drivers on the node.
+        nvtop = pkgs.nvtopPackages.amd.override { nvidia = true; cudaSupport = false; };
         difft = pkgs.difftastic;
         htop = pkgs.htop;
         shellcheck = pkgs.shellcheck;
@@ -95,9 +97,9 @@
           fi
         }
         ${pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (name: pkg:
-          "harden ${pkg}/bin/${if name == "spf" then "superfile" else name} $out/${if builtins.elem name [ "nvim" "spf" "lazygit" "btop" "tldr" "uv" "lnav" ] then "libexec" else "bin"}/${name}") tools)}
+          "harden ${pkg}/bin/${if name == "spf" then "superfile" else name} $out/${if builtins.elem name [ "nvim" "spf" "lazygit" "btop" "nvtop" "tldr" "uv" "lnav" ] then "libexec" else "bin"}/${name}") tools)}
         ln -s /workspace-tools/thin-nvim $out/bin/nvim
-        for name in spf lazygit btop tldr uv lnav; do ln -s /workspace-tools/thin-app $out/bin/$name; done
+        for name in spf lazygit btop nvtop tldr uv lnav; do ln -s /workspace-tools/thin-app $out/bin/$name; done
         # curl's own RUNPATH can still admit host SSL libraries. Scope the
         # complete dependency path to lnav's loader, preserving LD_LIBRARY_PATH
         # for any native child program instead of rewriting that environment.

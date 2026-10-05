@@ -1,6 +1,6 @@
 # Install the integrated development environment
 
-The **0.7.3-preview7** thin release provides one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. It includes the expanded productivity toolkit, Codex and Pi, automatic activation of bundled Codex skills, a preconfigured Neovim bundle, explicit managed-session reconnect/stop commands, an on-demand native Codex key helper, and corrections for compound read-only prompt hooks and rootless SSH transfers. Site-local facts and results stay on the system.
+The **0.7.3-preview7** thin release provides one development shell, centrally built Nix tools and dotfiles, automated host filesystem/environment integration, and an offline install/update path. It includes the expanded productivity toolkit, Codex and Pi, automatic activation of bundled Codex skills, `nvtop` for GPU monitoring, a preconfigured Neovim bundle, explicit managed-session reconnect/stop commands, an on-demand native Codex key helper, and corrections for compound read-only prompt hooks and rootless SSH transfers. Site-local facts and results stay on the system.
 
 This page covers installation and lifecycle. After setup, follow the [daily workflow tutorial](daily-workflow.md) or use the [command reference](command-reference.md). The [documentation index](README.md) separates current user guides from historical releases and design notes.
 

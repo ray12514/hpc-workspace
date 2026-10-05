@@ -10,7 +10,7 @@ The thin preview packages these defaults centrally. New shells use the selected 
 | --- | --- |
 | History, navigation, search | Bash, fzf (Ctrl-R history, Ctrl-T paths, Alt-C directories), fd, ripgrep, zoxide (`z project`), eza (`ll`) |
 | Read and review | bat, less, delta, lazygit; `difft old.c new.c` for an explicit structural comparison |
-| Files, logs, processes | `spf .` (Superfile with ordinary fonts), `ncdu -rr -x .`, `lnav application.log`, htop, btop |
+| Files, logs, processes | `spf .` (Superfile with ordinary fonts), `ncdu -rr -x .`, `lnav application.log`, htop, btop, `nvtop` on allocated GPU nodes |
 | Project tasks | `just --list`, direnv, watchexec, hyperfine; environment loading, watches, and benchmarks are explicit choices |
 | Python and shell quality | uv, Ruff, ShellCheck, shfmt; uv defaults to using an available Python rather than downloading one |
 | Data | jq, Mike Farah's `yq`, Miller (`mlr`) |
@@ -104,6 +104,19 @@ pi --version
 Slurm's `salloc` grants resources but may still run its command on the submitting node; follow the site's procedure for starting the actual compute-node step. Slurm commonly exports the caller's environment. A stale `WS_CONTAINER` variable alone is now insufficient to block a new `ws enter` when the image files are absent. These safeguards are tested with synthetic transitions, not a live HPCMP scheduler. [Slurm salloc](https://slurm.schedmd.com/salloc.html), [Slurm srun](https://slurm.schedmd.com/srun.html)
 
 Install the release on a persistent filesystem available to the compute nodes. The compute node needs access to the SIF, launcher, project, home, and its own Apptainer installation. `ws enter` discovers the trees on that node. Detaching login-node tmux preserves the client connection while that node/session survives; walltime limits, cancellation, and node cleanup still end jobs. A compute-node tmux server lasts only as long as that allocation and the site's process rules permit.
+
+## GPU monitoring
+
+On a node where your scheduler allocation gives you GPU access, enter with the matching Apptainer integration and run the packaged monitor:
+
+```bash
+ws enter --gpu cuda   # NVIDIA node; use --gpu rocm on an AMD node
+nvtop
+```
+
+`nvtop` draws a terminal dashboard for GPUs and processes. The image carries its interface and the open libdrm library used for AMD's kernel interface. It does not carry NVIDIA's proprietary NVML driver library; Apptainer's `--nv` option exposes that library from the node. For AMD, `--rocm` exposes the relevant GPU devices, while libdrm reads the host kernel's DRM and sysfs interfaces. A usable device, permissions, and the driver must exist on the allocated node. An empty monitor on a login node does not establish a packaging failure. See [nvtop's GPU support and build requirements](https://github.com/Syllo/nvtop#gpu-support).
+
+The image tests check that `nvtop` starts and prints help in a CPU-only fixture. Actual NVIDIA and AMD telemetry must be checked on allocated site nodes; the public test cannot simulate the site's driver stack or scheduler policy.
 
 ## AI setup and local checks
 
