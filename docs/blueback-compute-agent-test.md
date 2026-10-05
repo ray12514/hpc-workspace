@@ -48,7 +48,7 @@ For route B, supply the **same working credential variable and CA path** before
 allocation/entry. Use your existing private credential helper, or this Bash
 block. It asks for the variable name from the working TOML (`env_key` or
 `env_http_headers`), a readable PEM path, and the key with hidden input. It
-exports the key and both CA variables without writing a key to a file or shell
+exports the key and Codex-specific CA variable without writing a key to a file or shell
 history. An existing nonempty key in that shell is reused. Tracing stays off.
 
 ```bash
@@ -71,8 +71,7 @@ cse_export_codex_access() {
   export "$cse_key_name"
   export CSE_CODEX_KEY_NAME="$cse_key_name"
   export CODEX_CA_CERTIFICATE="$cse_ca_path"
-  export SSL_CERT_FILE="$cse_ca_path"
-  printf 'API-key variable exported; both CA variables set. Values were not printed.\n'
+  printf 'API-key variable exported; Codex CA path set. Values were not printed.\n'
 }
 cse_export_codex_access
 ```
@@ -212,10 +211,10 @@ Inside the resulting compute workspace:
   id
   if [[ -n ${CSE_CODEX_KEY_NAME:-} ]]; then
     [[ -n ${!CSE_CODEX_KEY_NAME:-} ]] || { printf 'STOP: API-key export is missing.\n' >&2; exit 2; }
-    test -r "${CODEX_CA_CERTIFICATE:-}" && test -r "${SSL_CERT_FILE:-}" || {
-      printf 'STOP: exported CA paths are not readable on compute.\n' >&2; exit 2;
+    test -r "${CODEX_CA_CERTIFICATE:-}" || {
+      printf 'STOP: exported Codex CA path is not readable on compute.\n' >&2; exit 2;
     }
-    printf 'CREDENTIAL_EXPORTS_OK (key present, CA paths readable)\n'
+    printf 'CREDENTIAL_EXPORTS_OK (key present, Codex CA path readable)\n'
   fi
   ws agent codex --native -- --version
   printf 'COMPUTE_WORKSPACE_OK\n'
@@ -247,8 +246,10 @@ If you normally use a named gateway, use that same name in place of `--native`.
 A returned model response tests gateway access; `--version` alone does not.
 If authentication or streaming fails here, preserve the error locally and
 compare the existing credential, readable CA path and site network policy.
-Current Codex supports `CODEX_CA_CERTIFICATE`, falling back to `SSL_CERT_FILE`;
-retain the setup already working with your installed version. See
+Current Codex supports `CODEX_CA_CERTIFICATE`, falling back to `SSL_CERT_FILE`.
+The block above uses the Codex-specific setting so it does not change curl or
+Git trust for native downloads. Retain any site-wide CA setup that already
+works with your installed version. See
 [Codex authentication](https://learn.chatgpt.com/docs/auth#custom-ca-bundles)
 and [the workspace's native configuration guide](restricted-codex.md).
 

@@ -83,6 +83,20 @@ ws-codex-native
 
 `CODEX_CA_CERTIFICATE` selects a PEM CA bundle; Codex falls back to `SSL_CERT_FILE` when it is absent. Set the path before launch. A persistent, non-secret path can go in your personal workspace Bash settings if appropriate. The certificate must be readable on both login and compute nodes. See [OpenAI authentication and custom CA bundles](https://learn.chatgpt.com/docs/auth#custom-ca-bundles).
 
+### Keep native downloads on the system trust store
+
+For a CA needed only by Codex, export **only** `CODEX_CA_CERTIFICATE` in your personal workspace Bash settings. Do not also point `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, or `REQUESTS_CA_BUNDLE` at a site-only certificate file in login startup files. Those broader settings can replace the trust bundle used by OpenSSL, curl, or Python Requests; a file containing only the gateway CA may then break `curl` or `git pull` to other hosts. `NODE_EXTRA_CA_CERTS` adds certificates for Node rather than configuring Codex's own connection, so it is not needed for this Codex setup.
+
+If native HTTPS worked before those exports, remove the broad exports from the login startup file and clear them in the **current native shell** before retrying:
+
+```bash
+unset SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE NODE_EXTRA_CA_CERTS
+```
+
+Leave `CODEX_CA_CERTIFICATE` set for Codex. Open a new native login shell to confirm the startup file no longer restores the broad overrides. Then retry the normal workspace download without disabling certificate verification. If curl still fails, check for other site or Git CA overrides before changing the system certificate store.
+
+A site-approved combined bundle containing the relevant system and gateway CAs is an option when a broader override is genuinely required. Prefer the CA store and bundle supplied for **that machine**; a bundle copied from another cluster may omit this system's proxy or site issuer. The custom CA file must be PEM with one or more certificate blocks, and the named path must be readable where Codex runs. A gateway certificate is trust material, not a client private key.
+
 ### Keep the CA setting across workspace shells
 
 Inside the workspace, open your personal Bash settings:
