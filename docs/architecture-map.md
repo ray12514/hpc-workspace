@@ -1,6 +1,6 @@
 # Workspace architecture map
 
-This map describes the **0.7.3-preview6 thin workspace**. The native Linux host starts Apptainer and owns the files and processes outside it. The image supplies the workspace tools and shell defaults. Your home, project, and site programs remain live host resources.
+This map describes the **0.7.3-preview7 thin workspace**. The native Linux host starts Apptainer and owns the files and processes outside it. The image supplies the workspace tools and shell defaults. Your home, project, and site programs remain live host resources.
 
 ## 1. Install and select a release
 
@@ -62,7 +62,9 @@ flowchart LR
 
 ## 4. Agents, settings, and credentials
 
-The agents window is a workspace Bash. `ws agent codex NAME` or `ws agent pi NAME` launches a selected managed gateway profile; `--native` uses the agent's own configuration. Managed profiles and private credential files live in your home directory, outside the image, so an update preserves them. A stored profile credential is added to the selected agent's child environment. For the site's custom-header Codex setup, [native Codex instructions](restricted-codex.md) use a hidden key-save helper and an explicit `ws-codex-key-on` command in the shell that starts Codex. A non-secret CA path can load from the personal workspace Bash file. Other panes and already-running agents do not inherit later environment changes. See [agent profiles](agent-profiles.md).
+The agents window is a workspace Bash. `ws agent codex NAME` or `ws agent pi NAME` launches a selected managed gateway profile; `--native` uses the agent's own configuration. Managed profiles and private credential files live in your home directory, outside the image, so an update preserves them. A stored profile credential is added to the selected agent's child environment. For the site's custom-header Codex setup, [native Codex instructions](restricted-codex.md) use a hidden key-save helper and `ws-codex-native` to load that key for one launch. A non-secret CA path can load from the personal workspace Bash file. Other panes and already-running agents do not inherit later environment changes. See [agent profiles](agent-profiles.md).
+
+On entry, the image snapshots bundled skills into your persistent home and links them under `~/.agents/skills`. This is independent of native Codex TOML. Personal skills at conflicting paths are preserved.
 
 ## Where to look or change something
 

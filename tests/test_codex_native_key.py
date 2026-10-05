@@ -48,6 +48,21 @@ class CodexNativeKeyTests(unittest.TestCase):
         self.file.symlink_to(link)
         self.assertNotEqual(self.bash('ws-codex-key-on').returncode, 0)
 
+    def test_native_launcher_scopes_key_to_agent(self):
+        self.assertEqual(self.bash('ws-codex-key-save', SYNTHETIC + '\n').returncode, 0)
+        launched = self.bash('''
+            export CODEX_CA_CERTIFICATE=/synthetic/site-ca.pem
+            ws() {
+                [[ $1 == agent && $2 == codex && $3 == --native ]] || return 3
+                [[ $HPC_GATEWAY_KEY == synthetic-test-secret ]] || return 4
+                [[ $CODEX_CA_CERTIFICATE == /synthetic/site-ca.pem ]] || return 5
+            }
+            ws-codex-native || exit
+            [[ -z ${HPC_GATEWAY_KEY+x} ]]
+        ''')
+        self.assertEqual(launched.returncode, 0, launched.stderr)
+        self.assertNotIn(SYNTHETIC, launched.stdout + launched.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

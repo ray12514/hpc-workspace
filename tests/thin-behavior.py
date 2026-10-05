@@ -38,6 +38,9 @@ print(json.dumps({'argv':sys.argv[1:], 'cwd':os.getcwd(), 'uid':os.getuid(),
     (project / 'sample.txt').write_text('a needle in shared data\n')
     (home / '.config/hpc-workspace').mkdir(parents=True)
     (home / '.config/hpc-workspace/nvim.lua').write_text('vim.g.fixture_custom = 123\n')
+    personal_skill = home / '.agents/skills/research'
+    personal_skill.mkdir(parents=True)
+    (personal_skill / 'SKILL.md').write_text('my own research skill\n')
     literal = 'literal$(touch SHOULD_NOT_EXIST); kept'
     env = dict(os.environ, HOME=str(home), TERM='xterm-256color', WS_CONFIG_DIR=str(home / '.config/hpc-workspace'),
                PATH=str(native) + ':' + os.environ['PATH'], PROJECT_INPUT=literal,
@@ -82,6 +85,11 @@ printf 'integration-passed\n'
 '''
     result = ws('enter', *common, '--', 'bash', '--noprofile', '--rcfile', '/workspace-tools/config/bashrc', '-ic', script, 'test', str(native))
     assert 'integration-passed' in result.stdout
+    skills = home / '.agents/skills'
+    assert (skills / 'codebase-design').is_symlink()
+    assert (skills / 'codebase-design/SKILL.md').is_file()
+    assert (home / '.local/share/hpc-workspace/skills') in (skills / 'codebase-design').resolve().parents
+    assert (personal_skill / 'SKILL.md').read_text() == 'my own research skill\n'
     assert 'cannot change locale' not in result.stderr, result.stderr
     expected = json.loads((project / 'native.json').read_text())
     assert expected['argv'] == ['argument with spaces']

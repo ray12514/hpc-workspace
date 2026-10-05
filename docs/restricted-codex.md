@@ -73,15 +73,13 @@ ws-codex-key-save
 
 The helper stores the key in `~/.config/hpc-workspace/credentials/native-codex.key`, with file mode 600 and directory mode 700. It never writes the key into the Bash settings, the repository, a command argument, or shell history. This hides entry from the terminal; it does not isolate the key from other processes running as your account. The file is plaintext and remains readable to your account and system administrators; use the site's approved secret manager instead if it requires one.
 
-In each **agents** shell where you want to start Codex, run the following. If that pane was already open before the CA path changed, first run `source "$HOME/.config/hpc-workspace/bashrc"` there once:
+In each **agents** shell where you want to start Codex, run one command. If that pane was already open before the CA path changed, first run `source "$HOME/.config/hpc-workspace/bashrc"` there once:
 
 ```bash
-ws-codex-key-on
-ws agent codex --native
-ws-codex-key-off
+ws-codex-native
 ```
 
-`ws-codex-key-on` exports `HPC_GATEWAY_KEY` into that shell, matching the example's `env_http_headers` variable. Set your native Codex provider's variable name to `HPC_GATEWAY_KEY` when using this helper. `ws-codex-key-off` removes it from that shell after Codex exits. A running agent and other existing tmux panes keep their own environments; opening a new pane loads the CA path automatically, but you still choose when to load the key. Do not print the variable or enable shell tracing while working with it.
+`ws-codex-native` loads the saved `HPC_GATEWAY_KEY` in a child shell and starts `ws agent codex --native`; the key is not left exported in the agents pane when Codex exits. Set your native Codex provider's `env_http_headers` variable name to `HPC_GATEWAY_KEY` when using this helper. The older `ws-codex-key-on`, `ws agent codex --native`, `ws-codex-key-off` sequence remains available if you need the key in that shell. A running agent and other existing tmux panes keep their own environments; opening a new pane loads the CA path automatically. Do not print the variable or enable shell tracing while working with it.
 
 `CODEX_CA_CERTIFICATE` selects a PEM CA bundle; Codex falls back to `SSL_CERT_FILE` when it is absent. Set the path before launch. A persistent, non-secret path can go in your personal workspace Bash settings if appropriate. The certificate must be readable on both login and compute nodes. See [OpenAI authentication and custom CA bundles](https://learn.chatgpt.com/docs/auth#custom-ca-bundles).
 
@@ -123,4 +121,4 @@ This is a **plan**, not functionality added by the 0.7.1/0.7.2 patches:
 3. Support importing a working native configuration for review. Display the resolved file and changed fields; leave unsupported constructs intact and explain them. Validate against the bundled client version, including removed options.
 4. Exercise save/cancel, two gateways, key rotation, existing configuration, and actual custom-header requests against a synthetic local gateway before shipping. Private site acceptance stays on the cluster.
 
-Skills are a separate follow-up. The thin image bundles skills but does not yet activate that bundle automatically; existing personal links may point to older snapshots. Add version visibility and persistent activation while preserving personal skills. Loading a skill must not change the chosen sandbox or approval policy. See [skills status](skills.md).
+Skill activation is included starting with preview7. It preserves personal skills and does not change the chosen sandbox or approval policy. See [skills status](skills.md).

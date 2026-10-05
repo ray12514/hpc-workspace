@@ -4,11 +4,11 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-**0.7.3-preview6** corrects the RHEL startup sequence that hid the workspace prompt when the site made `PROMPT_COMMAND` read-only before the workspace Bash configuration ran. The affected system's repository-only trial displayed the `ws:` label while retaining the site hook. The earlier SSH change is also confirmed there: `scp` works inside the workspace. This release includes the session controls, editor shell, Codex and Pi, and native Codex key helper. See the [startup troubleshooting guide](docs/troubleshooting-startup.md#prompt-command-is-read-only-or-the-workspace-label-is-missing), [session guide](docs/session-locations.md#reconnect-and-stop-controls), and [native Codex setup](docs/restricted-codex.md#save-once-load-on-demand).
+**0.7.3-preview7** activates the bundled agent skills for native Codex and adds `ws-codex-native` to load a saved gateway key for one Codex launch. Keep the CA bundle path in personal workspace Bash settings so new agent panes inherit it. This release retains the confirmed RHEL prompt and SSH fixes, session controls, editor shell, Codex, and Pi. See [skills](docs/skills.md), [native Codex setup](docs/restricted-codex.md#save-once-load-on-demand), and [session controls](docs/session-locations.md#reconnect-and-stop-controls).
 
 The thin workspace retains the 0.7.2 tmux routing fix and `ws sessions` location lookup, readable configuration forms, gateway profiles, remembered Apptainer setup, and CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm).
 
-[Install/update](docs/thin-start.md) · [Architecture map](docs/architecture-map.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview6)
+[Install/update](docs/thin-start.md) · [Architecture map](docs/architecture-map.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview7)
 
 ## Get the current release
 
@@ -82,16 +82,16 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.7.3-preview6
+scripts/build-thin 0.7.3-preview7
 scripts/docker-public build -f image/Apptainer.Dockerfile \
   -t hpc-workspace-apptainer:1.5.3 .
-scripts/export-thin 0.7.3-preview6
+scripts/export-thin 0.7.3-preview7
 # Prepare the public Linux acceptance fixture (Apptainer plus native Git).
 scripts/docker-public build --target native -f tests/ThinTools.Dockerfile \
   -t hpc-workspace-test-native:1.5.3 .
-scripts/test-thin dist/hpc-workspace-thin-0.7.3-preview6-linux-amd64.sif
-scripts/package-thin 0.7.3-preview6
-scripts/test-thin-install dist/release-0.7.3-preview6.json
+scripts/test-thin dist/hpc-workspace-thin-0.7.3-preview7-linux-amd64.sif
+scripts/package-thin 0.7.3-preview7
+scripts/test-thin-install dist/release-0.7.3-preview7.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.

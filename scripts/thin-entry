@@ -18,6 +18,7 @@ if sys.argv[1:2] == ['--import-profile']:
     sys.exit(0)
 
 from dotfiles import initialize
+from skill_activation import activate
 from tool_environment import apply_overrides
 
 release = (ROOT / 'manifests/release.txt').read_text().strip()
@@ -43,6 +44,7 @@ try:
     state.mkdir(parents=True, exist_ok=True)
     personal = home / '.config/hpc-workspace'
     initialize(ROOT / 'config/user', personal)
+    activate(ROOT / 'share/skills', home, release)
     # Keep old personal files usable on both core and thin releases. Readline's
     # old generated include is replaced in a per-release runtime copy only.
     inputrc = state / ('inputrc-' + release)

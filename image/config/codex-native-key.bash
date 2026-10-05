@@ -57,3 +57,11 @@ ws-codex-key-off() {
     unset HPC_GATEWAY_KEY
     printf 'Codex gateway key removed from this shell.\n'
 }
+
+# Load the saved key only for one native Codex launch. The parent pane keeps
+# its environment, so there is no cleanup step after the client exits.
+ws-codex-native() (
+    set +x
+    ws-codex-key-on >/dev/null || return
+    ws agent codex --native "$@"
+)
