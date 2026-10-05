@@ -8,6 +8,7 @@ These user guides describe the **0.7.3 thin workspace** and the repository's **`
 | Test Codex controlling a Blueback allocation or running inside it | [Compute-agent test: commands, placeholders and pass conditions](blueback-compute-agent-test.md) |
 | Continue CCE on compute after option B passes | [Clean up old node processes without reattaching, then resume Codex/CSE](blueback-compute-handoff.md) |
 | Install, update, transfer offline, or repair a missing `ws` | [Setup and startup](thin-start.md) |
+| See how setup, the host, image, sessions, and agents fit together | [Architecture map](architecture-map.md) |
 | Learn a complete working routine, with a practice project | [Daily workflow](daily-workflow.md) |
 | Look up a command or shortcut quickly | [Command reference](command-reference.md) |
 | Understand editor features, agents, tmux, and interactive allocations | [Editor and sessions](editor-and-agents.md) |

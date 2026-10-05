@@ -8,7 +8,7 @@ One centrally maintained development environment for Linux HPC systems. Build th
 
 The thin workspace retains the 0.7.2 tmux routing fix and `ws sessions` location lookup, readable configuration forms, gateway profiles, remembered Apptainer setup, and CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm).
 
-[Install/update](docs/thin-start.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview6)
+[Install/update](docs/thin-start.md) · [Architecture map](docs/architecture-map.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview6)
 
 ## Get the current release
 
