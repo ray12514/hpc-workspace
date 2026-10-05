@@ -1,5 +1,11 @@
 # Workspace validation
 
+## Skills, native Codex launch, and GPU monitor: 0.7.3-preview7
+
+The final committed preview7 SIF passed the complete offline Apptainer 1.5.3 integration suite, including automatic activation of bundled Codex skills while preserving a personal skill, `nvtop --help` in a CPU-only fixture, packaged agent/certificate tests, the RHEL read-only prompt regression, and managed tmux lifecycle. The matching bundle passed offline installation and reinstall checks. The published prerelease has eight assets; their GitHub-reported sizes and SHA-256 digests matched the local tested files. The manifest SHA-256 is `d23be042ee70f7ee16c1074e01ba85e803bb7667e21d03dd3d2393a6b8e26362`.
+
+The local Docker host initially ran out of space during repeated SIF extraction. After clearing unused older workspace Docker images, the full suite passed on Docker's Linux filesystem. NVIDIA and AMD telemetry were not tested against real site drivers or allocated GPUs; `nvtop` was only verified to start and print help. The custom-header gateway key launch was tested with a synthetic key, and site connectivity remains a site-local check.
+
 ## Site startup prompt correction: 0.7.3-preview6
 
 The affected RHEL system ran the repository-only preview6 startup trial against its installed preview5 workspace. The installed entry showed `actual_label=no`. The candidate entry completed and showed `candidate_visible_label=yes`, `candidate_prompt_hook=present`, `candidate_prompt_template=workspace`, and a read-only four-element prompt array with function, command, function, function shapes. After installing preview6, the operator confirmed that a fresh workspace entry showed the expected prompt. No site Bash files or credentials were copied for this check.

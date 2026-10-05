@@ -22,6 +22,7 @@ These user guides describe the **0.7.3 thin workspace** and the repository's **`
 | Configure agents, rotate keys, and switch API gateways | [Agent profiles and forms](agent-profiles.md) |
 | Use a restricted native Codex configuration with custom headers and a CA | [Site-provided Codex configuration](restricted-codex.md) |
 | Understand which agent skills are shipped and activated | [Skills](skills.md) |
+| Assess Pulse telemetry alongside the workspace | [Pulse integration assessment](pulse-assessment.md) |
 | See exactly what was tested | [Validation record](validation.md) |
 
 The daily guide uses the bundled Bash, fd, ripgrep, fzf, bat, Neovim, and other tools with the site's existing files, Git, Python, compilers, and scheduler clients. `find` is a normal host utility; `fd` is the packaged convenience alternative. Run `ws tools` inside the workspace for the actual image's tool versions.
