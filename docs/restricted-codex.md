@@ -52,34 +52,29 @@ Use a normal interactive shell with tracing disabled. The variable is available 
 
 ### Save once, load on demand
 
-The new workspace image includes a small [Bash helper](../image/config/codex-native-key.bash) in every workspace shell. Keep the non-secret CA path in your personal workspace Bash settings:
+The workspace image includes a small [Bash helper](../image/config/codex-native-key.bash) in every workspace shell. For first-time setup, run:
 
 ```bash
-nvim "$HOME/.config/hpc-workspace/bashrc"
+ws-codex-native-setup
 ```
 
-Add these lines to that Bash file, replacing the CA path with the actual approved PEM bundle location:
+It prompts for the gateway key with hidden input, then asks for an absolute path to the readable PEM CA bundle. Press Enter at the CA prompt if the gateway works with the workspace's default trust. The key and CA choice are saved under `~/.config/hpc-workspace/credentials/` with private permissions. Neither is written to your shell startup file. This command does not edit your native Codex TOML; keep the provider URL, model, and custom header there. When changing vendors or endpoints, review that TOML and run `ws-codex-native-setup` again if the key or CA changes. To update just one item, use `ws-codex-key-save` or `ws-codex-ca-save`.
 
-```bash
-export CODEX_CA_CERTIFICATE='/actual/site/ca-bundle.pem'
-```
-
-In the current workspace shell, load the CA path and save the key through a hidden prompt **once**:
-
-```bash
-source "$HOME/.config/hpc-workspace/bashrc"
-ws-codex-key-save
-```
-
-The helper stores the key in `~/.config/hpc-workspace/credentials/native-codex.key`, with file mode 600 and directory mode 700. It never writes the key into the Bash settings, the repository, a command argument, or shell history. This hides entry from the terminal; it does not isolate the key from other processes running as your account. The file is plaintext and remains readable to your account and system administrators; use the site's approved secret manager instead if it requires one.
-
-In each **agents** shell where you want to start Codex, run one command. If that pane was already open before the CA path changed, first run `source "$HOME/.config/hpc-workspace/bashrc"` there once:
+In each **agents** shell where you want to start Codex, run:
 
 ```bash
 ws-codex-native
 ```
 
-`ws-codex-native` loads the saved `HPC_GATEWAY_KEY` in a child shell and starts `ws agent codex --native`; the key is not left exported in the agents pane when Codex exits. Set your native Codex provider's `env_http_headers` variable name to `HPC_GATEWAY_KEY` when using this helper. The older `ws-codex-key-on`, `ws agent codex --native`, `ws-codex-key-off` sequence remains available if you need the key in that shell. A running agent and other existing tmux panes keep their own environments; opening a new pane loads the CA path automatically. Do not print the variable or enable shell tracing while working with it.
+`ws-codex-native` loads the saved key and CA choice in a child shell, then starts `ws agent codex --native`. Neither setting is left in the agents pane when Codex exits. It checks that the saved CA file is still readable on that node before launch. Entering a blank path with `ws-codex-ca-save` clears an inherited `CODEX_CA_CERTIFICATE` for future native launches.
+
+For existing installations that already keep the non-secret CA path in personal workspace Bash settings, that path still works until you save a CA choice with the helper. The previous manual setup remains:
+
+```bash
+export CODEX_CA_CERTIFICATE='/actual/site/ca-bundle.pem'
+```
+
+The helper stores the key in `~/.config/hpc-workspace/credentials/native-codex.key`, with file mode 600 and directory mode 700. It never writes the key into Bash settings, the repository, a command argument, or shell history. This hides entry from the terminal; it does not isolate the key from other processes running as your account. The file is plaintext and remains readable to your account and system administrators; use the site's approved secret manager instead if it requires one. Set your native Codex provider's `env_http_headers` variable name to `HPC_GATEWAY_KEY` when using this helper. The older `ws-codex-key-on`, `ws agent codex --native`, `ws-codex-key-off` sequence remains available if you need the key in that shell. A running agent keeps the values it started with; restart it after changes. Do not print the variable or enable shell tracing while working with it.
 
 `CODEX_CA_CERTIFICATE` selects a PEM CA bundle; Codex falls back to `SSL_CERT_FILE` when it is absent. Set the path before launch. A persistent, non-secret path can go in your personal workspace Bash settings if appropriate. The certificate must be readable on both login and compute nodes. See [OpenAI authentication and custom CA bundles](https://learn.chatgpt.com/docs/auth#custom-ca-bundles).
 
@@ -97,7 +92,7 @@ Leave `CODEX_CA_CERTIFICATE` set for Codex. Open a new native login shell to con
 
 A site-approved combined bundle containing the relevant system and gateway CAs is an option when a broader override is genuinely required. Prefer the CA store and bundle supplied for **that machine**; a bundle copied from another cluster may omit this system's proxy or site issuer. The custom CA file must be PEM with one or more certificate blocks, and the named path must be readable where Codex runs. A gateway certificate is trust material, not a client private key.
 
-### Keep the CA setting across workspace shells
+### Manual CA setting across workspace shells
 
 Inside the workspace, open your personal Bash settings:
 

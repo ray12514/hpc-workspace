@@ -176,6 +176,46 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn('synthetic-alpha', str(arguments))
         self.assertIsNone(overlay)
 
+    def test_codex_ca_follows_selected_gateway_and_is_checked_at_launch(self):
+        self.profile(tool='codex')
+        self.profile(name='beta', tool='codex')
+        ca = self.root / 'gateway-ca.pem'
+        ca.write_text('-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n')
+        for name, selected in (('alpha', str(ca)), ('beta', '')):
+            native, secret = agents.documents('codex', name, agents.catalog())
+            settings = agents.values('codex', name, native, secret)
+            settings['ca_bundle'] = selected
+            agents.candidate('codex', name, native, secret, settings)
+            commit([native, secret], self.folder)
+        base = dict(self.env, CODEX_CA_CERTIFICATE='/wrong/inherited.pem')
+        _, alpha, _ = agents.launch_profile('codex', [], dict(base, WS_AGENT_PROFILE='alpha'))
+        _, beta, _ = agents.launch_profile('codex', [], dict(base, WS_AGENT_PROFILE='beta'))
+        self.assertEqual(alpha['CODEX_CA_CERTIFICATE'], str(ca))
+        self.assertNotIn('CODEX_CA_CERTIFICATE', beta)
+        ca.unlink()
+        with self.assertRaisesRegex(ValueError, 'not readable'):
+            agents.launch_profile('codex', [], dict(base, WS_AGENT_PROFILE='alpha'))
+
+    def test_pi_ca_follows_selected_gateway(self):
+        self.profile(name='alpha', tool='pi')
+        self.profile(name='beta', tool='pi')
+        ca = self.root / 'gateway-ca.pem'
+        ca.write_text('-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n')
+        for name, selected in (('alpha', str(ca)), ('beta', '')):
+            native, secret = agents.documents('pi', name, agents.catalog())
+            settings = agents.values('pi', name, native, secret)
+            settings['ca_bundle'] = selected
+            agents.candidate('pi', name, native, secret, settings)
+            commit([native, secret], self.folder)
+        base = dict(self.env, NODE_EXTRA_CA_CERTS='/wrong/inherited.pem')
+        _, alpha, _ = agents.launch_profile('pi', [], dict(base, WS_AGENT_PROFILE='alpha'))
+        _, beta, _ = agents.launch_profile('pi', [], dict(base, WS_AGENT_PROFILE='beta'))
+        self.assertEqual(alpha['NODE_EXTRA_CA_CERTS'], str(ca))
+        self.assertNotIn('NODE_EXTRA_CA_CERTS', beta)
+        ca.unlink()
+        with self.assertRaisesRegex(ValueError, 'not readable'):
+            agents.launch_profile('pi', [], dict(base, WS_AGENT_PROFILE='alpha'))
+
     def test_runtime_saved_path_no_daily_probe_and_explicit_precedence(self):
         binary = self.root / 'apptainer'
         binary.write_text('#!/bin/sh\nexit 0\n')

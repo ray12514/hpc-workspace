@@ -46,6 +46,20 @@ def env_check(value):
         raise ValueError('Use a distinct credential variable for this gateway, such as TEAM_API_KEY')
 
 
+def ca_check(value):
+    if not isinstance(value, str) or not value.startswith('/') or any(ord(c) < 32 for c in value):
+        raise ValueError('Use an absolute PEM CA file path, or leave it blank for workspace defaults')
+    path = Path(value)
+    if not path.is_file() or not os.access(path, os.R_OK):
+        raise ValueError('The PEM CA file is not readable here: ' + value)
+    if path.stat().st_size > 4 * 1024 * 1024:
+        raise ValueError('The PEM CA file exceeds the 4 MiB limit')
+    contents = path.read_bytes()
+    if (b'-----BEGIN CERTIFICATE-----' not in contents
+            and b'-----BEGIN TRUSTED CERTIFICATE-----' not in contents):
+        raise ValueError('The CA file must contain PEM CERTIFICATE blocks')
+
+
 def catalog():
     document = Document(configuration.directory() / 'agents.json')
     if not document.data:
@@ -94,6 +108,7 @@ def values(tool, name, native, secret):
                   'api': provider.get('api', 'openai-responses')}
     result.update(source=secret.data.get('source', 'stored'), variable=secret.data.get('variable', ''),
                   auth=secret.data.get('auth', 'bearer'))
+    result['ca_bundle'] = secret.data.get('ca_bundle')
     return result
 
 
@@ -119,6 +134,12 @@ def candidate(tool, name, native, secret, changes, key=None):
         secret.data['variable'] = changes['variable']
     else:
         secret.data['key'] = key
+    if changes.get('ca_bundle') is not None:
+        if not isinstance(changes['ca_bundle'], str):
+            raise ValueError('The agent CA choice must be a path or blank')
+        if changes['ca_bundle']:
+            ca_check(changes['ca_bundle'])
+        secret.data['ca_bundle'] = changes['ca_bundle']
     if tool == 'pi':
         secret.data['api'] = changes['api']
     if tool == 'codex':
@@ -173,6 +194,9 @@ def edit(form, tool, name=None):
         form.note('Use an OpenAI Responses endpoint.' if tool == 'codex' else 'Choose the API protocol exposed by the gateway.')
         proposed['base_url'] = form.text('API base URL', current['base_url'], endpoint_check)
         proposed['model'] = form.text('Model identifier supplied by this gateway', current['model'], text_check)
+        proposed['ca_bundle'] = form.text('Agent CA bundle path (blank for workspace defaults)',
+                                          current.get('ca_bundle') or '',
+                                          lambda value: ca_check(value) if value else None)
         if tool == 'pi':
             proposed['api'] = form.choose('Gateway API protocol', list(PI_APIS), current['api'])
             proposed['auth'] = form.choose('Credential header', ['bearer', 'api-key'], current['auth'])
@@ -188,7 +212,7 @@ def edit(form, tool, name=None):
     candidate(tool, name, native, secret, proposed, key)
     profiles[name] = {'path': str(native.link), 'credential': str(secret.link)}
     form.note('Changes for ' + tool + '/' + name + ':')
-    for field in ('base_url', 'model', 'api', 'source', 'variable', 'auth'):
+    for field in ('base_url', 'model', 'api', 'source', 'variable', 'auth', 'ca_bundle'):
         if current.get(field) != proposed.get(field):
             form.note('  {}: {} -> {}'.format(field, current.get(field) or '(unset)', proposed.get(field) or '(unset)'))
     form.note('  API key: ' + ('replaced (hidden)' if key is not None else 'retained / provided by environment'))
@@ -228,6 +252,11 @@ def load_profile(tool, name):
             raise ValueError('Managed Pi provider changed; review it with ws configure pi ' + name)
     endpoint_check(current['base_url'])
     text_check(current['model'])
+    if 'ca_bundle' in data:
+        if not isinstance(data['ca_bundle'], str):
+            raise ValueError('Saved agent CA choice is invalid; review the gateway with ws configure ' + tool + ' ' + name)
+        if data['ca_bundle']:
+            ca_check(data['ca_bundle'])
     if data.get('source') == 'environment':
         env_check(data.get('variable', ''))
         key = os.environ.get(data['variable'])
@@ -273,6 +302,11 @@ def launch_profile(tool, arguments, environment):
         for field in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL', 'WS_SELECTED_CODEX_KEY'):
             environment.pop(field, None)
         environment['WS_SELECTED_CODEX_KEY'] = key
+        if 'ca_bundle' in credential:
+            if credential['ca_bundle']:
+                environment['CODEX_CA_CERTIFICATE'] = credential['ca_bundle']
+            else:
+                environment.pop('CODEX_CA_CERTIFICATE', None)
         return ['--profile', 'ws-' + name] + list(arguments), environment, None
     home = Path(environment.get('PI_CODING_AGENT_DIR', str(Path.home() / '.pi/agent'))).expanduser().resolve()
     if native.path != (home / 'models.json').resolve():
@@ -283,6 +317,11 @@ def launch_profile(tool, arguments, environment):
     for field in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', PI_KEY_VARIABLE):
         environment.pop(field, None)
     environment[PI_KEY_VARIABLE] = key
+    if 'ca_bundle' in credential:
+        if credential['ca_bundle']:
+            environment['NODE_EXTRA_CA_CERTS'] = credential['ca_bundle']
+        else:
+            environment.pop('NODE_EXTRA_CA_CERTS', None)
     return ['--provider', 'ws-' + name, '--model', current_model(native, name)] + list(arguments), environment, None
 
 

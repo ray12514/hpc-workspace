@@ -4,11 +4,11 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
-**0.7.3-preview7** activates the bundled agent skills for native Codex, adds `ws-codex-native` to load a saved gateway key for one Codex launch, and packages `nvtop` for NVIDIA and AMD GPU monitoring. Keep the CA bundle path in personal workspace Bash settings so new agent panes inherit it. This release retains the confirmed RHEL prompt and SSH fixes, session controls, editor shell, Codex, and Pi. See [skills](docs/skills.md), [native Codex setup](docs/restricted-codex.md#save-once-load-on-demand), [GPU monitoring](docs/editor-and-agents.md#gpu-monitoring), and [session controls](docs/session-locations.md#reconnect-and-stop-controls).
+**0.7.3-preview8** puts an optional CA bundle path beside the key and endpoint in each Codex or Pi gateway form. `ws-codex-native-setup` saves the key and Codex CA choice for custom-header gateways; `ws-codex-native` applies them only to its launch. Native downloads keep the host's working CA store. This release retains the bundled skills, `nvtop`, confirmed RHEL prompt and SSH fixes, session controls, and editor shell. See [gateway setup](docs/agent-profiles.md), [native Codex setup](docs/restricted-codex.md#save-once-load-on-demand), [skills](docs/skills.md), and [session controls](docs/session-locations.md#reconnect-and-stop-controls).
 
 The thin workspace retains the 0.7.2 tmux routing fix and `ws sessions` location lookup, readable configuration forms, gateway profiles, remembered Apptainer setup, and CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm).
 
-[Install/update](docs/thin-start.md) · [Architecture map](docs/architecture-map.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview7)
+[Install/update](docs/thin-start.md) · [Architecture map](docs/architecture-map.md) · [Daily workflow tutorial](docs/daily-workflow.md) · [Command reference](docs/command-reference.md) · [All documentation](docs/README.md) · [Release downloads](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview8)
 
 ## Get the current release
 
@@ -50,7 +50,7 @@ The shell foundation is Bash, Neovim, tmux, bat, fzf, fd, ripgrep, jq, eza, zoxi
 
 This preview includes Codex and Pi, the expanded CLI toolkit, and a preconfigured Neovim/Treesitter bundle. See the [editor, agents, and interactive-job guide](docs/editor-and-agents.md). Use the site's existing compilers through its normal module environment; bundle a compiler only when a concrete workflow needs a specific version that the site does not provide. Existing host programs remain available. The earlier [0.4 core image](https://github.com/ray12514/hpc-workspace/releases/tag/v0.4.0-preview1) and its [instructions](docs/transfer.md) remain available.
 
-Inside the workspace, `ws configure` opens the configuration menu. Use `ws configure codex team-a` or `ws configure pi team-a` to create a named API gateway, update its settings, rotate its key, or choose a default. Start it with `ws agent codex team-a` or `ws agent pi team-a`. See the [gateway guide](docs/agent-profiles.md) for credential storage, protocol requirements, and basic terminal prompts.
+Inside the workspace, `ws configure` opens the configuration menu. Use `ws configure codex team-a` or `ws configure pi team-a` to create a named API gateway, update its endpoint, optional CA, and key, or choose a default. Start it with `ws agent codex team-a` or `ws agent pi team-a`. See the [gateway guide](docs/agent-profiles.md) for credential storage, protocol requirements, and basic terminal prompts.
 
 ## One release across systems
 
@@ -82,16 +82,16 @@ The thin container preserves the image-owned store and tools while mounting the 
 Docker supplies the Linux builder on the workstation:
 
 ```bash
-scripts/build-thin 0.7.3-preview7
+scripts/build-thin 0.7.3-preview8
 scripts/docker-public build -f image/Apptainer.Dockerfile \
   -t hpc-workspace-apptainer:1.5.3 .
-scripts/export-thin 0.7.3-preview7
+scripts/export-thin 0.7.3-preview8
 # Prepare the public Linux acceptance fixture (Apptainer plus native Git).
 scripts/docker-public build --target native -f tests/ThinTools.Dockerfile \
   -t hpc-workspace-test-native:1.5.3 .
-scripts/test-thin dist/hpc-workspace-thin-0.7.3-preview7-linux-amd64.sif
-scripts/package-thin 0.7.3-preview7
-scripts/test-thin-install dist/release-0.7.3-preview7.json
+scripts/test-thin dist/hpc-workspace-thin-0.7.3-preview8-linux-amd64.sif
+scripts/package-thin 0.7.3-preview8
+scripts/test-thin-install dist/release-0.7.3-preview8.json
 ```
 
 Packaging requires a clean committed source tree and an image built from that commit. The manifest connects the source commit, Docker image identity, Nix lock, and artifact checksums. No registry is required for SIF transfer.

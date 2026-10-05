@@ -17,3 +17,9 @@ Bundling only the Pulse CLI would be modest in size, but would not meet the moni
 - Validate Pulse from the user's ordinary host shell and then from a new workspace shell. Check that service processes survive leaving that shell only when explicitly managed by Pulse or the site.
 
 The 0.7.3-preview7 workspace release adds `nvtop` for immediate, local GPU observation. It does not start Pulse, Prometheus, or exporters. The next Pulse integration should begin with a complete, pinned Pulse release and site-specific service acceptance; image inclusion can then be decided from actual sizes and runtime behavior.
+
+## Jaeger check before the next image
+
+Checked 2026-10-05 against the local Pulse checkout and [Jaeger 2.21 architecture](https://www.jaegertracing.io/docs/2.21/architecture/). Pulse currently sends job metrics from exporters to Prometheus and queries those metrics for its CLI/TUI. Its documented flow does not emit OpenTelemetry spans to Jaeger. Jaeger would therefore have no Pulse traces to display simply by being installed in the workspace image. Jaeger's [Linux amd64 release archive](https://github.com/jaegertracing/jaeger/releases/tag/v2.21.0) is about 61.3 MB compressed; size alone is not the blocker.
+
+Jaeger can run as a tracing collector and UI without Prometheus. Prometheus-compatible storage is needed for Jaeger's optional Service Performance Monitoring, and Jaeger also exposes its own metrics for Prometheus to scrape. Neither role turns Pulse's existing CPU/GPU metric samples into traces. Keep Jaeger out of this workspace image until a Pulse trace-producing use case and an allowed service location are defined. At that point, test a separately versioned Jaeger service with a small synthetic span before deciding whether its binary belongs in the shared development image. [Jaeger deployment](https://www.jaegertracing.io/docs/2.21/deployment/) · [Jaeger features](https://www.jaegertracing.io/docs/2.21/features/)

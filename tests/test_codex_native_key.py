@@ -18,6 +18,7 @@ class CodexNativeKeyTests(unittest.TestCase):
         self.home = Path(self.temporary.name)
         self.environment = dict(os.environ, HOME=str(self.home))
         self.file = self.home / '.config/hpc-workspace/credentials/native-codex.key'
+        self.ca_choice = self.file.with_name('native-codex.ca-path')
 
     def bash(self, command, input=None):
         return subprocess.run(['bash', '--noprofile', '--norc', '-c',
@@ -62,6 +63,44 @@ class CodexNativeKeyTests(unittest.TestCase):
         ''')
         self.assertEqual(launched.returncode, 0, launched.stderr)
         self.assertNotIn(SYNTHETIC, launched.stdout + launched.stderr)
+
+    def test_setup_scopes_saved_ca_to_native_codex_launch(self):
+        certificate = self.home / 'site-ca.pem'
+        certificate.write_text('-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n')
+        saved = self.bash('ws-codex-native-setup', SYNTHETIC + '\n' + str(certificate) + '\n')
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        self.assertNotIn(SYNTHETIC, saved.stdout + saved.stderr)
+        self.assertEqual(self.ca_choice.stat().st_mode & 0o777, 0o600)
+        launched = self.bash('''
+            export CODEX_CA_CERTIFICATE=/wrong/inherited.pem
+            ws() {
+                [[ $1 == agent && $2 == codex && $3 == --native ]] || return 3
+                [[ $HPC_GATEWAY_KEY == synthetic-test-secret ]] || return 4
+                [[ $CODEX_CA_CERTIFICATE == "$HOME/site-ca.pem" ]] || return 5
+                [[ -z ${CURL_CA_BUNDLE+x} ]] || return 6
+            }
+            ws-codex-native || exit
+            [[ $CODEX_CA_CERTIFICATE == /wrong/inherited.pem ]]
+            [[ -z ${HPC_GATEWAY_KEY+x} ]]
+        ''')
+        self.assertEqual(launched.returncode, 0, launched.stderr)
+        reset = self.bash('ws-codex-ca-save', '\n')
+        self.assertEqual(reset.returncode, 0, reset.stderr)
+        defaults = self.bash('''
+            export CODEX_CA_CERTIFICATE=/wrong/inherited.pem
+            ws() { [[ -z ${CODEX_CA_CERTIFICATE+x} ]]; }
+            ws-codex-native
+        ''')
+        self.assertEqual(defaults.returncode, 0, defaults.stderr)
+
+    def test_missing_saved_ca_prevents_launch(self):
+        certificate = self.home / 'site-ca.pem'
+        certificate.write_text('-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n')
+        self.assertEqual(self.bash('ws-codex-native-setup', SYNTHETIC + '\n' + str(certificate) + '\n').returncode, 0)
+        certificate.unlink()
+        result = self.bash('ws() { exit 9; }; ws-codex-native')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unavailable', result.stderr)
 
 
 if __name__ == '__main__':

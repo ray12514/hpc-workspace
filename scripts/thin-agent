@@ -22,8 +22,6 @@ if name == 'codex':
     args += ['-c', 'check_for_update_on_startup=false']
 elif name == 'pi':
     environment.setdefault('PI_SKIP_VERSION_CHECK', '1')
-    if not environment.get('NODE_EXTRA_CA_CERTS') and environment.get('SSL_CERT_FILE'):
-        environment['NODE_EXTRA_CA_CERTS'] = environment['SSL_CERT_FILE']
 try:
     # Help and account-management commands keep their ordinary native behavior.
     arguments = sys.argv[1:]
@@ -31,6 +29,8 @@ try:
     account = (name == 'codex' and arguments[:1] in (['login'], ['logout'])) or (name == 'pi' and arguments[:1] == ['auth'])
     if not (informational or account):
         arguments, environment, _ = launch_profile(name, arguments, environment)
+    if name == 'pi' and not environment.get('NODE_EXTRA_CA_CERTS') and environment.get('SSL_CERT_FILE'):
+        environment['NODE_EXTRA_CA_CERTS'] = environment['SSL_CERT_FILE']
     os.execve(args[0], args + arguments, environment)
 except (ValueError, OSError, TypeError, KeyError) as exc:
     print('workspace agent: ' + str(exc), file=sys.stderr)

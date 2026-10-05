@@ -1,5 +1,9 @@
 # Workspace validation
 
+## Per-gateway Codex and Pi CA setup: 0.7.3-preview8
+
+The offline Linux configuration fixture used the packaged Codex 0.155.1 and Pi clients with a disposable home, a synthetic root CA, and a separately signed local HTTPS server. Each newly created gateway form saved a masked synthetic key and CA path. Both clients sent a request to the local server with their selected key when only the per-profile CA path was configured; the fixture did not export a site-only `SSL_CERT_FILE` or disable TLS verification. Profile switch tests confirmed that a selected CA replaces an inherited agent-specific path and that a blank CA choice returns to workspace defaults. Missing CA files stop the launch before an API call. The native Codex helper test confirmed that its saved key and CA path are present only in the child launch and do not alter the parent pane or curl CA settings. `scripts/test-configuration` and the targeted unit tests passed. No private gateway, cluster node, or real credential was used.
+
 ## Skills, native Codex launch, and GPU monitor: 0.7.3-preview7
 
 The final committed preview7 SIF passed the complete offline Apptainer 1.5.3 integration suite, including automatic activation of bundled Codex skills while preserving a personal skill, `nvtop --help` in a CPU-only fixture, packaged agent/certificate tests, the RHEL read-only prompt regression, and managed tmux lifecycle. The matching bundle passed offline installation and reinstall checks. The published prerelease has eight assets; their GitHub-reported sizes and SHA-256 digests matched the local tested files. The manifest SHA-256 is `d23be042ee70f7ee16c1074e01ba85e803bb7667e21d03dd3d2393a6b8e26362`.

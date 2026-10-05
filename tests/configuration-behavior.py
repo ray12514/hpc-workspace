@@ -59,12 +59,12 @@ print('CONTRAST_OK')
         assert not parameters & (fixed_colors | {2, 8}), 'Form overrides readable terminal colors: ' + repr(match[0])
 
 
-def create(tool, name, endpoint, key, auth='bearer', api='openai-responses'):
+def create(tool, name, endpoint, key, auth='bearer', api='openai-responses', ca_bundle=None):
     index = profiles.catalog()
     native, secret = profiles.documents(tool, name, index)
     profiles.candidate(tool, name, native, secret,
                        dict(base_url=endpoint, model='fixture-model', source='stored', variable='',
-                            auth=auth, api=api), key)
+                            auth=auth, api=api, ca_bundle=ca_bundle), key)
     index.data['profiles'][tool][name] = {'path': str(native.path), 'credential': str(secret.path)}
     commit([native, secret, index], os.environ['WS_CONFIG_DIR'])
     return native.path, secret.path
@@ -139,16 +139,30 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
                             [('API base URL', b'\x03')], dict(os.environ))
     assert code == 130
     assert list(home.rglob('*.json')) == before, 'Cancel wrote configuration'
-    # A full plain-prompt edit uses the same backend and key masking.
+    # Full plain-prompt edits keep each CA choice with the hidden gateway key.
+    form_ca = home / 'form-ca.pem'
+    form_ca.write_text('-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n')
     code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'pi', 'plain', '--plain'],
                             [('API base URL:', b'https://plain.example.invalid\n'),
-                             ('Model identifier', b'fixture-model\n'), ('Gateway API protocol', b'1\n'),
+                             ('Model identifier', b'fixture-model\n'),
+                             ('Agent CA bundle path', str(form_ca).encode() + b'\n'),
+                             ('Gateway API protocol', b'1\n'),
                              ('Credential header', b'1\n'),
                              ('Credential source', b'1\n'), ('API key (hidden)', b'plain-hidden-key\n'),
                              ('Save this profile', b'2\n')], dict(os.environ))
     assert code == 0
     assert b'plain-hidden-key' not in output
     assert profiles.load_profile('pi', 'plain')[2] == 'plain-hidden-key'
+    assert profiles.load_profile('pi', 'plain')[1]['ca_bundle'] == str(form_ca)
+    code, output = terminal([PYTHON, '-I', '/workspace-tools/bin/ws', 'configure', 'codex', 'plain-codex', '--plain'],
+                            [('API base URL:', b'https://plain-codex.example.invalid/v1\n'),
+                             ('Model identifier', b'fixture-model\n'),
+                             ('Agent CA bundle path', str(form_ca).encode() + b'\n'),
+                             ('Credential source', b'1\n'), ('API key (hidden)', b'plain-codex-hidden-key\n'),
+                             ('Save this profile', b'2\n')], dict(os.environ))
+    assert code == 0
+    assert b'plain-codex-hidden-key' not in output
+    assert profiles.load_profile('codex', 'plain-codex')[1]['ca_bundle'] == str(form_ca)
     if args.forms_only:
         print('PASS: terminal contrast, selection, typed/saved values, masked input, cancellation, and plain forms')
         raise SystemExit(0)
@@ -212,17 +226,52 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
         # Pi's bundled runtime must trust a site CA supplied through the
         # workspace's usual SSL_CERT_FILE, without disabling TLS verification.
         certificate = home / 'fixture-ca.pem'
-        private_key = home / 'fixture-ca.key'
+        ca_key = home / 'fixture-ca.key'
+        server_certificate = home / 'fixture-server.pem'
+        private_key = home / 'fixture-server.key'
+        request = home / 'fixture-server.csr'
+        extensions = home / 'fixture-server.ext'
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
-                        '-keyout', str(private_key), '-out', str(certificate), '-days', '1',
-                        '-subj', '/CN=localhost', '-addext', 'subjectAltName=IP:127.0.0.1'],
+                        '-keyout', str(ca_key), '-out', str(certificate), '-days', '1',
+                        '-subj', '/CN=fixture-ca', '-addext', 'basicConstraints=critical,CA:TRUE',
+                        '-addext', 'keyUsage=critical,keyCertSign,cRLSign'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['openssl', 'req', '-newkey', 'rsa:2048', '-nodes',
+                        '-keyout', str(private_key), '-out', str(request), '-subj', '/CN=localhost'],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        extensions.write_text('basicConstraints=critical,CA:FALSE\n'
+                              'keyUsage=critical,digitalSignature,keyEncipherment\n'
+                              'extendedKeyUsage=serverAuth\nsubjectAltName=IP:127.0.0.1\n')
+        subprocess.run(['openssl', 'x509', '-req', '-in', str(request), '-CA', str(certificate),
+                        '-CAkey', str(ca_key), '-CAcreateserial', '-out', str(server_certificate),
+                        '-days', '1', '-extfile', str(extensions)],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         secure_server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.load_cert_chain(str(certificate), str(private_key))
+        context.load_cert_chain(str(server_certificate), str(private_key))
         secure_server.socket = context.wrap_socket(secure_server.socket, server_side=True)
         threading.Thread(target=secure_server.serve_forever, daemon=True).start()
         try:
+            create('codex', 'secure-codex',
+                   'https://127.0.0.1:' + str(secure_server.server_address[1]) + '/v1',
+                   'synthetic-secure-codex-key', ca_bundle=str(certificate))
+            environment = dict(os.environ, WS_AGENT_PROFILE='secure-codex')
+            for variable in ('CODEX_CA_CERTIFICATE', 'SSL_CERT_FILE', 'CURL_CA_BUNDLE',
+                             'REQUESTS_CA_BUNDLE', 'NODE_EXTRA_CA_CERTS'):
+                environment.pop(variable, None)
+            captured.clear()
+            child = subprocess.Popen([str(ROOT / 'bin/codex'), '--strict-config', 'exec',
+                                      '--skip-git-repo-check', 'fixture request'], cwd=str(home),
+                                     env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                     start_new_session=True)
+            deadline = time.monotonic() + 15
+            while not captured and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(.05)
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGKILL)
+            _, stderr = child.communicate(timeout=3)
+            assert captured, 'Codex did not trust the selected gateway CA: ' + stderr.decode(errors='replace')[-1200:]
+            assert any(bearer == 'Bearer synthetic-secure-codex-key' for _, bearer, _ in captured)
             create('pi', 'secure', 'https://127.0.0.1:' + str(secure_server.server_address[1]) + '/v1',
                    'synthetic-secure-key')
             environment = dict(os.environ, WS_AGENT_PROFILE='secure', SSL_CERT_FILE=str(certificate))
@@ -233,8 +282,20 @@ with tempfile.TemporaryDirectory(prefix='ws-configuration-acceptance-') as tempo
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=45)
             assert captured, 'Pi did not trust the selected site CA: ' + child.stderr.decode(errors='replace')[-1200:]
             assert any(bearer == 'Bearer synthetic-secure-key' for _, bearer, _ in captured)
+            create('pi', 'secure-profile',
+                   'https://127.0.0.1:' + str(secure_server.server_address[1]) + '/v1',
+                   'synthetic-secure-profile-key', ca_bundle=str(certificate))
+            environment = dict(os.environ, WS_AGENT_PROFILE='secure-profile')
+            for variable in ('SSL_CERT_FILE', 'NODE_EXTRA_CA_CERTS'):
+                environment.pop(variable, None)
+            captured.clear()
+            child = subprocess.run([str(ROOT / 'bin/pi'), '--print', '--no-session', '--no-tools', '--',
+                                    'fixture request'], cwd=str(home), env=environment,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=45)
+            assert captured, 'Pi did not trust its selected gateway CA: ' + child.stderr.decode(errors='replace')[-1200:]
+            assert any(bearer == 'Bearer synthetic-secure-profile-key' for _, bearer, _ in captured)
         finally:
             secure_server.shutdown()
     finally:
         server.shutdown()
-    print('PASS: terminal contrast, Gum and plain forms, cancellation, masked input, Codex/Pi gateway routing, site CA trust, stale-auth cleanup, and key rotation')
+    print('PASS: terminal contrast, Gum and plain forms, cancellation, masked input, Codex/Pi gateway routing, selected Codex/Pi CA trust, stale-auth cleanup, and key rotation')
