@@ -2,7 +2,11 @@
 
 ## Packaged tool glibc isolation: 0.7.3-preview10
 
-An offline regression mounted Debian's older libc ahead of the packaged tools through `LD_LIBRARY_PATH`. Preview9's `bat` failed with `GLIBC_2.38 not found`. A first candidate ran `bat` successfully, then the extended check found the same wrapper pattern in `fortls`; a bind-mounted corrected fortls entry script passed under the same old-libc path. The final preview10 image and transfer bundle still require their complete release gates. The affected site's native checksum error remains unclassified until command selection and library-path data are returned.
+An offline regression mounted Debian's older libc ahead of the packaged tools through `LD_LIBRARY_PATH`. Preview9's `bat` failed with `GLIBC_2.38 not found`. A first candidate ran `bat` successfully, then the extended check found the same wrapper pattern in `fortls`; a bind-mounted corrected fortls entry script passed under the same old-libc path. The final preview10 image passed the old-libc check for both tools.
+
+The final preview10 SIF passed the complete offline Apptainer 1.5.3 integration suite, including native scheduler forwarding, packaged tools and editor, read-only prompt startup, tmux lifecycle, Codex/Pi gateway routing and CA trust, and Inspector import. The matching bundle passed offline install and reinstall checks, including an in-workspace update and preserved personal startup files. The image's final source-revision label was updated after a test-only timestamp stabilization; its runtime layers were identical to those that passed the first complete suite, and the final exported SIF passed the complete suite again. The [published prerelease](https://github.com/ray12514/hpc-workspace/releases/tag/v0.7.3-preview10) has eight assets; GitHub-reported sizes and SHA-256 digests matched all eight local files. Its manifest SHA-256 is `6df5163c8e0d1a93e30cbcef8236be6da75b0be13799907f3bb27ad4155b20a1`.
+
+The affected site's native checksum `GLIBC_PRIVATE` error remains unclassified until its command selection and library-path data are returned. No affected cluster node was available for this validation.
 
 ## Named Codex custom-header gateways: 0.7.3-preview9
 
