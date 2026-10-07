@@ -15,11 +15,12 @@ cleanup() {
 trap cleanup EXIT
 workspace_container=$("$workspace_root/scripts/docker-public" create "$workspace_native_image" /bin/true)
 "$workspace_root/scripts/docker-public" cp "$workspace_container:/lib/x86_64-linux-gnu/libc.so.6" "$workspace_fixture/libc.so.6"
+"$workspace_root/scripts/docker-public" cp "$workspace_container:/lib/x86_64-linux-gnu/libpthread.so.0" "$workspace_fixture/libpthread.so.0"
 "$workspace_root/scripts/docker-public" rm "$workspace_container" >/dev/null
 workspace_container=''
 "$workspace_root/scripts/docker-public" run --pull=never --rm --network none --read-only \
     --mount "type=bind,src=$workspace_fixture,dst=/old-glibc,readonly" \
     --env LD_LIBRARY_PATH=/old-glibc \
     --entrypoint /workspace-tools/bin/bash "$workspace_image" \
-    --noprofile --norc -c 'set -e; bat --version; printf "glibc fixture\n" | bat --paging=never --color=never | rg -q "glibc fixture"; fortls --version'
-printf 'PASS: bat and fortls stay within packaged glibc when an older host libc is first in LD_LIBRARY_PATH.\n'
+    --noprofile --norc -c 'set -e; bat --version; printf "glibc fixture\n" | bat --paging=never --color=never | rg -q "glibc fixture"; less --version >/dev/null; printf "glibc fixture\n" | less -F -X >/dev/null; printf "glibc fixture\n" | bat --paging=always --pager=less --color=never >/dev/null; fortls --version'
+printf 'PASS: bat, less, and fortls stay within packaged glibc when older host libc and libpthread are first in LD_LIBRARY_PATH.\n'

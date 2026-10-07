@@ -27,3 +27,28 @@ for workspace_tool in bat sha256sum; do
         printf 'clean_library_status=%s\n' "$?"
     fi
 done
+
+# --version can succeed even when opening a file starts a failing pager.
+workspace_readme=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/README.md
+printf '\ncommand=bat_file\n'
+bat --paging=never --color=never "$workspace_readme" >/dev/null
+printf 'bat_file_current_status=%s\n' "$?"
+(unset LD_LIBRARY_PATH LD_PRELOAD; bat --paging=never --color=never "$workspace_readme" >/dev/null)
+printf 'bat_file_clean_library_status=%s\n' "$?"
+
+printf '\ncommand=less\n'
+printf 'kind=%s executable=%s\n' "$(type -t less)" "$(type -P less)"
+less --version >/dev/null
+printf 'less_version_current_status=%s\n' "$?"
+(unset LD_LIBRARY_PATH LD_PRELOAD; less --version >/dev/null)
+printf 'less_version_clean_library_status=%s\n' "$?"
+printf 'library fixture\n' | less -F -X >/dev/null
+printf 'less_pipe_current_status=%s\n' "$?"
+(unset LD_LIBRARY_PATH LD_PRELOAD; printf 'library fixture\n' | less -F -X >/dev/null)
+printf 'less_pipe_clean_library_status=%s\n' "$?"
+
+printf '\ncommand=bat_pager\n'
+bat --paging=always --pager=less --color=never "$workspace_readme" >/dev/null
+printf 'bat_pager_current_status=%s\n' "$?"
+(unset LD_LIBRARY_PATH LD_PRELOAD; bat --paging=always --pager=less --color=never "$workspace_readme" >/dev/null)
+printf 'bat_pager_clean_library_status=%s\n' "$?"
