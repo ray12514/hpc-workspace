@@ -38,10 +38,13 @@ local ok, err = xpcall(function()
   end)
   assert(formatted and vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'x = [1, 2, 3]', 'Manual Ruff formatting failed')
   vim.cmd.write()
+  -- checktime compares file timestamps; give the external write a distinct second.
+  vim.wait(1100)
   vim.fn.writefile({ 'external = 4' }, file)
   vim.cmd.checktime()
   assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'external = 4', 'External edit did not reload')
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'unsaved = 5' })
+  vim.wait(1100)
   vim.fn.writefile({ 'external = 6' }, file)
   -- Suppress the interactive conflict prompt for this automated assertion only.
   vim.api.nvim_create_autocmd('FileChangedShell', { once = true, callback = function() vim.v.fcs_choice = '' end })
