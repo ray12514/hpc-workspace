@@ -140,7 +140,7 @@ ws enter -- bat --version
 printf 'workspace bat check\n' | ws enter -- bat --paging=never --color=never
 ```
 
-The thin release supplies private dependencies for its tools. Local tests include a deliberately incompatible host `libssl.so.3` and pass for packaged bat; they do not identify every possible site error. A missing library or undefined symbol is different from a TLS certificate-validation error. Keep the exact error and executable resolution locally. Avoid copying arbitrary host libraries into the image or globally replacing `LD_LIBRARY_PATH` based only on the word SSL.
+The thin release supplies private dependencies for its tools. Preview10 fixes a reproduced `bat` startup failure when an older host libc comes first in `LD_LIBRARY_PATH`; the same test covers `fortls`. A native checksum error may involve a different library order. Use the [library diagnostic](tool-library-diagnosis.md) to identify the command and compare the two search paths on the affected node. A missing library or undefined symbol is different from a TLS certificate-validation error. Avoid copying arbitrary host libraries into the image or globally replacing `LD_LIBRARY_PATH` based only on the word SSL.
 
 ## Locale warnings
 

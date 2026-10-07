@@ -1,5 +1,9 @@
 # Workspace validation
 
+## Packaged tool glibc isolation: 0.7.3-preview10
+
+An offline regression mounted Debian's older libc ahead of the packaged tools through `LD_LIBRARY_PATH`. Preview9's `bat` failed with `GLIBC_2.38 not found`. A first candidate ran `bat` successfully, then the extended check found the same wrapper pattern in `fortls`; a bind-mounted corrected fortls entry script passed under the same old-libc path. The final preview10 image and transfer bundle still require their complete release gates. The affected site's native checksum error remains unclassified until command selection and library-path data are returned.
+
 ## Named Codex custom-header gateways: 0.7.3-preview9
 
 The offline packaged-client fixture exercised two named Codex profiles, including a custom-header team profile against a local synthetic gateway. It confirmed the selected key reached only the chosen header, no Bearer header was sent, and a key from the other profile was not used. The plain form accepted an exact header name without echoing the hidden key. Existing Codex Bearer and Pi Bearer/`x-api-key` fixture routes still passed. Real site headers, gateway acceptance, and required policy settings remain cluster-local checks.

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Reproduce an old host libc ahead of the bundled tools without using a cluster.
+set -euo pipefail
+workspace_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+workspace_image="${1:-hpc-workspace-thin:0.7.3-preview10}"
+workspace_native_image="${WS_TEST_IMAGE:-hpc-workspace-test-native:1.5.3}"
+workspace_fixture=$(mktemp -d)
+workspace_container=''
+cleanup() {
+    if [[ -n "$workspace_container" ]]; then
+        "$workspace_root/scripts/docker-public" rm -f "$workspace_container" >/dev/null 2>&1 || true
+    fi
+    rm -rf -- "$workspace_fixture"
+}
+trap cleanup EXIT
+workspace_container=$("$workspace_root/scripts/docker-public" create "$workspace_native_image" /bin/true)
+"$workspace_root/scripts/docker-public" cp "$workspace_container:/lib/x86_64-linux-gnu/libc.so.6" "$workspace_fixture/libc.so.6"
+"$workspace_root/scripts/docker-public" rm "$workspace_container" >/dev/null
+workspace_container=''
+"$workspace_root/scripts/docker-public" run --pull=never --rm --network none --read-only \
+    --mount "type=bind,src=$workspace_fixture,dst=/old-glibc,readonly" \
+    --env LD_LIBRARY_PATH=/old-glibc \
+    --entrypoint /workspace-tools/bin/bash "$workspace_image" \
+    --noprofile --norc -c 'set -e; bat --version; printf "glibc fixture\n" | bat --paging=never --color=never | rg -q "glibc fixture"; fortls --version'
+printf 'PASS: bat and fortls stay within packaged glibc when an older host libc is first in LD_LIBRARY_PATH.\n'

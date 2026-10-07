@@ -1,0 +1,29 @@
+#!/workspace-tools/bin/bash
+# Safe to share after redacting path names; never prints credential values.
+set +e
+printf 'release=%s container=%s layout=%s tmux=%s\n' \
+    "${WS_RELEASE:-unset}" "${WS_CONTAINER:-unset}" "${WS_LAYOUT:-unset}" \
+    "$([[ -n ${TMUX:-} ]] && printf yes || printf no)"
+printf 'ld_preload_set=%s\n' "$([[ -n ${LD_PRELOAD:-} ]] && printf yes || printf no)"
+/workspace-tools/libexec/python3 -I -c '
+import os
+paths = [p for p in os.environ.get("LD_LIBRARY_PATH", "").split(":") if p]
+print("ld_library_path_count=" + str(len(paths)))
+for index, path in enumerate(paths, 1):
+    print("ld_library_path_{}={}".format(index, path))
+'
+for workspace_tool in bat sha256sum; do
+    printf '\ncommand=%s\n' "$workspace_tool"
+    printf 'kind=%s executable=%s\n' "$(type -t "$workspace_tool")" "$(type -P "$workspace_tool")"
+    if [[ $workspace_tool == bat ]]; then
+        "$workspace_tool" --version
+        printf 'current_status=%s\n' "$?"
+        (unset LD_LIBRARY_PATH LD_PRELOAD; "$workspace_tool" --version)
+        printf 'clean_library_status=%s\n' "$?"
+    else
+        "$workspace_tool" /dev/null
+        printf 'current_status=%s\n' "$?"
+        (unset LD_LIBRARY_PATH LD_PRELOAD; "$workspace_tool" /dev/null)
+        printf 'clean_library_status=%s\n' "$?"
+    fi
+done

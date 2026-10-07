@@ -17,6 +17,7 @@ For a guided example, use the [daily workflow](daily-workflow.md). Examples belo
 | Inside managed tmux | Ctrl-B then `:`, enter `kill-server` | Stop the current workspace and return to the native shell |
 | Native shell | `ws enter --dry-run` | Inspect the local mount plan |
 | Inside workspace | `ws tools` / `ws tools --json` | Inspect packaged tool versions |
+| Repo checkout, inside workspace | `./scripts/diagnose-tool-libraries` | Compare packaged and host tool library behavior without printing credentials |
 | Native shell | `ws runtime setup` / `ws runtime status` | Check and remember Apptainer / display its saved invocation |
 | Inside workspace | `ws configure` | Choose a workspace or agent configuration form |
 | Inside workspace | `ws configure codex team-a` | Create/edit a named gateway, rotate its key, or choose a default |

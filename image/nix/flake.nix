@@ -97,7 +97,7 @@
           fi
         }
         ${pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (name: pkg:
-          "harden ${pkg}/bin/${if name == "spf" then "superfile" else name} $out/${if builtins.elem name [ "nvim" "spf" "lazygit" "btop" "nvtop" "tldr" "uv" "lnav" ] then "libexec" else "bin"}/${name}") tools)}
+          "harden ${pkg}/bin/${if name == "spf" then "superfile" else if name == "bat" then ".bat-wrapped" else name} $out/${if builtins.elem name [ "nvim" "spf" "lazygit" "btop" "nvtop" "tldr" "uv" "lnav" ] then "libexec" else "bin"}/${name}") tools)}
         ln -s /workspace-tools/thin-nvim $out/bin/nvim
         for name in spf lazygit btop nvtop tldr uv lnav; do ln -s /workspace-tools/thin-app $out/bin/$name; done
         # curl's own RUNPATH can still admit host SSL libraries. Scope the
@@ -119,10 +119,12 @@
         harden ${pkgs.nodejs}/bin/node $out/libexec/node
         # Use private hardened runtimes without changing host Python/Node or
         # exporting a replacement LD_LIBRARY_PATH to site compiler children.
-        cp -L ${pkgs.fortls}/bin/fortls $out/libexec/fortls
+        # Use the entry point directly; the package's outer Bash wrapper and
+        # its inner Nix Python shebang can both select an older host libc.
+        cp -L ${pkgs.fortls}/bin/.fortls-wrapped $out/libexec/fortls
         chmod u+w $out/libexec/fortls
-        substituteInPlace $out/libexec/fortls \
-          --replace '${pkgs.python3}/bin/python3' '/workspace-tools/libexec/python3'
+        sed -i '1c#!/workspace-tools/libexec/python3 -I' $out/libexec/fortls
+        test "$(head -n 1 $out/libexec/fortls)" = '#!/workspace-tools/libexec/python3 -I'
         for name in bash-language-server basedpyright basedpyright-langserver; do
           ln -s /workspace-tools/thin-editor-tool $out/bin/$name
         done
