@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {seed,gate,median,status} from '../frontend/model.ts';
+const e=structuredClone(seed.experiments[0]);
+const contract=JSON.stringify({app:e.app,input:e.input,quality:e.quality,tolerance:e.tolerance,platform:e.platform,stack:e.stack,mode:e.mode});
+const r={id:'qa-run',date:new Date().toISOString(),kind:'Baseline',samples:[10,12,11],error:0,correctness:'Pass',recovery:'Pass',operations:'Pass',artifact:'qa-only-reference',config:'qa-only-config',cost:0,notes:'Synthetic test fixture, never a published measurement',contract,planSnapshot:''};
+assert.equal(status(e),'Planned');assert.equal(median([2,10,4,6]),5);assert.equal(gate(e,r),true);
+for(const key of ['correctness','recovery','operations']) assert.equal(gate(e,{...r,[key]:'Fail'}),false);
+assert.equal(gate(e,{...r,samples:[10,11]}),false);assert.equal(gate(e,{...r,error:1}),false);assert.equal(gate(e,{...r,artifact:''}),false);
+assert.equal(gate({...e,stack:'new MPI version'},r),false);assert.equal(gate({...e,input:'different workload'},r),false);
+assert.equal(status({...e,runs:[r]}),'Qualified');
+console.log('Qualification gates, contract invalidation, status and median checks passed.');
+const pinned={...e,runs:[r],baselineRun:r.id};
+assert.equal(gate(pinned,{...r,id:'slower',samples:[15,15,15]}),false);
+assert.equal(gate(pinned,{...r,id:'within-budget',samples:[10,11,12]}),true);
+console.log('Pinned performance regression budget checks passed.');
