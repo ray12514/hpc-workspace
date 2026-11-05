@@ -4,6 +4,9 @@
 
 One centrally maintained development environment for Linux HPC systems. Build the tools and dotfiles once, transfer a release, and use the same development shell on each system while retaining its normal files, modules and commands.
 
+GPU/MPI runbooks, benchmark campaigns, and the Qualification Lab dashboard live in
+[HPC Qualification](https://github.com/ray12514/hpc-qualification).
+
 **0.7.3-preview10** keeps the packaged `bat` and `fortls` tools on their matching glibc even when a login-node module puts an older host libc first in `LD_LIBRARY_PATH`. A repository diagnostic compares failing tools with and without the inherited library path; a separate host checksum error still needs the affected system's output. This release retains named Codex team gateways, bundled skills, `nvtop`, the RHEL prompt and SSH fixes, session controls, and the editor shell. See [library diagnosis](docs/tool-library-diagnosis.md), [gateway setup](docs/agent-profiles.md), and [session controls](docs/session-locations.md#reconnect-and-stop-controls).
 
 The thin workspace retains the 0.7.2 tmux routing fix and `ws sessions` location lookup, readable configuration forms, gateway profiles, remembered Apptainer setup, and CLI/AI/Neovim toolkit. It packages the development tools in a pinned Nix store, automatically brings the host userspace into the container, and supplies a repeatable installer, update operation and rollback. The first targets remain Ruth (PBS), Jean (Slurm), and Blueback (Slurm).
